@@ -1,0 +1,477 @@
+import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { getLeads, createLead, updateLeadStatus, deleteLead } from '../services/api'
+
+const platforms = [
+  { id: 1, name: 'Google Ads', color: '#1A73E8', icon: 'G' },
+  { id: 2, name: 'LinkedIn', color: '#0A66C2', icon: 'in' },
+  { id: 3, name: 'Facebook', color: '#1877F2', icon: 'f' },
+  { id: 4, name: 'Instagram', color: '#E1306C', icon: '📷' },
+]
+
+const statusOptions = ['new', 'contacted', 'meeting_set', 'converted', 'lost']
+
+const statusStyles = {
+  new: { background: '#e3f2fd', color: '#1565c0' },
+  contacted: { background: '#e8f5e9', color: '#2e7d32' },
+  meeting_set: { background: '#fff3e0', color: '#e65100' },
+  converted: { background: '#e8f5e9', color: '#1b5e20' },
+  lost: { background: '#ffebee', color: '#c62828' },
+}
+
+const Leads = () => {
+  const navigate = useNavigate()
+  const [leads, setLeads] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [showForm, setShowForm] = useState(false)
+  const [formLoading, setFormLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+  const [filter, setFilter] = useState('all')
+
+  const [formData, setFormData] = useState({
+    campaign_id: '',
+    platform_id: 1,
+    name: '',
+    company_sector: '',
+    turnover: '',
+    location: '',
+    status: 'new'
+  })
+
+  useEffect(() => {
+    fetchLeads()
+  }, [])
+
+  const fetchLeads = async () => {
+    try {
+      const res = await getLeads()
+      setLeads(res.data.leads)
+    } catch (err) {
+      console.error('Leads fetch nahi hue!')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value })
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setFormLoading(true)
+    setError('')
+    try {
+      await createLead({
+        ...formData,
+        campaign_id: parseInt(formData.campaign_id),
+        platform_id: parseInt(formData.platform_id),
+      })
+      setSuccess('Lead add ho gaya!')
+      setShowForm(false)
+      fetchLeads()
+      setFormData({
+        campaign_id: '',
+        platform_id: 1,
+        name: '',
+        company_sector: '',
+        turnover: '',
+        location: '',
+        status: 'new'
+      })
+    } catch (err) {
+      setError('Lead add nahi hua!')
+    } finally {
+      setFormLoading(false)
+    }
+  }
+
+  const handleStatusChange = async (id, newStatus) => {
+    try {
+      await updateLeadStatus(id, { status: newStatus })
+      fetchLeads()
+    } catch (err) {
+      console.error('Status update nahi hua!')
+    }
+  }
+
+  const handleDelete = async (id) => {
+    if (window.confirm('Lead delete karna chahte ho?')) {
+      try {
+        await deleteLead(id)
+        fetchLeads()
+      } catch (err) {
+        console.error('Delete nahi hua!')
+      }
+    }
+  }
+
+  const filteredLeads = filter === 'all'
+    ? leads
+    : leads.filter(l => l.status === filter)
+
+  const totalLeads = leads.length
+  const newLeads = leads.filter(l => l.status === 'new').length
+  const contactedLeads = leads.filter(l => l.status === 'contacted').length
+  const convertedLeads = leads.filter(l => l.status === 'converted').length
+
+  return (
+    <div style={styles.container}>
+
+      {/* Header */}
+      <div style={styles.header}>
+        <div>
+          <button style={styles.backBtn} onClick={() => navigate('/')}>
+            ← Back to Dashboard
+          </button>
+          <h1 style={styles.title}>B2B Leads Feed</h1>
+          <p style={styles.subtitle}>Verified ₹10Cr+ turnover leads</p>
+        </div>
+        <button
+          style={styles.addBtn}
+          onClick={() => setShowForm(!showForm)}
+        >
+          {showForm ? '✕ Cancel' : '+ Add Lead'}
+        </button>
+      </div>
+
+      {/* KPI Cards */}
+      <div style={styles.kpiRow}>
+        <div style={styles.kpiCard}>
+          <div style={styles.kpiLabel}>Total Leads</div>
+          <div style={styles.kpiVal}>{totalLeads}</div>
+        </div>
+        <div style={styles.kpiCard}>
+          <div style={styles.kpiLabel}>New Leads</div>
+          <div style={{ ...styles.kpiVal, color: '#1565c0' }}>{newLeads}</div>
+        </div>
+        <div style={styles.kpiCard}>
+          <div style={styles.kpiLabel}>Contacted</div>
+          <div style={{ ...styles.kpiVal, color: '#2e7d32' }}>{contactedLeads}</div>
+        </div>
+        <div style={styles.kpiCard}>
+          <div style={styles.kpiLabel}>Converted</div>
+          <div style={{ ...styles.kpiVal, color: '#1b5e20' }}>{convertedLeads}</div>
+        </div>
+      </div>
+
+      {/* Add Lead Form */}
+      {showForm && (
+        <div style={styles.formCard}>
+          <div style={styles.formTitle}>Add New Lead</div>
+          {error && <div style={styles.error}>{error}</div>}
+          <form onSubmit={handleSubmit}>
+            <div style={styles.formGrid}>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Lead Name</label>
+                <input
+                  style={styles.input}
+                  type="text"
+                  name="name"
+                  placeholder="Rahul M."
+                  value={formData.name}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Company Sector</label>
+                <input
+                  style={styles.input}
+                  type="text"
+                  name="company_sector"
+                  placeholder="Manufacturing"
+                  value={formData.company_sector}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Turnover</label>
+                <input
+                  style={styles.input}
+                  type="text"
+                  name="turnover"
+                  placeholder="₹15 Cr+"
+                  value={formData.turnover}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Location</label>
+                <input
+                  style={styles.input}
+                  type="text"
+                  name="location"
+                  placeholder="Ludhiana"
+                  value={formData.location}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Campaign ID</label>
+                <input
+                  style={styles.input}
+                  type="number"
+                  name="campaign_id"
+                  placeholder="1"
+                  value={formData.campaign_id}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Platform</label>
+                <select
+                  style={styles.input}
+                  name="platform_id"
+                  value={formData.platform_id}
+                  onChange={handleChange}
+                >
+                  {platforms.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <button
+              type="submit"
+              style={formLoading ? styles.btnDisabled : styles.btn}
+              disabled={formLoading}
+            >
+              {formLoading ? 'Adding...' : 'Add Lead'}
+            </button>
+          </form>
+        </div>
+      )}
+
+      {success && (
+        <div style={styles.success}>{success}</div>
+      )}
+
+      {/* Filter Tabs */}
+      <div style={styles.filterRow}>
+        {['all', 'new', 'contacted', 'meeting_set', 'converted', 'lost'].map(f => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            style={filter === f ? styles.filterBtnActive : styles.filterBtn}
+          >
+            {f === 'all' ? 'All' : f.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+            {f === 'all' && ` (${totalLeads})`}
+          </button>
+        ))}
+      </div>
+
+      {/* Leads Table */}
+      <div style={styles.card}>
+        {loading ? (
+          <div style={styles.loading}>Loading...</div>
+        ) : filteredLeads.length === 0 ? (
+          <div style={styles.empty}>Koi lead nahi hai abhi.</div>
+        ) : (
+          <table style={styles.table}>
+            <thead>
+              <tr>
+                <th style={styles.th}>Lead Name</th>
+                <th style={styles.th}>Company Sector</th>
+                <th style={styles.th}>Turnover</th>
+                <th style={styles.th}>Location</th>
+                <th style={styles.th}>Platform</th>
+                <th style={styles.th}>Status</th>
+                <th style={styles.th}>Date</th>
+                <th style={styles.th}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredLeads.map((lead) => {
+                const platform = platforms.find(p => p.name === lead.platform_name)
+                return (
+                  <tr key={lead.id} style={styles.tr}>
+                    <td style={styles.td}>
+                      <div style={styles.leadCell}>
+                        <div style={styles.avatar}>
+                          {lead.name.charAt(0).toUpperCase()}
+                        </div>
+                        {lead.name}
+                      </div>
+                    </td>
+                    <td style={styles.td}>{lead.company_sector}</td>
+                    <td style={styles.td}>{lead.turnover}</td>
+                    <td style={styles.td}>{lead.location}</td>
+                    <td style={styles.td}>
+                      <div style={{
+                        ...styles.platIcon,
+                        background: platform?.color || '#8892b0'
+                      }}>
+                        {platform?.icon || '?'}
+                      </div>
+                    </td>
+                    <td style={styles.td}>
+                      <select
+                        value={lead.status}
+                        onChange={(e) => handleStatusChange(lead.id, e.target.value)}
+                        style={{
+                          ...styles.statusSelect,
+                          ...statusStyles[lead.status]
+                        }}
+                      >
+                        {statusOptions.map(s => (
+                          <option key={s} value={s}>
+                            {s.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td style={styles.td}>
+                      {lead.created_at.split('T')[0]}
+                    </td>
+                    <td style={styles.td}>
+                      <button
+                        style={styles.deleteBtn}
+                        onClick={() => handleDelete(lead.id)}
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+    </div>
+  )
+}
+
+const styles = {
+  container: { padding: '24px', background: '#f4f6fb', minHeight: '100vh' },
+  header: {
+    display: 'flex', justifyContent: 'space-between',
+    alignItems: 'flex-start', marginBottom: '20px'
+  },
+  backBtn: {
+    background: 'none', border: 'none', color: '#1A73E8',
+    fontSize: '13px', cursor: 'pointer', padding: 0,
+    marginBottom: '6px', display: 'block', fontFamily: 'inherit'
+  },
+  title: { fontSize: '22px', fontWeight: '600', color: '#1a1a2e', margin: '0 0 4px 0' },
+  subtitle: { fontSize: '13px', color: '#8892b0', margin: 0 },
+  addBtn: {
+    background: '#1A73E8', color: '#fff', border: 'none',
+    borderRadius: '8px', padding: '10px 16px', fontSize: '13px',
+    fontWeight: '500', cursor: 'pointer', fontFamily: 'inherit'
+  },
+  kpiRow: {
+    display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)',
+    gap: '12px', marginBottom: '16px'
+  },
+  kpiCard: {
+    background: '#fff', border: '0.5px solid #e0e4ef',
+    borderRadius: '10px', padding: '16px'
+  },
+  kpiLabel: {
+    fontSize: '10px', fontWeight: '500', color: '#8892b0',
+    textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px'
+  },
+  kpiVal: { fontSize: '22px', fontWeight: '600', color: '#1a1a2e' },
+  formCard: {
+    background: '#fff', border: '0.5px solid #e0e4ef',
+    borderRadius: '12px', padding: '20px', marginBottom: '16px'
+  },
+  formTitle: {
+    fontSize: '14px', fontWeight: '600', color: '#1a1a2e', marginBottom: '16px'
+  },
+  formGrid: {
+    display: 'grid', gridTemplateColumns: '1fr 1fr 1fr',
+    gap: '12px', marginBottom: '16px'
+  },
+  formGroup: {},
+  label: {
+    display: 'block', fontSize: '11px', fontWeight: '500',
+    color: '#8892b0', marginBottom: '5px',
+    textTransform: 'uppercase', letterSpacing: '0.05em'
+  },
+  input: {
+    width: '100%', padding: '9px 12px', borderRadius: '8px',
+    border: '0.5px solid #d0d5e8', background: '#f4f6fb',
+    fontSize: '13px', color: '#1a1a2e', outline: 'none',
+    fontFamily: 'inherit', boxSizing: 'border-box'
+  },
+  btn: {
+    background: '#1A73E8', color: '#fff', border: 'none',
+    borderRadius: '8px', padding: '10px 20px', fontSize: '13px',
+    fontWeight: '500', cursor: 'pointer', fontFamily: 'inherit'
+  },
+  btnDisabled: {
+    background: '#93b8f4', color: '#fff', border: 'none',
+    borderRadius: '8px', padding: '10px 20px', fontSize: '13px',
+    fontWeight: '500', cursor: 'not-allowed', fontFamily: 'inherit'
+  },
+  filterRow: { display: 'flex', gap: '8px', marginBottom: '14px', flexWrap: 'wrap' },
+  filterBtn: {
+    padding: '6px 14px', borderRadius: '20px',
+    border: '0.5px solid #d0d5e8', background: '#fff',
+    fontSize: '12px', color: '#8892b0', cursor: 'pointer', fontFamily: 'inherit'
+  },
+  filterBtnActive: {
+    padding: '6px 14px', borderRadius: '20px',
+    border: '0.5px solid #93b8f4', background: '#e8f0fe',
+    fontSize: '12px', color: '#1A73E8', cursor: 'pointer',
+    fontFamily: 'inherit', fontWeight: '500'
+  },
+  card: {
+    background: '#fff', border: '0.5px solid #e0e4ef',
+    borderRadius: '12px', padding: '16px'
+  },
+  table: { width: '100%', borderCollapse: 'collapse', fontSize: '13px' },
+  th: {
+    padding: '8px 10px', textAlign: 'left', color: '#8892b0',
+    fontWeight: '500', borderBottom: '0.5px solid #e0e4ef',
+    fontSize: '11px', whiteSpace: 'nowrap'
+  },
+  tr: { borderBottom: '0.5px solid #e0e4ef' },
+  td: { padding: '10px 10px', color: '#1a1a2e', verticalAlign: 'middle' },
+  leadCell: { display: 'flex', alignItems: 'center', gap: '8px' },
+  avatar: {
+    width: '28px', height: '28px', borderRadius: '50%',
+    background: '#e8f0fe', color: '#1A73E8',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    fontSize: '12px', fontWeight: '600', flexShrink: 0
+  },
+  platIcon: {
+    width: '24px', height: '24px', borderRadius: '5px',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    fontSize: '11px', fontWeight: '700', color: '#fff'
+  },
+  statusSelect: {
+    padding: '3px 8px', borderRadius: '10px', border: 'none',
+    fontSize: '11px', fontWeight: '500', cursor: 'pointer',
+    fontFamily: 'inherit', outline: 'none'
+  },
+  deleteBtn: {
+    background: '#fff5f5', color: '#c62828',
+    border: '0.5px solid #ffcdd2', borderRadius: '6px',
+    padding: '4px 10px', fontSize: '11px',
+    cursor: 'pointer', fontFamily: 'inherit'
+  },
+  loading: { textAlign: 'center', padding: '40px', color: '#8892b0' },
+  empty: { textAlign: 'center', padding: '40px', color: '#8892b0', fontSize: '13px' },
+  error: {
+    background: '#fff5f5', color: '#c62828', padding: '10px 14px',
+    borderRadius: '8px', fontSize: '13px', marginBottom: '14px',
+    border: '0.5px solid #ffcdd2'
+  },
+  success: {
+    background: '#e6f9f0', color: '#1b7a4a', padding: '10px 14px',
+    borderRadius: '8px', fontSize: '13px', marginBottom: '14px',
+    border: '0.5px solid #a3dfc0'
+  },
+}
+
+export default Leads
