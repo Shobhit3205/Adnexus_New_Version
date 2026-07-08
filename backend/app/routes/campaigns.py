@@ -1,7 +1,8 @@
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models.models import Campaign, Platform, PlatformStat, AdContent, TargetingRule
+from app.models.models import Campaign, Platform, PlatformStat, AdContent, TargetingRule, User
+from app.core.security import get_current_user
 from pydantic import BaseModel
 from typing import Optional, List
 import os
@@ -88,12 +89,27 @@ def get_duration_days(start_date: str, end_date: str) -> int:
 
 
 # ════════════════════════════════════════════════════
-# 1. GET ALL CAMPAIGNS
+# HELPER: Fetch a campaign but only if it belongs to current_user.
+# Returns 404 (not 403) if it doesn't exist OR belongs to someone
+# else — this avoids leaking whether an ID exists at all.
+# ════════════════════════════════════════════════════
+def get_owned_campaign_or_404(campaign_id: int, current_user: User, db: Session) -> Campaign:
+    campaign = db.query(Campaign).filter(
+        Campaign.id == campaign_id,
+        Campaign.user_id == current_user.id,
+    ).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    return campaign
+
+
+# ════════════════════════════════════════════════════
+# 1. GET ALL CAMPAIGNS (only the logged-in user's own)
 # ════════════════════════════════════════════════════
 @router.get("/")
-def get_campaigns(db: Session = Depends(get_db)):
+def get_campaigns(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     try:
-        campaigns = db.query(Campaign).all()
+        campaigns = db.query(Campaign).filter(Campaign.user_id == current_user.id).all()
         result = []
         for c in campaigns:
             result.append({
@@ -116,13 +132,11 @@ def get_campaigns(db: Session = Depends(get_db)):
 
 
 # ════════════════════════════════════════════════════
-# 2. GET SINGLE CAMPAIGN
+# 2. GET SINGLE CAMPAIGN (only if owned by current_user)
 # ════════════════════════════════════════════════════
 @router.get("/{campaign_id}")
-def get_campaign(campaign_id: int, db: Session = Depends(get_db)):
-    campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
-    if not campaign:
-        raise HTTPException(status_code=404, detail="Campaign not found")
+def get_campaign(campaign_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    campaign = get_owned_campaign_or_404(campaign_id, current_user, db)
     return {
         "id":             campaign.id,
         "name":           campaign.name,
@@ -143,9 +157,10 @@ def get_campaign(campaign_id: int, db: Session = Depends(get_db)):
 # FIX: budget and total_budget stored separately
 # daily budget = budget field
 # total budget = daily × duration days
+# Also: campaign is now tagged with the creating user's id
 # ════════════════════════════════════════════════════
 @router.post("/")
-def create_campaign(req: CampaignCreateRequest, db: Session = Depends(get_db)):
+def create_campaign(req: CampaignCreateRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
 
     # ── FIX: Separate daily budget from total budget ──
     # Frontend sends budget_amount = daily × days (inflated)
@@ -154,8 +169,9 @@ def create_campaign(req: CampaignCreateRequest, db: Session = Depends(get_db)):
     duration     = get_duration_days(req.start_date, req.end_date)
     total_budget = req.budget_amount or (daily_budget * duration)
 
-    # ── Save campaign to DB ──
+    # ── Save campaign to DB, tagged to the logged-in user ──
     db_campaign = Campaign(
+        user_id        = current_user.id,
         name           = req.name,
         goal           = req.goal,
         industry       = req.industry       or "",
@@ -235,13 +251,11 @@ def create_campaign(req: CampaignCreateRequest, db: Session = Depends(get_db)):
 
 
 # ════════════════════════════════════════════════════
-# 4. PUT UPDATE CAMPAIGN
+# 4. PUT UPDATE CAMPAIGN (only if owned by current_user)
 # ════════════════════════════════════════════════════
 @router.put("/{campaign_id}")
-def update_campaign(campaign_id: int, req: CampaignUpdateRequest, db: Session = Depends(get_db)):
-    campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
-    if not campaign:
-        raise HTTPException(status_code=404, detail="Campaign not found")
+def update_campaign(campaign_id: int, req: CampaignUpdateRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    campaign = get_owned_campaign_or_404(campaign_id, current_user, db)
 
     if req.name           is not None: campaign.name           = req.name
     if req.goal           is not None: campaign.goal           = req.goal
@@ -265,26 +279,22 @@ def update_campaign(campaign_id: int, req: CampaignUpdateRequest, db: Session = 
 
 
 # ════════════════════════════════════════════════════
-# 5. DELETE CAMPAIGN
+# 5. DELETE CAMPAIGN (only if owned by current_user)
 # ════════════════════════════════════════════════════
 @router.delete("/{campaign_id}")
-def delete_campaign(campaign_id: int, db: Session = Depends(get_db)):
-    campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
-    if not campaign:
-        raise HTTPException(status_code=404, detail="Campaign not found")
+def delete_campaign(campaign_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    campaign = get_owned_campaign_or_404(campaign_id, current_user, db)
     db.delete(campaign)
     db.commit()
     return {"message": "Campaign deleted"}
 
 
 # ════════════════════════════════════════════════════
-# 6. GET CAMPAIGN DETAIL WITH STATS
+# 6. GET CAMPAIGN DETAIL WITH STATS (only if owned by current_user)
 # ════════════════════════════════════════════════════
 @router.get("/{campaign_id}/detail")
-def get_campaign_detail(campaign_id: int, db: Session = Depends(get_db)):
-    campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
-    if not campaign:
-        raise HTTPException(status_code=404, detail="Campaign not found")
+def get_campaign_detail(campaign_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    campaign = get_owned_campaign_or_404(campaign_id, current_user, db)
 
     # ── Platform Stats ──
     try:
@@ -358,21 +368,21 @@ def get_campaign_detail(campaign_id: int, db: Session = Depends(get_db)):
     }
 
 # ════════════════════════════════════════════════════
-# 7. POST PLATFORMS ATTACH
+# 7. POST PLATFORMS ATTACH (only if campaign owned by current_user)
 # ════════════════════════════════════════════════════
 @router.post("/{campaign_id}/platforms")
-def add_platforms(campaign_id: int, platform_ids: List[int], db: Session = Depends(get_db)):
-    campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
-    if not campaign:
-        raise HTTPException(status_code=404, detail="Campaign not found")
+def add_platforms(campaign_id: int, platform_ids: List[int], db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    campaign = get_owned_campaign_or_404(campaign_id, current_user, db)
     return {"message": "Platforms noted", "campaign_id": campaign_id, "platforms": platform_ids}
 
 
 # ════════════════════════════════════════════════════
-# 8. GET PLATFORM STATS
+# 8. GET PLATFORM STATS (only if campaign owned by current_user)
 # ════════════════════════════════════════════════════
 @router.get("/{campaign_id}/stats")
-def get_campaign_stats(campaign_id: int, db: Session = Depends(get_db)):
+def get_campaign_stats(campaign_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    # Ownership check first — throws 404 if this isn't the user's campaign
+    get_owned_campaign_or_404(campaign_id, current_user, db)
     try:
         stats = db.query(PlatformStat).filter(PlatformStat.campaign_id == campaign_id).all()
         stats_data = [{
@@ -389,10 +399,11 @@ def get_campaign_stats(campaign_id: int, db: Session = Depends(get_db)):
 
 
 # ════════════════════════════════════════════════════
-# 9. GET PLATFORM STATUS
+# 9. GET PLATFORM STATUS (only if campaign owned by current_user)
 # ════════════════════════════════════════════════════
 @router.get("/{campaign_id}/platform-status")
-def get_platform_status(campaign_id: int, db: Session = Depends(get_db)):
+def get_platform_status(campaign_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    get_owned_campaign_or_404(campaign_id, current_user, db)
     status = {}
     if GOOGLE_AVAILABLE:
         try:
@@ -408,13 +419,11 @@ def get_platform_status(campaign_id: int, db: Session = Depends(get_db)):
 
 
 # ════════════════════════════════════════════════════
-# 10. POST SUBMIT TO PLATFORMS
+# 10. POST SUBMIT TO PLATFORMS (only if campaign owned by current_user)
 # ════════════════════════════════════════════════════
 @router.post("/{campaign_id}/submit-to-platforms")
-def submit_to_platforms(campaign_id: int, db: Session = Depends(get_db)):
-    campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
-    if not campaign:
-        raise HTTPException(status_code=404, detail="Campaign not found")
+def submit_to_platforms(campaign_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    campaign = get_owned_campaign_or_404(campaign_id, current_user, db)
 
     campaign_data = {
         "name":          campaign.name,

@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models.models import Lead, Campaign, Platform
+from app.models.models import Lead, Campaign, Platform, User
+from app.core.security import get_current_user
 from pydantic import BaseModel
 from typing import Optional
 import os
@@ -34,6 +35,38 @@ def safe_platform_name(lead: Lead) -> str:
 
 
 # ════════════════════════════════════════════════════
+# HELPER: Fetch a campaign but only if it belongs to
+# current_user. Leads don't carry user_id directly, so
+# every lead route has to go through the campaign to
+# check ownership.
+# ════════════════════════════════════════════════════
+def get_owned_campaign_or_404(campaign_id: int, current_user: User, db: Session) -> Campaign:
+    campaign = db.query(Campaign).filter(
+        Campaign.id == campaign_id,
+        Campaign.user_id == current_user.id,
+    ).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign nahi mila!")
+    return campaign
+
+
+# ════════════════════════════════════════════════════
+# HELPER: Fetch a lead but only if its parent campaign
+# belongs to current_user.
+# ════════════════════════════════════════════════════
+def get_owned_lead_or_404(lead_id: int, current_user: User, db: Session) -> Lead:
+    lead = (
+        db.query(Lead)
+        .join(Campaign, Campaign.id == Lead.campaign_id)
+        .filter(Lead.id == lead_id, Campaign.user_id == current_user.id)
+        .first()
+    )
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead nahi mila!")
+    return lead
+
+
+# ════════════════════════════════════════════════════
 # PYDANTIC MODELS
 # ════════════════════════════════════════════════════
 class LeadCreate(BaseModel):
@@ -52,13 +85,12 @@ class LeadUpdate(BaseModel):
 # ════════════════════════════════════════════════════
 # 1. POST: Create a new lead
 # FIX: generates and returns lead_form_url
+# FIX: campaign must belong to current_user
 # ════════════════════════════════════════════════════
 @router.post("/")
-def create_lead(lead: LeadCreate, db: Session = Depends(get_db)):
-    # Validate campaign exists
-    campaign = db.query(Campaign).filter(Campaign.id == lead.campaign_id).first()
-    if not campaign:
-        raise HTTPException(status_code=404, detail="Campaign nahi mila!")
+def create_lead(lead: LeadCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    # Validate campaign exists AND belongs to the logged-in user
+    campaign = get_owned_campaign_or_404(lead.campaign_id, current_user, db)
 
     # FIX: validate platform only if platform_id is provided
     if lead.platform_id is not None:
@@ -98,13 +130,19 @@ def create_lead(lead: LeadCreate, db: Session = Depends(get_db)):
 
 
 # ════════════════════════════════════════════════════
-# 2. GET: Fetch all leads
-# FIX: safe_platform_name — no crash on null platform
+# 2. GET: Fetch all leads (only for the logged-in user's
+# own campaigns — joins Lead → Campaign to filter by
+# user_id, since Lead has no user_id of its own)
 # ════════════════════════════════════════════════════
 @router.get("/")
-def get_leads(db: Session = Depends(get_db)):
+def get_leads(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     try:
-        leads = db.query(Lead).all()
+        leads = (
+            db.query(Lead)
+            .join(Campaign, Campaign.id == Lead.campaign_id)
+            .filter(Campaign.user_id == current_user.id)
+            .all()
+        )
         return {
             "leads": [
                 {
@@ -130,13 +168,12 @@ def get_leads(db: Session = Depends(get_db)):
 # ════════════════════════════════════════════════════
 # 3. GET: Fetch leads for a specific campaign
 # FIX: safe_platform_name — no crash on null platform
+# FIX: campaign must belong to current_user
 # ════════════════════════════════════════════════════
 @router.get("/campaign/{campaign_id}")
-def get_campaign_leads(campaign_id: int, db: Session = Depends(get_db)):
-    # Validate campaign exists
-    campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
-    if not campaign:
-        raise HTTPException(status_code=404, detail="Campaign nahi mila!")
+def get_campaign_leads(campaign_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    # Validate campaign exists AND belongs to the logged-in user
+    get_owned_campaign_or_404(campaign_id, current_user, db)
 
     leads         = db.query(Lead).filter(Lead.campaign_id == campaign_id).all()
     lead_form_url = generate_lead_form_url(campaign_id)
@@ -161,13 +198,12 @@ def get_campaign_leads(campaign_id: int, db: Session = Depends(get_db)):
 
 
 # ════════════════════════════════════════════════════
-# 4. PUT: Update lead status
+# 4. PUT: Update lead status (only if the lead's campaign
+# belongs to current_user)
 # ════════════════════════════════════════════════════
 @router.put("/{lead_id}")
-def update_lead_status(lead_id: int, lead_data: LeadUpdate, db: Session = Depends(get_db)):
-    lead = db.query(Lead).filter(Lead.id == lead_id).first()
-    if not lead:
-        raise HTTPException(status_code=404, detail="Lead nahi mila!")
+def update_lead_status(lead_id: int, lead_data: LeadUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    lead = get_owned_lead_or_404(lead_id, current_user, db)
 
     # Validate status value
     allowed_statuses = ["new", "contacted", "qualified", "converted", "rejected"]
@@ -187,13 +223,12 @@ def update_lead_status(lead_id: int, lead_data: LeadUpdate, db: Session = Depend
 
 
 # ════════════════════════════════════════════════════
-# 5. DELETE: Delete a lead
+# 5. DELETE: Delete a lead (only if the lead's campaign
+# belongs to current_user)
 # ════════════════════════════════════════════════════
 @router.delete("/{lead_id}")
-def delete_lead(lead_id: int, db: Session = Depends(get_db)):
-    lead = db.query(Lead).filter(Lead.id == lead_id).first()
-    if not lead:
-        raise HTTPException(status_code=404, detail="Lead nahi mila!")
+def delete_lead(lead_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    lead = get_owned_lead_or_404(lead_id, current_user, db)
     db.delete(lead)
     db.commit()
     return {"message": "Lead is deleted !"}

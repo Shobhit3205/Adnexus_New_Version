@@ -4,8 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine
 from app.models import models
-# from app.routes import campaigns, leads, analytics
-from app.routes import campaigns, leads, analytics, ad_content, public_forms
+from app.routes import campaigns, leads, analytics, ad_content, public_forms, auth, admin
 
 
 
@@ -39,6 +38,19 @@ app.include_router(
     prefix="/public",
     tags=["Public Forms"]
 )
+
+app.include_router(
+    auth.router,
+    prefix="/api/auth",
+    tags=["Auth"]
+)
+
+app.include_router(
+    admin.router,
+    prefix="/api",
+    tags=["Admin"]
+)
+
 # Test route
 @app.get("/")
 def root():

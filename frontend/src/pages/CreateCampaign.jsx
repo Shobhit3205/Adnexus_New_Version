@@ -568,7 +568,7 @@ const LaunchSuccess = ({ launchResult, formData, selectedPlatforms, selectedCiti
           ))}
           <div style={{ flex:1, textAlign:'center' }}>
             <div style={{ width:'80px', height:'80px', borderRadius:'50%', background:'linear-gradient(135deg,#d1fae5,#a7f3d0)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 16px', fontSize:'40px' }}>🎉</div>
-            <h1 style={{ fontSize:'32px', fontWeight:'800', color:'#1a1a2e', margin:'0 0 8px 0' }}>Campaign Launched!</h1>
+            <h1 style={{ fontSize:'32px', fontWeight:'800', color:'#1a1a2e', margin:'0 0 8px 0' }}>Campaign Launched successfully!</h1>
             <p style={{ fontSize:'14px', color:'#8892b0', margin:'0 0 20px 0' }}>Your campaign is now live and ready to reach businesses.</p>
             <div style={{ display:'inline-flex', alignItems:'center', gap:'8px', background:'#f0f4ff', border:'1.5px solid #c7d2fe', borderRadius:'30px', padding:'8px 20px' }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4f6ef7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -660,7 +660,7 @@ const LaunchSuccess = ({ launchResult, formData, selectedPlatforms, selectedCiti
             View Campaign
           </button>
           <button style={{ flex:1, padding:'16px', borderRadius:'14px', border:'none', background:'#1A73E8', color:'#fff', fontSize:'15px', fontWeight:'600', cursor:'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', justifyContent:'center', gap:'8px' }}
-            onClick={() => navigate('/')}>
+            onClick={() => navigate('/dashboard')}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
             </svg>
@@ -804,7 +804,7 @@ const CreateCampaign = () => {
     setLocationLoading(true); setLocationError('')
     try {
       const res = await fetch(`${API_BASE}/api/campaigns/location-reach`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('adnexus_token')}` },
         body: JSON.stringify({
           platforms:      getSelectedPlatformNames(),
           daily_budget:   parseFloat(formData.budget) || 0,
@@ -1430,10 +1430,9 @@ const s = {
   needHelp:   { background:'rgba(255,255,255,0.07)', borderRadius:'12px', padding:'14px', border:'1px solid rgba(255,255,255,0.12)', marginTop:'8px' },
   bookNowBtn: { width:'100%', padding:'9px', borderRadius:'8px', border:'1.5px solid rgba(255,255,255,0.4)', background:'transparent', color:'#fff', fontSize:'13px', fontWeight:'600', cursor:'pointer', fontFamily:'inherit' },
   // Main content — now fills all space (no right panel)
-  mainContent:  { flex:1, padding:'28px 32px', overflowY:'auto', minWidth:0, height:'100vh', display:'flex', flexDirection:'column' },
+ mainContent: { flex:1, padding:'28px 24px', overflowY:'auto', minWidth:0, height:'100vh', display:'flex', flexDirection:'column' },
   backBtn:      { background:'none', border:'none', color:'#1A73E8', fontSize:'13px', cursor:'pointer', padding:'0 0 16px 0', fontFamily:'inherit', display:'flex', alignItems:'center', gap:'4px', alignSelf:'flex-start' },
-  formCard:     { background:'#fff', borderRadius:'16px', border:'0.5px solid #e0e4ef', padding:'32px 36px', width:'100%', maxWidth:'720px' },
-  formHeader:   { marginBottom:'28px' },
+  formCard: { background:'#fff', borderRadius:'16px', border:'0.5px solid #e0e4ef', padding:'32px 36px', width:'100%', maxWidth:'100%' },
   formTitle:    { fontSize:'26px', fontWeight:'700', color:'#1a1a2e', margin:'0 0 4px 0' },
   formSubtitle: { fontSize:'13px', color:'#8892b0', margin:0 },
   // Form elements
@@ -1454,7 +1453,7 @@ const s = {
   goalName:       { fontSize:'13px', fontWeight:'700', color:'#1a1a2e', lineHeight:'1.3' },
   goalDesc:       { fontSize:'11px', color:'#8892b0', lineHeight:'1.4' },
   // Navigation
-  bottomBar:         { display:'flex', gap:'12px', marginTop:'20px', maxWidth:'720px', width:'100%' },
+ bottomBar: { display:'flex', gap:'12px', marginTop:'20px', width:'100%' },
   nextBtnFull:       { flex:1, padding:'15px 24px', borderRadius:'12px', border:'none', background:'#1A73E8', color:'#fff', fontSize:'15px', fontWeight:'600', cursor:'pointer', fontFamily:'inherit', textAlign:'center' },
   backStepBtn:       { padding:'15px 24px', borderRadius:'12px', border:'1.5px solid #e0e4ef', background:'#fff', color:'#8892b0', fontSize:'15px', cursor:'pointer', fontFamily:'inherit' },
   submitBtnDisabled: { flex:1, padding:'15px 24px', borderRadius:'12px', border:'none', background:'#93b8f4', color:'#fff', fontSize:'15px', fontWeight:'600', cursor:'not-allowed', fontFamily:'inherit' },

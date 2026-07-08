@@ -45,202 +45,272 @@ const INDUSTRY_MAP = {
 // ══════════════════════════════════════════════════════════════
 const PREBUILT_TEMPLATES = [
   // ── Financial Services ──
-  // ── Financial Services (all 10 subcategories) ──
   { id:'t1', industry:'Financial Services', subcategory:'Business Loan', badge:'POPULAR',
-    name:'MSME Business Loan', imageUrl:'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=500&q=80',
+    name:'MSME Business Loan', imageUrl:'https://res.cloudinary.com/uizsfleb/image/upload/adnexus/templates/financial-services/business-loan.png',
+    overlay:'linear-gradient(180deg,rgba(4,44,83,0.15) 0%,rgba(4,44,83,0.92) 100%)',
+    preview:{ headline:'Business Loan upto ₹5Cr', sub:'Fast disbursal · Flexible EMI', cta:'Apply Now' },
+    description:'Fast-track funding for growing businesses, up to ₹5 crore.',
+    content:{ headline:'Business Loan upto ₹5Cr', description:"India's trusted MSME lender. Flexible repayment, minimal docs. Apply in 5 minutes.", cta_button:'Apply Now', target_audience:'MSME Owners, SME Directors, Business Heads', target_age_min:28, target_age_max:58 } },
+
+  { id:'t1b', industry:'Financial Services', subcategory:'Business Loan', badge:null,
+    name:'MSME Business Loan 2', imageUrl:'https://res.cloudinary.com/uizsfleb/image/upload/adnexus/templates/financial-services/business-loan%20%282%29.png',
     overlay:'linear-gradient(180deg,rgba(4,44,83,0.15) 0%,rgba(4,44,83,0.92) 100%)',
     preview:{ headline:'Business Loan upto ₹5Cr', sub:'Fast disbursal · Flexible EMI', cta:'Apply Now' },
     description:'Fast-track funding for growing businesses, up to ₹5 crore.',
     content:{ headline:'Business Loan upto ₹5Cr', description:"India's trusted MSME lender. Flexible repayment, minimal docs. Apply in 5 minutes.", cta_button:'Apply Now', target_audience:'MSME Owners, SME Directors, Business Heads', target_age_min:28, target_age_max:58 } },
 
   { id:'t2', industry:'Financial Services', subcategory:'Working Capital Loan', badge:'HOT',
-    name:'Working Capital Loan', imageUrl:'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=500&q=80',
+    name:'Working Capital Loan', imageUrl:'https://res.cloudinary.com/uizsfleb/image/upload/adnexus/templates/financial-services/working-capital.png',
     overlay:'linear-gradient(180deg,rgba(8,20,50,0.15) 0%,rgba(8,20,50,0.92) 100%)',
     preview:{ headline:'Working Capital Loan', sub:'Upto ₹50L · Instant Approval', cta:'Apply Now' },
     description:'Get funds up to ₹50 Lakhs for your business needs.',
     content:{ headline:'Working Capital Loan', description:'Get working capital loan upto ₹50 lakhs. Apply now and get approval in 24 hours!', cta_button:'Apply Now', target_audience:'Business Owners, CFOs, Finance Managers', target_age_min:28, target_age_max:55 } },
 
   { id:'t3', industry:'Financial Services', subcategory:'Machinery Loan', badge:null,
-    name:'Machinery Finance', imageUrl:'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=500&q=80',
+    name:'Machinery Finance', imageUrl:'https://res.cloudinary.com/uizsfleb/image/upload/adnexus/templates/financial-services/machinery-loan.png',
     overlay:'linear-gradient(180deg,rgba(15,15,15,0.15) 0%,rgba(15,15,15,0.92) 100%)',
     preview:{ headline:'Upgrade Your Machinery', sub:'Easy EMI · Funds in 48hrs', cta:'Get Started' },
     description:'Finance new or used machinery. Funds in 48 hours.',
     content:{ headline:'Upgrade Machinery Now', description:'Finance new or used machinery. Flexible repayment. Funds in 48 hours.', cta_button:'Get Started', target_audience:'Manufacturers, Plant Owners, SME Businesses', target_age_min:30, target_age_max:58 } },
 
   { id:'t4', industry:'Financial Services', subcategory:'Invoice Finance', badge:'NEW',
-    name:'Invoice Discounting', imageUrl:'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?w=500&q=80',
+    name:'Invoice Discounting', imageUrl:null,
     overlay:'linear-gradient(180deg,rgba(8,40,100,0.15) 0%,rgba(8,40,100,0.92) 100%)',
     preview:{ headline:'Turn Invoices Into Cash', sub:'Same-day funds · Zero charges', cta:'Apply Now' },
     description:'Unlock cash tied in invoices and grow your business.',
     content:{ headline:'Turn Invoices Into Cash', description:"Don't wait 60-90 days. Discount invoices, get funds same day. Zero hidden charges.", cta_button:'Apply Now', target_audience:'B2B Business Owners, Export Companies, Traders', target_age_min:28, target_age_max:55 } },
 
   { id:'t5', industry:'Financial Services', subcategory:'Trade Finance', badge:'TRENDING',
-    name:'Trade Finance Solutions', imageUrl:'https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?w=500&q=80',
+    name:'Trade Finance Solutions', imageUrl:'https://res.cloudinary.com/uizsfleb/image/upload/adnexus/templates/financial-services/trade-finance.png',
     overlay:'linear-gradient(180deg,rgba(15,15,40,0.15) 0%,rgba(15,15,40,0.92) 100%)',
     preview:{ headline:'Trade Finance Made Easy', sub:'LC · Bank Guarantee · Funding', cta:'Learn More' },
     description:'Seamless trade finance for importers & exporters.',
     content:{ headline:'Trade Finance Made Easy', description:'Letters of credit, bank guarantees & export funding. Trusted by 1000+ traders.', cta_button:'Learn More', target_audience:'Importers, Exporters, Trading Companies', target_age_min:30, target_age_max:60 } },
 
   { id:'t6', industry:'Financial Services', subcategory:'Personal Loan', badge:'HOT',
-    name:'Quick Digital Loan', imageUrl:'https://images.unsplash.com/photo-1556742031-c6961e8560b0?w=500&q=80',
+    name:'Quick Personal Loan', imageUrl:'https://res.cloudinary.com/uizsfleb/image/upload/adnexus/templates/financial-services/personal-loan.png',
+    overlay:'linear-gradient(180deg,rgba(10,30,80,0.15) 0%,rgba(10,30,80,0.92) 100%)',
+    preview:{ headline:'Loan in 30 Minutes', sub:'Instant KYC · Zero Paperwork', cta:'Apply Now' },
+    description:'Instant approval in 24 hours. Minimal documentation.',
+    content:{ headline:'Loan in 30 Minutes', description:'Apply online in minutes. Instant KYC. Zero paperwork hassle.', cta_button:'Apply Now', target_audience:'Salaried Professionals, Self-Employed, SME Owners', target_age_min:24, target_age_max:50 } },
+
+  { id:'t6b', industry:'Financial Services', subcategory:'Personal Loan', badge:null,
+    name:'Quick Personal Loan 2', imageUrl:'https://res.cloudinary.com/uizsfleb/image/upload/adnexus/templates/financial-services/personal-loan%20%282%29.png',
+    overlay:'linear-gradient(180deg,rgba(10,30,80,0.15) 0%,rgba(10,30,80,0.92) 100%)',
+    preview:{ headline:'Loan in 30 Minutes', sub:'Instant KYC · Zero Paperwork', cta:'Apply Now' },
+    description:'Instant approval in 24 hours. Minimal documentation.',
+    content:{ headline:'Loan in 30 Minutes', description:'Apply online in minutes. Instant KYC. Zero paperwork hassle.', cta_button:'Apply Now', target_audience:'Salaried Professionals, Self-Employed, SME Owners', target_age_min:24, target_age_max:50 } },
+
+  { id:'t6c', industry:'Financial Services', subcategory:'Personal Loan', badge:null,
+    name:'Quick Personal Loan 3', imageUrl:'https://res.cloudinary.com/uizsfleb/image/upload/adnexus/templates/financial-services/personal-loan%20%283%29.png',
     overlay:'linear-gradient(180deg,rgba(10,30,80,0.15) 0%,rgba(10,30,80,0.92) 100%)',
     preview:{ headline:'Loan in 30 Minutes', sub:'Instant KYC · Zero Paperwork', cta:'Apply Now' },
     description:'Instant approval in 24 hours. Minimal documentation.',
     content:{ headline:'Loan in 30 Minutes', description:'Apply online in minutes. Instant KYC. Zero paperwork hassle.', cta_button:'Apply Now', target_audience:'Salaried Professionals, Self-Employed, SME Owners', target_age_min:24, target_age_max:50 } },
 
   { id:'t7', industry:'Financial Services', subcategory:'Home Loan', badge:'NEW',
-    name:'Home Loan, Simplified', imageUrl:'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=500&q=80',
+    name:'Home Loan, Simplified', imageUrl:'https://res.cloudinary.com/uizsfleb/image/upload/adnexus/templates/financial-services/home-loan.png',
+    overlay:'linear-gradient(180deg,rgba(23,52,4,0.15) 0%,rgba(23,52,4,0.92) 100%)',
+    preview:{ headline:'Home Loan, Simplified', sub:'8.4% Interest · Upto 90% Funding', cta:'Check Eligibility' },
+    description:'Affordable home loans with quick approvals.',
+    content:{ headline:'Home Loan, Simplified', description:'Upto 90% property value financed. Interest from 8.4%. Quick digital approval.', cta_button:'Check Eligibility', target_audience:'Home Buyers, NRIs, Young Professionals', target_age_min:26, target_age_max:55 } },
+
+  { id:'t7b', industry:'Financial Services', subcategory:'Home Loan', badge:null,
+    name:'Home Loan, Simplified 2', imageUrl:'https://res.cloudinary.com/uizsfleb/image/upload/adnexus/templates/financial-services/home-loan%20%282%29.png',
+    overlay:'linear-gradient(180deg,rgba(23,52,4,0.15) 0%,rgba(23,52,4,0.92) 100%)',
+    preview:{ headline:'Home Loan, Simplified', sub:'8.4% Interest · Upto 90% Funding', cta:'Check Eligibility' },
+    description:'Affordable home loans with quick approvals.',
+    content:{ headline:'Home Loan, Simplified', description:'Upto 90% property value financed. Interest from 8.4%. Quick digital approval.', cta_button:'Check Eligibility', target_audience:'Home Buyers, NRIs, Young Professionals', target_age_min:26, target_age_max:55 } },
+
+  { id:'t7c', industry:'Financial Services', subcategory:'Home Loan', badge:null,
+    name:'Home Loan, Simplified 3', imageUrl:'https://res.cloudinary.com/uizsfleb/image/upload/adnexus/templates/financial-services/home-loan%20%283%29.png',
     overlay:'linear-gradient(180deg,rgba(23,52,4,0.15) 0%,rgba(23,52,4,0.92) 100%)',
     preview:{ headline:'Home Loan, Simplified', sub:'8.4% Interest · Upto 90% Funding', cta:'Check Eligibility' },
     description:'Affordable home loans with quick approvals.',
     content:{ headline:'Home Loan, Simplified', description:'Upto 90% property value financed. Interest from 8.4%. Quick digital approval.', cta_button:'Check Eligibility', target_audience:'Home Buyers, NRIs, Young Professionals', target_age_min:26, target_age_max:55 } },
 
   { id:'t8', industry:'Financial Services', subcategory:'Gold Loan', badge:'POPULAR',
-    name:'Instant Gold Loan', imageUrl:'https://images.unsplash.com/photo-1610375461246-83df859d849d?w=500&q=80',
+    name:'Instant Gold Loan', imageUrl:'https://res.cloudinary.com/uizsfleb/image/upload/adnexus/templates/financial-services/gold-loan.png',
+    overlay:'linear-gradient(180deg,rgba(65,36,2,0.15) 0%,rgba(65,36,2,0.92) 100%)',
+    preview:{ headline:'Instant Gold Loan', sub:'Highest Value · Funds in 30 mins', cta:'Apply Now' },
+    description:'Get cash instantly against your gold. Safe & secure.',
+    content:{ headline:'Instant Gold Loan', description:'Highest valuation guaranteed. Funds disbursed in 30 minutes. 100% safe storage.', cta_button:'Apply Now', target_audience:'Self-Employed, Small Business Owners, Households', target_age_min:25, target_age_max:60 } },
+
+  { id:'t8b', industry:'Financial Services', subcategory:'Gold Loan', badge:null,
+    name:'Instant Gold Loan 2', imageUrl:'https://res.cloudinary.com/uizsfleb/image/upload/adnexus/templates/financial-services/gold-loan%20%282%29.png',
     overlay:'linear-gradient(180deg,rgba(65,36,2,0.15) 0%,rgba(65,36,2,0.92) 100%)',
     preview:{ headline:'Instant Gold Loan', sub:'Highest Value · Funds in 30 mins', cta:'Apply Now' },
     description:'Get cash instantly against your gold. Safe & secure.',
     content:{ headline:'Instant Gold Loan', description:'Highest valuation guaranteed. Funds disbursed in 30 minutes. 100% safe storage.', cta_button:'Apply Now', target_audience:'Self-Employed, Small Business Owners, Households', target_age_min:25, target_age_max:60 } },
 
   { id:'t9', industry:'Financial Services', subcategory:'Vehicle Loan', badge:null,
-    name:'Commercial Vehicle Loan', imageUrl:'https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?w=500&q=80',
+    name:'Commercial Vehicle Loan', imageUrl:'https://res.cloudinary.com/uizsfleb/image/upload/adnexus/templates/financial-services/vechile-loan.png',
     overlay:'linear-gradient(180deg,rgba(4,44,83,0.15) 0%,rgba(4,44,83,0.92) 100%)',
     preview:{ headline:'Drive Your Business Forward', sub:'Upto 100% Financing · Low EMI', cta:'Get Started' },
     description:'Finance new & used commercial vehicles easily.',
     content:{ headline:'Drive Your Business Forward', description:'Upto 100% on-road financing for commercial vehicles. Quick approval, low EMIs.', cta_button:'Get Started', target_audience:'Fleet Owners, Transporters, Logistics Businesses', target_age_min:25, target_age_max:58 } },
 
   { id:'t10', industry:'Financial Services', subcategory:'Education Loan', badge:'TRENDING',
-    name:'Education Loan', imageUrl:'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=500&q=80',
+    name:'Education Loan', imageUrl:null,
     overlay:'linear-gradient(180deg,rgba(38,33,92,0.15) 0%,rgba(38,33,92,0.92) 100%)',
     preview:{ headline:'Fund Your Future', sub:'Study Anywhere · No Collateral upto ₹20L', cta:'Apply Now' },
     description:'Education loans for India & abroad studies.',
     content:{ headline:'Fund Your Future', description:'No collateral upto ₹20L. Covers tuition, travel & living costs. Flexible moratorium.', cta_button:'Apply Now', target_audience:'Students, Parents, Working Professionals', target_age_min:18, target_age_max:45 } },
+
   // ── IT & Technology ──
-  { id:'t7',  industry:'IT & Technology',    subcategory:'SaaS Product',         badge:'NEW',
-    name:'SaaS Automation',      imageUrl:'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400&q=80',
+  { id:'it1', industry:'IT & Technology', subcategory:'SaaS Product', badge:'NEW',
+    name:'SaaS Automation', imageUrl:null,
     overlay:'linear-gradient(180deg,rgba(60,10,130,.15) 0%,rgba(20,5,60,.88) 100%)',
     preview:{ headline:'Automate Your Biz', sub:'Free 14-Day Trial', cta:'Get Started' },
     description:'Join 5,000+ companies. No setup fees. Cancel anytime.',
     content:{ headline:'Automate Your Biz', description:"Join 5,000+ companies. No setup fees. Cancel anytime.", cta_button:'Get Started', target_audience:'CTOs, Operations Heads, Business Owners', target_age_min:25, target_age_max:50 } },
-  { id:'t8',  industry:'IT & Technology',    subcategory:'Cybersecurity',        badge:null,
-    name:'Secure Your Business', imageUrl:'https://images.unsplash.com/photo-1563986768494-4641bc1a4f37?w=400&q=80',
+
+  { id:'it2', industry:'IT & Technology', subcategory:'Cybersecurity', badge:null,
+    name:'Secure Your Business', imageUrl:null,
     overlay:'linear-gradient(180deg,rgba(5,10,30,.15) 0%,rgba(5,10,30,.88) 100%)',
     preview:{ headline:'Zero Trust Security', sub:'Enterprise Grade · Always On', cta:'Get Demo' },
     description:'Protect your business with enterprise-grade security.',
     content:{ headline:'Zero Trust Security', description:'Enterprise cybersecurity for modern businesses. 24/7 monitoring. ISO 27001 certified.', cta_button:'Get Demo', target_audience:'CTOs, IT Managers, Security Teams', target_age_min:28, target_age_max:52 } },
-  { id:'t9',  industry:'IT & Technology',    subcategory:'Digital Agency',       badge:'HOT',
-    name:'Digital Growth',       imageUrl:'https://images.unsplash.com/photo-1551434678-e076c223a692?w=400&q=80',
+
+  { id:'it3', industry:'IT & Technology', subcategory:'Digital Agency', badge:'HOT',
+    name:'Digital Growth', imageUrl:null,
     overlay:'linear-gradient(180deg,rgba(10,20,80,.15) 0%,rgba(10,20,80,.88) 100%)',
     preview:{ headline:'Grow Your Digital Brand', sub:'SEO · Ads · Social Media', cta:"Let's Talk" },
     description:'Full-service digital agency. Measurable results.',
     content:{ headline:'Grow Your Digital Brand', description:'Full-stack digital marketing. SEO, PPC, Social Media. ROI-driven campaigns.', cta_button:"Let's Talk", target_audience:'Marketing Heads, Founders, CMOs', target_age_min:26, target_age_max:50 } },
+
   // ── Real Estate & Construction ──
-  { id:'t10', industry:'Real Estate & Construction', subcategory:'Residential Property', badge:'TOP',
-    name:'Dream Home',           imageUrl:'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=400&q=80',
+  { id:'re1', industry:'Real Estate & Construction', subcategory:'Residential Property', badge:'TOP',
+    name:'Dream Home', imageUrl:null,
     overlay:'linear-gradient(180deg,rgba(8,25,55,.15) 0%,rgba(8,25,55,.85) 100%)',
     preview:{ headline:'Your Dream Home Awaits', sub:'Ready to Move · Prime Location', cta:'Enquire Now' },
     description:"Find your perfect home in the city's best locations.",
     content:{ headline:'Your Dream Home Awaits', description:'Premium residential apartments in prime locations. Ready to move. RERA approved.', cta_button:'Enquire Now', target_audience:'Home Buyers, NRIs, Young Professionals', target_age_min:28, target_age_max:55 } },
-  { id:'t11', industry:'Real Estate & Construction', subcategory:'Commercial Property', badge:null,
-    name:'Office Spaces',        imageUrl:'https://images.unsplash.com/photo-1497366216548-37526070297c?w=400&q=80',
+
+  { id:'re2', industry:'Real Estate & Construction', subcategory:'Commercial Property', badge:null,
+    name:'Office Spaces', imageUrl:null,
     overlay:'linear-gradient(180deg,rgba(10,30,60,.15) 0%,rgba(10,30,60,.85) 100%)',
     preview:{ headline:'Premium Office Space', sub:'Fully Furnished · Plug & Play', cta:'Book Tour' },
     description:'Modern workspaces for modern teams. Move in today.',
     content:{ headline:'Premium Office Space', description:'Fully furnished Grade-A offices. Plug & play. Flexible lease terms. Central location.', cta_button:'Book Tour', target_audience:'Founders, CXOs, Real Estate Heads', target_age_min:30, target_age_max:55 } },
+
   // ── Healthcare & Pharma ──
-  { id:'t12', industry:'Healthcare & Pharma', subcategory:'Hospital / Clinic', badge:null,
-    name:'Healthcare Clinic',    imageUrl:'https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=400&q=80',
+  { id:'hc1', industry:'Healthcare & Pharma', subcategory:'Hospital / Clinic', badge:null,
+    name:'Healthcare Clinic', imageUrl:null,
     overlay:'linear-gradient(180deg,rgba(0,60,80,.15) 0%,rgba(0,60,80,.85) 100%)',
     preview:{ headline:'Expert Care, Near You', sub:'Book Appointment · 24/7 Open', cta:'Book Now' },
     description:'Quality healthcare services. Experienced specialists.',
     content:{ headline:'Expert Care, Near You', description:'World-class healthcare. Experienced specialists. Book appointment in 60 seconds.', cta_button:'Book Now', target_audience:'Patients, Families, Corporate Health Buyers', target_age_min:25, target_age_max:65 } },
-  { id:'t13', industry:'Healthcare & Pharma', subcategory:'Pharmaceutical',     badge:'NEW',
-    name:'Pharma Distribution',  imageUrl:'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=400&q=80',
+
+  { id:'hc2', industry:'Healthcare & Pharma', subcategory:'Pharmaceutical', badge:'NEW',
+    name:'Pharma Distribution', imageUrl:null,
     overlay:'linear-gradient(180deg,rgba(0,40,60,.15) 0%,rgba(0,40,60,.85) 100%)',
     preview:{ headline:'Pharma Supply Network', sub:'Pan India · Cold Chain Assured', cta:'Partner Now' },
     description:'Reliable pharmaceutical distribution across India.',
     content:{ headline:'Pharma Supply Network', description:'Pan India pharmaceutical distribution. Cold chain assured. 10,000+ SKUs.', cta_button:'Partner Now', target_audience:'Pharmacies, Hospitals, Distributors', target_age_min:28, target_age_max:58 } },
+
   // ── Education & Edtech ──
-  { id:'t14', industry:'Education & Edtech', subcategory:'Online Courses',    badge:'TRENDING',
-    name:'Online Learning',      imageUrl:'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=400&q=80',
+  { id:'ed1', industry:'Education & Edtech', subcategory:'Online Courses', badge:'TRENDING',
+    name:'Online Learning', imageUrl:null,
     overlay:'linear-gradient(180deg,rgba(20,10,60,.15) 0%,rgba(20,10,60,.85) 100%)',
     preview:{ headline:'Learn. Grow. Succeed.', sub:'500+ Courses · Expert Mentors', cta:'Enroll Now' },
     description:'World-class learning from top instructors.',
     content:{ headline:'Learn. Grow. Succeed.', description:'500+ industry-led courses. Learn at your own pace. Certificate on completion.', cta_button:'Enroll Now', target_audience:'Students, Working Professionals, Job Seekers', target_age_min:18, target_age_max:45 } },
-  { id:'t15', industry:'Education & Edtech', subcategory:'Coaching Center',   badge:null,
-    name:'JEE / NEET Coaching',  imageUrl:'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=400&q=80',
+
+  { id:'ed2', industry:'Education & Edtech', subcategory:'Coaching Center', badge:null,
+    name:'JEE / NEET Coaching', imageUrl:null,
     overlay:'linear-gradient(180deg,rgba(10,20,60,.15) 0%,rgba(10,20,60,.85) 100%)',
     preview:{ headline:'Crack JEE / NEET 2026', sub:'Expert Faculty · Proven Results', cta:'Join Now' },
     description:'Top coaching with proven results for competitive exams.',
-    content:{ headline:'Crack JEE / NEET 2026', description:'India\'s top coaching institute. Expert faculty. 95% success rate. Scholarship available.', cta_button:'Join Now', target_audience:'Students (Class 11-12), Parents', target_age_min:16, target_age_max:22 } },
+    content:{ headline:'Crack JEE / NEET 2026', description:"India's top coaching institute. Expert faculty. 95% success rate. Scholarship available.", cta_button:'Join Now', target_audience:'Students (Class 11-12), Parents', target_age_min:16, target_age_max:22 } },
+
   // ── Retail ──
-  { id:'t16', industry:'Retail', subcategory:'Fashion / Clothing',            badge:'HOT',
-    name:'Fashion Sale',         imageUrl:'https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?w=400&q=80',
+  { id:'rt1', industry:'Retail', subcategory:'Fashion / Clothing', badge:'HOT',
+    name:'Fashion Sale', imageUrl:null,
     overlay:'linear-gradient(180deg,rgba(60,5,30,.15) 0%,rgba(60,5,30,.85) 100%)',
     preview:{ headline:'Upto 70% Off This Season', sub:'Limited Time · Free Shipping', cta:'Shop Now' },
     description:'Biggest sale of the season. Shop top brands.',
     content:{ headline:'Upto 70% Off This Season', description:'Biggest sale of the year. Top brands. Free shipping above ₹499. Easy returns.', cta_button:'Shop Now', target_audience:'Fashion Shoppers, Millennials, Gen Z', target_age_min:18, target_age_max:40 } },
-  { id:'t17', industry:'Retail', subcategory:'Electronics',                   badge:null,
-    name:'Electronics Deals',    imageUrl:'https://images.unsplash.com/photo-1498049794561-7780e7231661?w=400&q=80',
+
+  { id:'rt2', industry:'Retail', subcategory:'Electronics', badge:null,
+    name:'Electronics Deals', imageUrl:null,
     overlay:'linear-gradient(180deg,rgba(5,10,40,.15) 0%,rgba(5,10,40,.85) 100%)',
     preview:{ headline:'Best Electronics Deals', sub:'EMI Available · Lowest Price', cta:'Buy Now' },
     description:'Latest gadgets at unbeatable prices.',
     content:{ headline:'Best Electronics Deals', description:'Latest laptops, phones & gadgets. Lowest prices guaranteed. 0% EMI available.', cta_button:'Buy Now', target_audience:'Tech Enthusiasts, Students, Professionals', target_age_min:18, target_age_max:45 } },
+
   // ── Food & Beverage ──
-  { id:'t18', industry:'Food & Beverage', subcategory:'Restaurant / Cafe',    badge:null,
-    name:'Restaurant Promo',     imageUrl:'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80',
+  { id:'fb1', industry:'Food & Beverage', subcategory:'Restaurant / Cafe', badge:null,
+    name:'Restaurant Promo', imageUrl:null,
     overlay:'linear-gradient(180deg,rgba(60,15,0,.15) 0%,rgba(60,15,0,.85) 100%)',
     preview:{ headline:'Taste the Difference', sub:'Order Online · 30 Min Delivery', cta:'Order Now' },
     description:'Fresh ingredients, memorable flavors. Order today.',
     content:{ headline:'Taste the Difference', description:'Fresh ingredients. Chef-crafted recipes. 30-minute delivery. Order now!', cta_button:'Order Now', target_audience:'Food Lovers, Families, Office Goers', target_age_min:18, target_age_max:50 } },
-  { id:'t19', industry:'Food & Beverage', subcategory:'Food Franchise',       badge:'NEW',
-    name:'Franchise Opportunity', imageUrl:'https://images.unsplash.com/photo-1552566626-52f8b828add9?w=400&q=80',
+
+  { id:'fb2', industry:'Food & Beverage', subcategory:'Food Franchise', badge:'NEW',
+    name:'Franchise Opportunity', imageUrl:null,
     overlay:'linear-gradient(180deg,rgba(80,20,0,.15) 0%,rgba(80,20,0,.85) 100%)',
     preview:{ headline:'Own a Food Franchise', sub:'Low Investment · High Returns', cta:'Apply Now' },
     description:'Franchise opportunity. Low investment, proven model.',
     content:{ headline:'Own a Food Franchise', description:'Proven franchise model. Low investment from ₹5L. Full training & support provided.', cta_button:'Apply Now', target_audience:'Entrepreneurs, Investors, Business Owners', target_age_min:25, target_age_max:55 } },
+
   // ── Logistics & Transport ──
-  { id:'t20', industry:'Logistics & Transport', subcategory:'Courier Services', badge:'NEW',
-    name:'Express Delivery',     imageUrl:'https://images.unsplash.com/photo-1566576912321-d58ddd7a6088?w=400&q=80',
+  { id:'lg1', industry:'Logistics & Transport', subcategory:'Courier Services', badge:'NEW',
+    name:'Express Delivery', imageUrl:null,
     overlay:'linear-gradient(180deg,rgba(5,20,50,.15) 0%,rgba(5,20,50,.85) 100%)',
     preview:{ headline:'Deliver in 24 Hours', sub:'Pan India · Real-time Tracking', cta:'Ship Now' },
     description:'Reliable courier services across India.',
     content:{ headline:'Deliver in 24 Hours', description:'Pan India delivery in 24 hours. Real-time tracking. Lowest rates. API integration.', cta_button:'Ship Now', target_audience:'E-commerce Sellers, D2C Brands, SMEs', target_age_min:24, target_age_max:50 } },
+
   // ── Manufacturing ──
-  { id:'t21', industry:'Manufacturing', subcategory:'Industrial Goods',       badge:null,
-    name:'Industrial Supply',    imageUrl:'https://images.unsplash.com/photo-1565043589221-1a6fd9ae45c7?w=400&q=80',
+  { id:'mf1', industry:'Manufacturing', subcategory:'Industrial Goods', badge:null,
+    name:'Industrial Supply', imageUrl:null,
     overlay:'linear-gradient(180deg,rgba(10,10,10,.15) 0%,rgba(10,10,10,.85) 100%)',
     preview:{ headline:'Built to Perform', sub:'ISO Certified · Bulk Orders', cta:'Get Quote' },
     description:'High-quality industrial goods. Bulk pricing available.',
     content:{ headline:'Built to Perform', description:'ISO 9001 certified manufacturer. Bulk orders welcome. Pan India supply. Custom specs.', cta_button:'Get Quote', target_audience:'Plant Managers, Procurement Heads, SMEs', target_age_min:28, target_age_max:58 } },
+
   // ── Hospitality & Tourism ──
-  { id:'t22', industry:'Hospitality & Tourism', subcategory:'Hotel / Resort',  badge:'POPULAR',
-    name:'Luxury Resort',        imageUrl:'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=400&q=80',
+  { id:'ht1', industry:'Hospitality & Tourism', subcategory:'Hotel / Resort', badge:'POPULAR',
+    name:'Luxury Resort', imageUrl:null,
     overlay:'linear-gradient(180deg,rgba(5,30,30,.15) 0%,rgba(5,30,30,.85) 100%)',
     preview:{ headline:'Escape & Rejuvenate', sub:'5-Star Comfort · Best Rates', cta:'Book Now' },
     description:'Luxury stays with world-class amenities.',
     content:{ headline:'Escape & Rejuvenate', description:'5-star resort experience. Spa, pool & fine dining. Book direct for best rates.', cta_button:'Book Now', target_audience:'Leisure Travelers, Corporate Guests, HNIs', target_age_min:25, target_age_max:60 } },
+
   // ── Agriculture ──
-  { id:'t23', industry:'Agriculture & Agro-Processing', subcategory:'Farm Equipment', badge:null,
-    name:'Agri Equipment',       imageUrl:'https://images.unsplash.com/photo-1625246333195-78d9c38ad449?w=400&q=80',
+  { id:'ag1', industry:'Agriculture & Agro-Processing', subcategory:'Farm Equipment', badge:null,
+    name:'Agri Equipment', imageUrl:null,
     overlay:'linear-gradient(180deg,rgba(5,30,5,.15) 0%,rgba(5,30,5,.85) 100%)',
     preview:{ headline:'Smart Farming Solutions', sub:'Latest Equipment · EMI Options', cta:'Explore' },
     description:'Modern farm equipment for better yields.',
     content:{ headline:'Smart Farming Solutions', description:'Latest tractors & farm equipment. 0% EMI for 12 months. Service support included.', cta_button:'Explore', target_audience:'Farmers, Agri Entrepreneurs, FPOs', target_age_min:25, target_age_max:60 } },
+
   // ── Trading & Distribution ──
-  { id:'t24', industry:'Trading & Distribution', subcategory:'E-commerce',     badge:'HOT',
-    name:'E-commerce Growth',    imageUrl:'https://images.unsplash.com/photo-1556742031-c6961e8560b0?w=400&q=80',
+  { id:'td1', industry:'Trading & Distribution', subcategory:'E-commerce', badge:'HOT',
+    name:'E-commerce Growth', imageUrl:null,
     overlay:'linear-gradient(180deg,rgba(10,40,80,.15) 0%,rgba(10,40,80,.85) 100%)',
     preview:{ headline:'Sell More Online', sub:'Marketplace Ready · Low Fees', cta:'Start Selling' },
     description:'Launch your online store and reach millions.',
     content:{ headline:'Sell More Online', description:'List on 10+ marketplaces. Low commission. Logistics support included. Start in 24 hours.', cta_button:'Start Selling', target_audience:'Sellers, Traders, SME Owners', target_age_min:22, target_age_max:50 } },
 ]
-
 const BADGE_COLORS = {
   POPULAR: '#7C3AED', HOT: '#DC2626', TRENDING: '#0891B2', NEW: '#059669', TOP: '#7B1FA2',
 }
 
 const ALL_INDUSTRIES = ['All Templates', ...Object.keys(INDUSTRY_MAP)]
+
+// ══════════════════════════════════════════════════════════════
+// CHANGED: hiQualityUrl — added c_limit (prevents upscaling past
+// original resolution, the main cause of blur) and e_sharpen
+// (crisper edges/text, closer to a Canva-style render).
+// w_700 -> w_800 for extra headroom on the larger card size below.
+// ══════════════════════════════════════════════════════════════
+const hiQualityUrl = (url) => {
+  if (!url || !url.includes('res.cloudinary.com') || !url.includes('/upload/')) return url
+  if (url.includes('q_auto')) return url
+  return url.replace('/upload/', '/upload/f_auto,q_auto:best,dpr_2,c_limit,w_800,e_sharpen:60/')
+}
 
 const API_BASE = 'http://127.0.0.1:8000/api'
 
@@ -376,11 +446,18 @@ const LivePreviewPanel = ({ platform, content, previewImage }) => {
 // ══════════════════════════════════════════════════════════════
 // CANVA-STYLE TEMPLATE BROWSER
 // Replaces old templateScreen. Receives applyTemplate + onDone
+//
+// CHANGED: grid card min-width 200px -> 260px, and thumbnail
+// height 155px -> 210px, so baked-in text inside template
+// images (e.g. "FAST BUSINESS LOAN") stays legible instead of
+// being squeezed into an illegibly small box.
 // ══════════════════════════════════════════════════════════════
-const TemplateBrowser = ({ onApply, onUpload, onSwitchToAI, selectedTemplateId, fileInputRef }) => {
-  const [activeIndustry, setActiveIndustry] = useState('All Templates')
-  const [activeSub,      setActiveSub]      = useState(null)
+const TemplateBrowser = ({ onApply, onUpload, onSwitchToAI, selectedTemplateId, fileInputRef, defaultIndustry, defaultSubcategory }) => {
+  const validIndustry = defaultIndustry && INDUSTRY_MAP[defaultIndustry] ? defaultIndustry : 'All Templates'
+  const [activeIndustry, setActiveIndustry] = useState(validIndustry)
+  const [activeSub,      setActiveSub]      = useState(defaultSubcategory || null)
   const [search,         setSearch]         = useState('')
+  const [searchFocused,  setSearchFocused]  = useState(false)
   const [hoveredId,      setHoveredId]      = useState(null)
   const [detailId,       setDetailId]       = useState(null)
 
@@ -409,43 +486,6 @@ const TemplateBrowser = ({ onApply, onUpload, onSwitchToAI, selectedTemplateId, 
   return (
     <div style={{ display: 'flex', height: '520px', borderRadius: '12px', border: '1.5px solid #E5E7EB', overflow: 'hidden', background: '#F8F9FB' }}>
 
-      {/* ── LEFT SIDEBAR ── */}
-      <div style={{ width: '196px', minWidth: '196px', background: '#fff', borderRight: '1px solid #EAECF0', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        {/* Search */}
-        <div style={{ padding: '10px 10px 6px', borderBottom: '1px solid #EAECF0' }}>
-          <div style={{ position: 'relative' }}>
-            <span style={{ position: 'absolute', left: '9px', top: '50%', transform: 'translateY(-50%)', fontSize: '13px', color: '#9CA3AF', pointerEvents: 'none' }}>🔍</span>
-            <input
-              type="text"
-              placeholder="Search templates..."
-              value={search}
-              onChange={e => { setSearch(e.target.value); setActiveIndustry('All Templates'); setActiveSub(null) }}
-              style={{ width: '100%', padding: '7px 8px 7px 28px', border: '1.5px solid #E5E7EB', borderRadius: '7px', fontSize: '11px', background: '#F9FAFB', color: '#111827', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
-            />
-          </div>
-        </div>
-        {/* Industry list */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '6px 6px 12px' }}>
-          <div style={{ fontSize: '9px', fontWeight: '600', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.08em', padding: '6px 6px 4px' }}>Industries</div>
-          {ALL_INDUSTRIES.map(ind => {
-            const meta    = INDUSTRY_MAP[ind]
-            const isActive = activeIndustry === ind
-            const count   = ind === 'All Templates' ? PREBUILT_TEMPLATES.length : PREBUILT_TEMPLATES.filter(t => t.industry === ind).length
-            return (
-              <button
-                key={ind}
-                onClick={() => { setActiveIndustry(ind); setActiveSub(null); setSearch('') }}
-                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '7px', padding: '6px 8px', borderRadius: '7px', border: 'none', background: isActive ? '#EFF6FF' : 'transparent', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', marginBottom: '1px' }}
-              >
-                <span style={{ fontSize: '14px', flexShrink: 0 }}>{ind === 'All Templates' ? '⊞' : meta.icon}</span>
-                <span style={{ flex: 1, fontSize: '11px', fontWeight: isActive ? '600' : '400', color: isActive ? '#1A73E8' : '#374151', lineHeight: '1.3', textAlign: 'left' }}>{ind}</span>
-                <span style={{ fontSize: '9px', color: isActive ? '#1A73E8' : '#9CA3AF', background: isActive ? '#DBEAFE' : '#F3F4F6', padding: '1px 5px', borderRadius: '8px', fontWeight: '600', flexShrink: 0 }}>{count}</span>
-              </button>
-            )
-          })}
-        </div>
-      </div>
-
       {/* ── MAIN AREA ── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {/* Top bar */}
@@ -463,7 +503,7 @@ const TemplateBrowser = ({ onApply, onUpload, onSwitchToAI, selectedTemplateId, 
                 ↑ Upload
               </button>
               <button onClick={onSwitchToAI}
-                style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 10px', borderRadius: '7px', border: 'none', background: '#1A73E8', color: '#fff', fontSize: '11px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 10px', borderRadius: '7px', border: 'none', background: 'linear-gradient(135deg,#1A73E8,#7C3AED)', color: '#fff', fontSize: '11px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 2px 8px rgba(124,58,237,0.3)' }}>
                 ✨ AI
               </button>
             </div>
@@ -488,7 +528,7 @@ const TemplateBrowser = ({ onApply, onUpload, onSwitchToAI, selectedTemplateId, 
         </div>
 
         {/* Template grid */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '14px' }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '18px' }}>
           {filtered.length === 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '200px', gap: '8px', color: '#9CA3AF' }}>
               <div style={{ fontSize: '32px' }}>🔍</div>
@@ -496,7 +536,7 @@ const TemplateBrowser = ({ onApply, onUpload, onSwitchToAI, selectedTemplateId, 
               <div style={{ fontSize: '12px' }}>Try a different category or <span style={{ color: '#1A73E8', cursor: 'pointer', textDecoration: 'underline' }} onClick={onSwitchToAI}>generate with AI</span></div>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '16px' }}>
               {filtered.map(template => {
                 const isSelected = selectedTemplateId === template.id
                 const isHovered  = hoveredId === template.id
@@ -507,40 +547,43 @@ const TemplateBrowser = ({ onApply, onUpload, onSwitchToAI, selectedTemplateId, 
                     onMouseEnter={() => setHoveredId(template.id)}
                     onMouseLeave={() => setHoveredId(null)}
                     onClick={() => setDetailId(template.id === detailId ? null : template.id)}
-                    style={{ borderRadius: '10px', overflow: 'hidden', border: isSelected ? '2.5px solid #1A73E8' : '1.5px solid #E5E7EB', background: '#fff', cursor: 'pointer', boxShadow: isSelected ? '0 0 0 3px rgba(26,115,232,0.13)' : isHovered ? '0 6px 18px rgba(0,0,0,0.1)' : '0 1px 3px rgba(0,0,0,0.05)', transform: isHovered && !isSelected ? 'translateY(-2px)' : 'none', transition: 'transform 0.15s, box-shadow 0.15s', position: 'relative' }}
+                    style={{ borderRadius: '12px', overflow: 'hidden', border: isSelected ? '2.5px solid #1A73E8' : '1.5px solid #E5E7EB', background: '#fff', cursor: 'pointer', boxShadow: isSelected ? '0 0 0 3px rgba(26,115,232,0.13)' : isHovered ? '0 8px 22px rgba(0,0,0,0.12)' : '0 1px 3px rgba(0,0,0,0.05)', transform: isHovered && !isSelected ? 'translateY(-3px)' : 'none', transition: 'transform 0.18s, box-shadow 0.18s', position: 'relative' }}
                   >
-                    <div style={{ position: 'relative', height: '130px', overflow: 'hidden' }}>
-                      <img
-                        src={template.imageUrl}
-                        alt={template.name}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transition: 'transform 0.3s', transform: isHovered ? 'scale(1.05)' : 'scale(1)' }}
-                      />
-                      <div style={{ position: 'absolute', inset: 0, background: template.overlay }} />
+                    <div style={{ position: 'relative', height: '210px', overflow: 'hidden', background: '#F3F4F6' }}>
+                      {template.imageUrl ? (
+                        <img
+                          src={hiQualityUrl(template.imageUrl)}
+                          alt={template.name}
+                          loading="eager"
+                          decoding="async"
+                          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transition: 'transform 0.35s', transform: isHovered ? 'scale(1.06)' : 'scale(1)' }}
+                        />
+                      ) : (
+                        <div style={{ width: '100%', height: '100%', background: template.overlay ? template.overlay.replace(/rgba\(([^)]+),[\s]*0?\.\d+\)/g, (m, rgb) => `rgba(${rgb},1)`) : 'linear-gradient(135deg,#1A73E8,#7C3AED)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <span style={{ fontSize: '28px', opacity: 0.85 }}>🗂️</span>
+                        </div>
+                      )}
                       {badge && !isSelected && (
-                        <div style={{ position: 'absolute', top: '8px', left: '8px', background: badge, color: '#fff', fontSize: '8px', fontWeight: '700', padding: '2px 6px', borderRadius: '3px', letterSpacing: '0.06em', zIndex: 2 }}>{template.badge}</div>
+                        <div style={{ position: 'absolute', top: '10px', left: '10px', background: badge, color: '#fff', fontSize: '9px', fontWeight: '700', padding: '3px 8px', borderRadius: '4px', letterSpacing: '0.06em', zIndex: 2 }}>{template.badge}</div>
                       )}
                       {isSelected && (
-                        <div style={{ position: 'absolute', top: '8px', right: '8px', width: '20px', height: '20px', background: '#1A73E8', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2, fontSize: '11px', color: '#fff', fontWeight: '700' }}>✓</div>
+                        <div style={{ position: 'absolute', top: '10px', right: '10px', width: '22px', height: '22px', background: '#1A73E8', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2, fontSize: '12px', color: '#fff', fontWeight: '700' }}>✓</div>
                       )}
                       {/* Canva-style hover overlay */}
-                      <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.42)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: isHovered ? 1 : 0, transition: 'opacity 0.16s', zIndex: 3 }}>
+                      <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.42)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '7px', opacity: isHovered ? 1 : 0, transition: 'opacity 0.16s', zIndex: 3 }}>
                         <button
                           onClick={e => { e.stopPropagation(); onApply(template) }}
-                          style={{ padding: '7px 0', width: '80%', borderRadius: '6px', border: 'none', background: '#1A73E8', color: '#fff', fontSize: '11px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit' }}
+                          style={{ padding: '8px 0', width: '80%', borderRadius: '7px', border: 'none', background: '#1A73E8', color: '#fff', fontSize: '12px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit' }}
                         >Use this template</button>
                         <button
                           onClick={e => { e.stopPropagation(); setDetailId(template.id === detailId ? null : template.id) }}
-                          style={{ padding: '5px 0', width: '80%', borderRadius: '6px', border: '1.5px solid rgba(255,255,255,.7)', background: 'transparent', color: '#fff', fontSize: '11px', cursor: 'pointer', fontFamily: 'inherit' }}
+                          style={{ padding: '6px 0', width: '80%', borderRadius: '7px', border: '1.5px solid rgba(255,255,255,.7)', background: 'transparent', color: '#fff', fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit' }}
                         >Preview</button>
                       </div>
-                      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '8px 10px', zIndex: 1 }}>
-                        <div style={{ fontSize: '10px', fontWeight: '700', color: '#fff', lineHeight: '1.3', textShadow: '0 1px 3px rgba(0,0,0,.5)' }}>{template.preview.headline}</div>
-                        <div style={{ fontSize: '9px', color: 'rgba(255,255,255,.85)', marginTop: '1px' }}>{template.preview.sub}</div>
-                      </div>
                     </div>
-                    <div style={{ padding: '9px 10px 10px' }}>
-                      <div style={{ fontSize: '11px', fontWeight: '700', color: '#111827', marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{template.name}</div>
-                      <div style={{ fontSize: '10px', color: '#9CA3AF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{template.subcategory}</div>
+                    <div style={{ padding: '11px 12px 12px' }}>
+                      <div style={{ fontSize: '12px', fontWeight: '700', color: '#111827', marginBottom: '5px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{template.name}</div>
+                      <span style={{ display: 'inline-block', fontSize: '10px', fontWeight: '600', color: badge || '#6B7280', background: badge ? badge + '15' : '#F3F4F6', border: `1px solid ${badge ? badge + '30' : '#E5E7EB'}`, padding: '2px 8px', borderRadius: '10px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{template.subcategory}</span>
                     </div>
                   </div>
                 )
@@ -552,45 +595,51 @@ const TemplateBrowser = ({ onApply, onUpload, onSwitchToAI, selectedTemplateId, 
 
       {/* ── DETAIL PANEL — slides in when a card is clicked ── */}
       {detailTemplate && (
-        <div style={{ width: '220px', minWidth: '220px', background: '#fff', borderLeft: '1px solid #EAECF0', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <div style={{ padding: '12px 12px 10px', borderBottom: '1px solid #EAECF0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '11px', fontWeight: '700', color: '#111827' }}>Template details</span>
-            <button onClick={() => setDetailId(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', fontSize: '16px', padding: 0, lineHeight: 1 }}>✕</button>
+        <div style={{ width: '260px', minWidth: '260px', background: '#fff', borderLeft: '1px solid #EAECF0', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ padding: '14px 16px 12px', borderBottom: '1px solid #EAECF0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '12px', fontWeight: '700', color: '#111827' }}>Template details</span>
+            <button onClick={() => setDetailId(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', fontSize: '17px', padding: 0, lineHeight: 1 }}>✕</button>
           </div>
-          <div style={{ flex: 1, overflowY: 'auto', padding: '12px' }}>
-            <div style={{ borderRadius: '8px', overflow: 'hidden', marginBottom: '12px', position: 'relative', height: '130px' }}>
-              <img src={detailTemplate.imageUrl} alt={detailTemplate.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+            <div style={{ borderRadius: '10px', overflow: 'hidden', marginBottom: '14px', position: 'relative', height: '160px', background: '#F3F4F6' }}>
+              {detailTemplate.imageUrl ? (
+                <img src={hiQualityUrl(detailTemplate.imageUrl)} alt={detailTemplate.name} loading="eager" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <div style={{ width: '100%', height: '100%', background: 'linear-gradient(135deg,#1A73E8,#7C3AED)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <span style={{ fontSize: '30px', opacity: 0.85 }}>🗂️</span>
+                </div>
+              )}
               <div style={{ position: 'absolute', inset: 0, background: detailTemplate.overlay }} />
-              <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '8px 10px' }}>
-                <div style={{ fontSize: '10px', fontWeight: '700', color: '#fff', textShadow: '0 1px 3px rgba(0,0,0,.5)' }}>{detailTemplate.preview.headline}</div>
-                <div style={{ fontSize: '9px', color: 'rgba(255,255,255,.85)', marginTop: '1px' }}>{detailTemplate.preview.sub}</div>
+              <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '10px 12px' }}>
+                <div style={{ fontSize: '11px', fontWeight: '700', color: '#fff', textShadow: '0 1px 3px rgba(0,0,0,.5)' }}>{detailTemplate.preview.headline}</div>
+                <div style={{ fontSize: '10px', color: 'rgba(255,255,255,.85)', marginTop: '2px' }}>{detailTemplate.preview.sub}</div>
               </div>
             </div>
-            <div style={{ fontSize: '13px', fontWeight: '700', color: '#111827', marginBottom: '3px' }}>{detailTemplate.name}</div>
-            <div style={{ fontSize: '11px', color: '#6B7280', lineHeight: '1.5', marginBottom: '10px' }}>{detailTemplate.description}</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '12px' }}>
-              <span style={{ fontSize: '10px', color: '#1A73E8', background: '#EFF6FF', padding: '2px 8px', borderRadius: '20px', fontWeight: '500' }}>{detailTemplate.industry}</span>
-              <span style={{ fontSize: '10px', color: '#374151', background: '#F3F4F6', padding: '2px 8px', borderRadius: '20px', fontWeight: '500' }}>{detailTemplate.subcategory}</span>
+            <div style={{ fontSize: '14px', fontWeight: '700', color: '#111827', marginBottom: '4px' }}>{detailTemplate.name}</div>
+            <div style={{ fontSize: '12px', color: '#6B7280', lineHeight: '1.55', marginBottom: '12px' }}>{detailTemplate.description}</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginBottom: '14px' }}>
+              <span style={{ fontSize: '10px', color: '#1A73E8', background: '#EFF6FF', padding: '3px 9px', borderRadius: '20px', fontWeight: '500' }}>{detailTemplate.industry}</span>
+              <span style={{ fontSize: '10px', color: '#374151', background: '#F3F4F6', padding: '3px 9px', borderRadius: '20px', fontWeight: '500' }}>{detailTemplate.subcategory}</span>
               {detailTemplate.badge && (
-                <span style={{ fontSize: '10px', color: '#fff', background: BADGE_COLORS[detailTemplate.badge], padding: '2px 8px', borderRadius: '20px', fontWeight: '600' }}>{detailTemplate.badge}</span>
+                <span style={{ fontSize: '10px', color: '#fff', background: BADGE_COLORS[detailTemplate.badge], padding: '3px 9px', borderRadius: '20px', fontWeight: '600' }}>{detailTemplate.badge}</span>
               )}
             </div>
-            <div style={{ marginBottom: '14px' }}>
-              <div style={{ fontSize: '10px', fontWeight: '600', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Works on all platforms</div>
-              <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{ fontSize: '10px', fontWeight: '600', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '7px' }}>Works on all platforms</div>
+              <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
                 {[{n:'Google',c:'#1A73E8'},{n:'LinkedIn',c:'#0A66C2'},{n:'Facebook',c:'#1877F2'},{n:'Instagram',c:'#E1306C'}].map(p => (
-                  <div key={p.n} style={{ fontSize: '10px', color: p.c, background: p.c + '12', border: `1.5px solid ${p.c}30`, padding: '2px 8px', borderRadius: '20px', fontWeight: '600' }}>{p.n}</div>
+                  <div key={p.n} style={{ fontSize: '10px', color: p.c, background: p.c + '12', border: `1.5px solid ${p.c}30`, padding: '3px 9px', borderRadius: '20px', fontWeight: '600' }}>{p.n}</div>
                 ))}
               </div>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
               <button
                 onClick={() => { onApply(detailTemplate); setDetailId(null) }}
-                style={{ padding: '9px', borderRadius: '7px', border: 'none', background: '#1A73E8', color: '#fff', fontSize: '12px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit' }}
+                style={{ padding: '10px', borderRadius: '8px', border: 'none', background: '#1A73E8', color: '#fff', fontSize: '12.5px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit' }}
               >Use this template</button>
               <button
                 onClick={onSwitchToAI}
-                style={{ padding: '8px', borderRadius: '7px', border: '1.5px solid #E5E7EB', background: '#fff', color: '#374151', fontSize: '12px', fontWeight: '500', cursor: 'pointer', fontFamily: 'inherit' }}
+                style={{ padding: '9px', borderRadius: '8px', border: '1.5px solid #E5E7EB', background: '#fff', color: '#374151', fontSize: '12.5px', fontWeight: '500', cursor: 'pointer', fontFamily: 'inherit' }}
               >Customise with AI</button>
             </div>
           </div>
@@ -774,23 +823,52 @@ const AdContent = ({
   const currentPreviewImage = platformImages[activePlatform] || content.image_url || null
   const selectedTemplateObj = PREBUILT_TEMPLATES.find(t => t.id === selectedTemplate)
 
-  // ── Mode Tabs ──
+  // ── Mode Tabs — Templates vs AI Generate, visually differentiated ──
   const ModeTabs = () => (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '20px' }}>
-      {[
-        { key: 'template', icon: '⊞', label: 'Templates',   sub: 'Prebuilt ad designs' },
-        { key: 'ai',       icon: '✦', label: 'AI Generate', sub: 'Create with AI'      },
-      ].map(tab => (
-        <div key={tab.key} onClick={() => { setActiveTab(tab.key); setMode(tab.key) }}
-          style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '13px 16px', borderRadius: '10px', cursor: 'pointer', border: activeTab === tab.key ? '1.5px solid #1A73E8' : '1.5px solid #E5E7EB', background: activeTab === tab.key ? '#EFF6FF' : '#fff', transition: 'border-color 0.15s, background 0.15s' }}
-        >
-          <span style={{ fontSize: '20px', width: '36px', height: '36px', borderRadius: '8px', background: activeTab === tab.key ? '#DBEAFE' : '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{tab.icon}</span>
-          <div>
-            <div style={{ fontSize: '13px', fontWeight: '600', color: activeTab === tab.key ? '#1A73E8' : '#374151' }}>{tab.label}</div>
-            <div style={{ fontSize: '11px', color: '#9CA3AF', marginTop: '1px' }}>{tab.sub}</div>
-          </div>
+      {/* Templates tab */}
+      <div onClick={() => { setActiveTab('template'); setMode('template') }}
+        style={{
+          display: 'flex', alignItems: 'center', gap: '12px', padding: '13px 16px', borderRadius: '10px', cursor: 'pointer',
+          border: activeTab === 'template' ? '1.5px solid #1A73E8' : '1.5px solid #E5E7EB',
+          background: activeTab === 'template' ? '#EFF6FF' : '#fff',
+          transition: 'border-color 0.15s, background 0.15s',
+        }}
+      >
+        <span style={{ fontSize: '20px', width: '36px', height: '36px', borderRadius: '8px', background: activeTab === 'template' ? '#DBEAFE' : '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>⊞</span>
+        <div>
+          <div style={{ fontSize: '13px', fontWeight: '600', color: activeTab === 'template' ? '#1A73E8' : '#374151' }}>Templates</div>
+          <div style={{ fontSize: '11px', color: '#9CA3AF', marginTop: '1px' }}>Prebuilt ad designs</div>
         </div>
-      ))}
+      </div>
+
+      {/* AI Generate tab — gradient accent to signal "premium/smart" */}
+      <div onClick={() => { setActiveTab('ai'); setMode('ai') }}
+        style={{
+          display: 'flex', alignItems: 'center', gap: '12px', padding: '13px 16px', borderRadius: '10px', cursor: 'pointer',
+          position: 'relative', overflow: 'hidden',
+          border: activeTab === 'ai' ? '1.5px solid transparent' : '1.5px solid #E5E7EB',
+          background: activeTab === 'ai'
+            ? 'linear-gradient(#fff, #fff) padding-box, linear-gradient(135deg,#1A73E8,#7C3AED) border-box'
+            : '#fff',
+          boxShadow: activeTab === 'ai' ? '0 4px 14px rgba(124,58,237,0.16)' : 'none',
+          transition: 'border-color 0.15s, background 0.15s, box-shadow 0.15s',
+        }}
+      >
+        <span style={{
+          fontSize: '18px', width: '36px', height: '36px', borderRadius: '8px', flexShrink: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: activeTab === 'ai' ? 'linear-gradient(135deg,#1A73E8,#7C3AED)' : '#F3F4F6',
+          color: activeTab === 'ai' ? '#fff' : '#374151',
+        }}>✦</span>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '13px', fontWeight: '600', color: activeTab === 'ai' ? '#7C3AED' : '#374151' }}>AI Generate</span>
+            <span style={{ fontSize: '8px', fontWeight: '700', color: '#7C3AED', background: '#F3E8FF', padding: '1px 6px', borderRadius: '8px', letterSpacing: '0.04em' }}>SMART</span>
+          </div>
+          <div style={{ fontSize: '11px', color: '#9CA3AF', marginTop: '1px' }}>Create with AI</div>
+        </div>
+      </div>
     </div>
   )
 
@@ -955,13 +1033,15 @@ const AdContent = ({
         {/* ▼ NEW: Canva-style browser replaces old templateScreen */}
         {mode === 'template' && (
           <>
-            <TemplateBrowser
-              onApply={applyTemplate}
-              onUpload={() => globalFileRef.current?.click()}
-              onSwitchToAI={() => { setActiveTab('ai'); setMode('ai') }}
-              selectedTemplateId={selectedTemplate}
-              fileInputRef={globalFileRef}
-            />
+       <TemplateBrowser
+  onApply={applyTemplate}
+  onUpload={() => globalFileRef.current?.click()}
+  onSwitchToAI={() => { setActiveTab('ai'); setMode('ai') }}
+  selectedTemplateId={selectedTemplate}
+  fileInputRef={globalFileRef}
+  defaultIndustry={campaignData?.industry || 'All Templates'}
+  defaultSubcategory={campaignData?.sub_category || null}
+/>
             <input ref={globalFileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageUpload} />
             <div style={s.btnRow}>
               <button style={s.backStepBtn} onClick={onBack}>← Back</button>
@@ -1006,13 +1086,16 @@ const AdContent = ({
 
         {mode === 'template' && (
           <>
-            <TemplateBrowser
-              onApply={applyTemplate}
-              onUpload={() => globalFileRef.current?.click()}
-              onSwitchToAI={() => { setActiveTab('ai'); setMode('ai') }}
-              selectedTemplateId={selectedTemplate}
-              fileInputRef={globalFileRef}
-            />
+          <TemplateBrowser
+  onApply={applyTemplate}
+  onUpload={() => globalFileRef.current?.click()}
+  onSwitchToAI={() => { setActiveTab('ai'); setMode('ai') }}
+  selectedTemplateId={selectedTemplate}
+  fileInputRef={globalFileRef}
+  defaultIndustry={campaignData?.industry || 'All Templates'}
+  defaultSubcategory={campaignData?.sub_category || null}
+/>
+
             <input ref={globalFileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageUpload} />
             <div style={s.btnRow}>
               <button style={s.backStepBtn} onClick={() => navigate(-1)}>← Back</button>

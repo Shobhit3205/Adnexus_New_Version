@@ -4,7 +4,6 @@ from sqlalchemy.sql import func
 from app.database import Base
 from sqlalchemy import Boolean
 
-
 # ════════════════════════════════════════════════════
 # Users Table
 # ════════════════════════════════════════════════════
@@ -14,7 +13,19 @@ class User(Base):
     id         = Column(Integer, primary_key=True, index=True)
     name       = Column(String(100), nullable=False)
     email      = Column(String(100), unique=True, nullable=False)
-    password   = Column(String(255), nullable=False)
+
+    # Email/password users ke liye set hoga (hashed), Google-only users ke liye None
+    password   = Column(String(255), nullable=True)
+
+    # Google login ke liye
+    google_id     = Column(String(255), unique=True, nullable=True)
+    auth_provider = Column(String(20), default="email")   # "email" ya "google"
+
+    # OTP verification ke liye
+    is_verified     = Column(Boolean, default=False)
+    otp_code        = Column(String(10), nullable=True)
+    otp_expires_at  = Column(DateTime, nullable=True)
+
     created_at = Column(DateTime, default=func.now())
 
     # Relationship

@@ -1,7 +1,8 @@
-// cat > /mnt/user-data/outputs/Dashboard.jsx << 'ENDOFFILE'
 import React, { useState, useEffect } from 'react'
 import { getCampaigns, deleteCampaign, getCampaignStats, getLeads } from '../services/api'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
+import './Dashboard.css'
 
 const fmt = n => {
   if (!n && n !== 0) return '—'
@@ -137,6 +138,7 @@ const MoonIcon = () => (
 
 const Dashboard = () => {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [campaigns, setCampaigns]       = useState([])
   const [platformStats, setPlatformStats] = useState([])
   const [leads, setLeads]               = useState([])
@@ -148,6 +150,16 @@ const Dashboard = () => {
   const [darkMode, setDarkMode]         = useState(false)
 
   const t = darkMode ? DARK : LIGHT   // active theme tokens
+
+  // Sidebar mein dikhane ke liye logged-in user ka naam/role — koi bhi login kare, sahi naam dikhna chahiye
+  const displayName = user?.name || 'User'
+  const displayRole = user?.role || 'Member'
+  const displayInitials = displayName
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(w => w[0].toUpperCase())
+    .join('') || 'U'
 
   useEffect(() => { fetchAll() }, [])
 
@@ -202,13 +214,13 @@ const Dashboard = () => {
   const navItems = [
     { id:'dashboard', label:'Dashboard', action:() => {},
       icon:<svg width="18" height="18" fill="none" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.8"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.8"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.8"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.8"/></svg> },
-    { id:'campaigns', label:'Campaigns', action:() => navigate('/create-campaign'),
+    { id:'campaigns', label:'Campaigns', action:() => navigate('/dashboard/create-campaign'),
       icon:<svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg> },
-    { id:'leads', label:'Leads', action:() => navigate('/leads'),
+    { id:'leads', label:'Leads', action:() => navigate('/dashboard/leads'),
       icon:<svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="1.8"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg> },
     { id:'analytics', label:'Analytics', action:() => {},
       icon:<svg width="18" height="18" fill="none" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg> },
-    { id:'settings', label:'Settings', action:() => {},
+   { id:'settings', label:'Settings', action:() => navigate('/dashboard/settings'),
       icon:<svg width="18" height="18" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.8"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06-.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" strokeWidth="1.8"/></svg> },
   ]
 
@@ -219,7 +231,7 @@ const Dashboard = () => {
     const withCPL = platformStats.filter(p => p.leads > 0)
     if (withCPL.length >= 2) {
       const cheapest = [...withCPL].sort((a, b) => (a.spend / a.leads) - (b.spend / b.leads))[0]
-      aiSuggestions.push(`${cheapest.platform_name || cheapest.platform} has the lowest CPL (₹${(cheapest.spend / cheapest.leads).toFixed(2)}) — invest more here.`)
+      aiSuggestions.push(`${cheapest.platform_name || cheapest.platform} has the lowest                                  (₹${(cheapest.spend / cheapest.leads).toFixed(2)}) — invest more here.`)
     }
   }
 
@@ -296,10 +308,10 @@ const Dashboard = () => {
   }
 
   return (
-    <div style={wrap}>
+    <div className="dashboard-page" style={wrap}>
 
       {/* ── Sidebar ── */}
-      <aside style={sidebar}>
+      <aside className="dashboard-sidebar" style={sidebar}>
         <div style={sbLogo}>
           <div style={sbLogoIcon}>
             <svg width="18" height="18" viewBox="0 0 32 32" fill="none">
@@ -323,12 +335,12 @@ const Dashboard = () => {
 
         <div style={sbBottom}>
           <div style={userRow}>
-            <div style={userAvatar}>AV</div>
+            <div style={userAvatar}>{displayInitials}</div>
             {!sidebarCollapsed && (
               <>
                 <div style={{ flex:1, overflow:'hidden', minWidth:0 }}>
-                  <div style={userName}>Aditya Verma</div>
-                  <div style={userRole}>Admin</div>
+                  <div style={userName}>{displayName}</div>
+                  <div style={userRole}>{displayRole}</div>
                 </div>
                 <svg width="14" height="14" fill="none" viewBox="0 0 24 24" style={{ flexShrink:0, color: t.textMuted }}>
                   <polyline points="6 9 12 15 18 9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
@@ -347,10 +359,10 @@ const Dashboard = () => {
       </aside>
 
       {/* ── Main ── */}
-      <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden', minWidth:0 }}>
+      <div className="dashboard-main" style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden', minWidth:0 }}>
 
         {/* Topbar */}
-        <header style={topbar}>
+        <header className="dashboard-topbar" style={topbar}>
           <div style={topbarTitle}>{navItems.find(n => n.id === activeNav)?.label || 'Dashboard'}</div>
           <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
             {/* Dark mode toggle */}
@@ -368,7 +380,7 @@ const Dashboard = () => {
         </header>
 
         {/* Filter bar */}
-        <div style={filterbar}>
+        <div className="dashboard-filterbar" style={filterbar}>
           <span style={filterLabel}>Campaign</span>
           <select style={filterSelect} value={selectedCampaign?.id || ''}
             onChange={e => { const c = campaigns.find(x => x.id === parseInt(e.target.value)); if (c) handleCampaignChange(c) }}>
@@ -376,16 +388,16 @@ const Dashboard = () => {
           </select>
           <div style={datePill}>📅 All time</div>
           <div style={{ marginLeft:'auto', display:'flex', gap:'8px' }}>
-            <button style={btnPrimary} onClick={() => navigate('/create-campaign')}>+ New campaign</button>
-            <button style={btnGhost}   onClick={() => navigate('/leads')}>View leads</button>
+            <button style={btnPrimary} onClick={() => navigate('/dashboard/create-campaign')}>+ New campaign</button>
+            <button style={btnGhost}   onClick={() => navigate('/dashboard/leads')}>View leads</button>
           </div>
         </div>
 
         {/* Content */}
-        <div style={content}>
+        <div className="dashboard-content" style={content}>
 
           {/* KPI row */}
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'14px' }}>
+          <div className="dashboard-kpis">
             {[
               { label:'Total Spend',      value:`₹${totalSpent.toLocaleString()}`, sub: totalBudget > 0 ? ` / ₹${totalBudget.toLocaleString()}` : null },
               { label:'Total Leads',      value: totalLeads || '—' },
@@ -407,10 +419,10 @@ const Dashboard = () => {
           </div>
 
           {/* Mid row */}
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 274px', gap:'16px', alignItems:'start' }}>
+          <div className="dashboard-midrow">
 
             {/* Left col */}
-            <div style={{ display:'flex', flexDirection:'column', gap:'16px' }}>
+            <div className="dashboard-left-col">
 
               {/* Platform performance */}
               <div style={card}>
@@ -421,13 +433,14 @@ const Dashboard = () => {
                 {statsLoading ? <div style={emptyStyle}>Loading stats…</div>
                 : platformStats.length === 0 ? <div style={emptyStyle}>{selectedCampaign ? 'No platform data for this campaign yet.' : 'Select a campaign to see stats.'}</div>
                 : (
-                  <table style={table}>
-                    <thead><tr>{['Platform','Impressions','Clicks','Spend','Leads','CPL'].map(h => <th key={h} style={th}>{h}</th>)}</tr></thead>
-                    <tbody>
-                      {platformStats.map((p, i) => {
-                        const cpl = p.leads > 0 ? (p.spend / p.leads).toFixed(2) : null
-                        return (
-                          <tr key={p.platform_id || i}>
+                  <div className="dashboard-table-scroll">
+                    <table style={table}>
+                      <thead><tr>{['Platform','Impressions','Clicks','Spend','Leads','CPL'].map(h => <th key={h} style={th}>{h}</th>)}</tr></thead>
+                      <tbody>
+                        {platformStats.map((p, i) => {
+                          const cpl = p.leads > 0 ? (p.spend / p.leads).toFixed(2) : null
+                          return (
+                            <tr key={p.platform_id || i}>
                             <td style={td}>
                               <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
                                 <div style={chip}>{(p.platform_name || p.platform || 'P').charAt(0).toUpperCase()}</div>
@@ -444,6 +457,7 @@ const Dashboard = () => {
                       })}
                     </tbody>
                   </table>
+                  </div>
                 )}
               </div>
 
@@ -451,17 +465,18 @@ const Dashboard = () => {
               <div style={card}>
                 <div style={cardHeader}>
                   <span style={cardTitle}>Your Campaigns</span>
-                  <button style={btnPrimary} onClick={() => navigate('/create-campaign')}>+ New</button>
+                  <button style={btnPrimary} onClick={() => navigate('dashboard/create-campaign')}>+ New</button>
                 </div>
                 {loading ? <div style={emptyStyle}>Loading…</div>
                 : campaigns.length === 0 ? <div style={emptyStyle}>No campaigns yet. Create one to get started.</div>
                 : (
-                  <table style={table}>
-                    <thead><tr>{['Campaign','Goal','Budget','Status','Start date','Actions'].map(h => <th key={h} style={th}>{h}</th>)}</tr></thead>
+                  <div className="dashboard-table-scroll">
+                    <table style={table}>
+                      <thead><tr>{['Campaign','Goal','Budget','Status','Start date','Actions'].map(h => <th key={h} style={th}>{h}</th>)}</tr></thead>
                     <tbody>
                       {campaigns.map(c => (
                         <tr key={c.id}>
-                          <td style={{ ...td, cursor:'pointer', color: t.accent, fontWeight:'600' }} onClick={() => navigate(`/campaign/${c.id}`)}>{c.name}</td>
+                          <td style={{ ...td, cursor:'pointer', color: t.accent, fontWeight:'600' }} onClick={() => navigate(`/dashboard/campaign/${c.id}`)}>{c.name}</td>
                           <td style={td}>{badge('badgeBlue', c.goal || '—')}</td>
                           <td style={td}>{c.budget ? `₹${c.budget.toLocaleString()}` : '—'}</td>
                           <td style={td}>{badge(c.status === 'active' ? 'badgeGreen' : 'badgeAmber', c.status || '—')}</td>
@@ -476,6 +491,7 @@ const Dashboard = () => {
                       ))}
                     </tbody>
                   </table>
+                  </div>
                 )}
               </div>
 
@@ -483,18 +499,19 @@ const Dashboard = () => {
               <div style={card}>
                 <div style={cardHeader}>
                   <span style={cardTitle}>Leads{selectedCampaign ? ` — ${selectedCampaign.name}` : ''}</span>
-                  <button style={btnGhost} onClick={() => navigate('/leads')}>View all</button>
+                  <button style={btnGhost} onClick={() => navigate('/dashboard/leads')}>View all</button>
                 </div>
                 {campaignLeads.length === 0 ? <div style={emptyStyle}>No leads for this campaign yet.</div>
                 : (
-                  <table style={table}>
-                    <thead><tr>{['Name','Phone','Platform','Date','Score'].map(h => <th key={h} style={th}>{h}</th>)}</tr></thead>
+                  <div className="dashboard-table-scroll">
+                    <table style={table}>
+                      <thead><tr>{['Name','Phone','Platform','Date','Score'].map(h => <th key={h} style={th}>{h}</th>)}</tr></thead>
                     <tbody>
                       {campaignLeads.slice(0, 5).map((lead, i) => {
                         const score = lead.quality_score
                         const scoreColor = score >= 8 ? '#16a34a' : score >= 5 ? '#d97706' : '#dc2626'
                         return (
-                          <tr key={lead.id || i} style={{ cursor:'pointer' }} onClick={() => navigate(`/campaign/${selectedCampaign?.id}`)}>
+                          <tr key={lead.id || i} style={{ cursor:'pointer' }} onClick={() => navigate(`/dashboard/campaign/${selectedCampaign?.id}`)}>
                             <td style={td}>
                               <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
                                 <div style={avatar}>{(lead.name || lead.full_name || '?').charAt(0).toUpperCase()}</div>
@@ -517,13 +534,14 @@ const Dashboard = () => {
                       })}
                     </tbody>
                   </table>
+                  </div>
                 )}
               </div>
 
             </div>
 
             {/* Right col */}
-            <div style={{ display:'flex', flexDirection:'column', gap:'16px' }}>
+            <div className="dashboard-right-col">
 
               {/* Geo */}
               <div style={card}>
@@ -563,8 +581,8 @@ const Dashboard = () => {
               <div style={card}>
                 <div style={cardHeader}><span style={cardTitle}>Quick Actions</span></div>
                 {[
-                  { label:'Create new campaign', icon:'+', iconBg: darkMode ? 'rgba(59,139,255,0.2)' : '#eff6ff', iconColor: darkMode ? '#7bb8ff' : '#2563eb', action: () => navigate('/create-campaign') },
-                  { label:'Download leads (CSV)', icon:'↓', iconBg: darkMode ? 'rgba(52,211,153,0.15)' : '#f0fdf4', iconColor: darkMode ? '#6ee7b7' : '#16a34a', action: () => navigate('/leads') },
+                  { label:'Create new campaign', icon:'+', iconBg: darkMode ? 'rgba(59,139,255,0.2)' : '#eff6ff', iconColor: darkMode ? '#7bb8ff' : '#2563eb', action: () => navigate('/dashboard/create-campaign') },
+                  { label:'Download leads (CSV)', icon:'↓', iconBg: darkMode ? 'rgba(52,211,153,0.15)' : '#f0fdf4', iconColor: darkMode ? '#6ee7b7' : '#16a34a', action: () => navigate('/dashboardleads') },
                   { label:'Pause all ads', icon:'⏸', iconBg: darkMode ? 'rgba(248,113,113,0.15)' : '#fef2f2', iconColor: darkMode ? '#fca5a5' : '#dc2626', danger:true, action: () => {} },
                 ].map(a => (
                   <button key={a.label} style={{ ...actionBtn, ...(a.danger ? { color: darkMode ? '#fca5a5' : '#dc2626', borderColor: darkMode ? 'rgba(248,113,113,0.2)' : '#fecaca' } : {}) }} onClick={a.action}>

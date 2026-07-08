@@ -16,10 +16,53 @@ const platformIcons = {
   'Instagram': '📷',
 }
 
+// ── Status options shown as pill buttons in Lead Detail modal ──
+const STATUS_OPTIONS = ['Interested', 'Not Connected', 'In Progress', 'Not Answered', 'Converted', 'Visited', 'Dead']
+
+const statusColors = {
+  'Interested': { text: '#16a34a', border: '#16a34a', bg: '#f0fdf4' },
+  'Converted': { text: '#16a34a', border: '#16a34a', bg: '#f0fdf4' },
+  'Not Connected': { text: '#8892b0', border: '#c7ccdb', bg: '#fff' },
+  'In Progress': { text: '#ca8a04', border: '#ca8a04', bg: '#fefce8' },
+  'Not Answered': { text: '#ca8a04', border: '#ca8a04', bg: '#fefce8' },
+  'Visited': { text: '#1A73E8', border: '#1A73E8', bg: '#f0f4ff' },
+  'Dead': { text: '#dc2626', border: '#dc2626', bg: '#fef2f2' },
+}
+
+// ── LocalStorage helpers for per-lead activity timeline ──
+const ACTIVITY_KEY = 'lead_activity_log'
+
+const loadActivityLog = () => {
+  try {
+    const raw = localStorage.getItem(ACTIVITY_KEY)
+    return raw ? JSON.parse(raw) : {}
+  } catch {
+    return {}
+  }
+}
+
+const saveActivityLog = (log) => {
+  try {
+    localStorage.setItem(ACTIVITY_KEY, JSON.stringify(log))
+  } catch {
+    // ignore storage errors, timeline just won't persist
+  }
+}
+
+const formatActivityDate = (iso) => {
+  const d = new Date(iso)
+  const now = new Date()
+  const diffMs = now - d
+  const diffSec = Math.floor(diffMs / 1000)
+  if (diffSec < 5) return 'Just now'
+  if (diffSec < 60) return `${diffSec}s ago`
+  if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`
+  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`
+  return d.toLocaleDateString('en-IN')
+}
+
 const CampaignDetail = () => {
-  console.log('CampaignDetail render hua!')
   const { campaignId } = useParams()
-  console.log('campaignId:', campaignId)
   const navigate = useNavigate()
   const [campaign, setCampaign] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -27,18 +70,14 @@ const CampaignDetail = () => {
   const [selectedLead, setSelectedLead] = useState(null)
   const [leadsLoading, setLeadsLoading] = useState(false)
   const [showAdContent, setShowAdContent] = useState(false)
+  const [activityLog, setActivityLog] = useState({}) // { [leadId]: [ {label, at} ] }
 
   useEffect(() => {
-    console.log('useEffect chala! campaignId =', campaignId)
+    setActivityLog(loadActivityLog())
 
     const loadData = async () => {
-      console.log('loadData start!')
-
-      // Fetch campaign detail
       try {
-        console.log('API call kar raha hoon...')
         const res = await getCampaignDetail(campaignId)
-        console.log('API success:', res.data)
         setCampaign(res.data)
       } catch (err) {
         console.error('API error:', err.message)
@@ -46,7 +85,6 @@ const CampaignDetail = () => {
         setLoading(false)
       }
 
-      // Fetch submissions
       setLeadsLoading(true)
       try {
         const res = await fetch(`http://127.0.0.1:8000/public/submissions/${campaignId}`)
@@ -58,7 +96,6 @@ const CampaignDetail = () => {
         setLeadsLoading(false)
       }
     }
-
     loadData()
   }, [campaignId])
 
@@ -72,14 +109,61 @@ const CampaignDetail = () => {
   const totalSpent = platformStats.reduce((sum, s) => sum + (s.budget_spent || 0), 0)
   const unifiedCPL = totalLeads > 0 ? (totalSpent / totalLeads).toFixed(2) : 0
 
+  // ── WhatsApp URL helper ──
+  const getWhatsAppUrl = (phone) => {
+    if (!phone) return '#'
+    // Strip non-digits, remove leading 0, ensure country code 91
+    const digits = phone.replace(/\D/g, '').replace(/^0/, '')
+    const number = digits.startsWith('91') ? digits : `91${digits}`
+    return `https://wa.me/${number}`
+  }
+
+  // ── Status + Timeline helpers ──
+  const getLeadKey = (lead) => lead?.id ?? lead?.phone ?? lead?.full_name
+
+  const getLeadTimeline = (lead) => {
+    const key = getLeadKey(lead)
+    const stored = activityLog[key] || []
+    // Seed with an "Added via <Platform>" entry so timeline is never empty
+    const seed = lead?.created_at
+      ? [{ label: `Added via ${lead.platform || 'Direct'}`, at: lead.created_at }]
+      : []
+    return [...stored, ...seed].sort((a, b) => new Date(b.at) - new Date(a.at))
+  }
+
+  const handleStatusChange = async (lead, newStatus) => {
+    const key = getLeadKey(lead)
+
+    // 1) Update the lead's status in the submissions list + open modal
+    setSubmissions(prev => prev.map(s => (getLeadKey(s) === key ? { ...s, status: newStatus } : s)))
+    setSelectedLead(prev => (prev ? { ...prev, status: newStatus } : prev))
+
+    // 2) Record activity in the timeline
+    const entry = { label: `Status Changed: ${newStatus}`, at: new Date().toISOString() }
+    setActivityLog(prev => {
+      const updated = { ...prev, [key]: [entry, ...(prev[key] || [])] }
+      saveActivityLog(updated)
+      return updated
+    })
+
+    // 3) Best-effort persist to backend (won't break UI if this endpoint doesn't exist)
+    try {
+      await fetch(`http://127.0.0.1:8000/public/submissions/${lead.id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      })
+    } catch (err) {
+      console.error('Status update sync error:', err.message)
+    }
+  }
+
   return (
     <div style={styles.container}>
 
       {/* Header */}
       <div style={styles.header}>
-        <button style={styles.backBtn} onClick={() => navigate('/')}>
-          ← Back to Dashboard
-        </button>
+        <button style={styles.backBtn} onClick={() => navigate('/')}>← Back to Dashboard</button>
         <div style={styles.headerRow}>
           <div>
             <h1 style={styles.title}>{campaign.name}</h1>
@@ -307,7 +391,7 @@ const CampaignDetail = () => {
         </div>
       </div>
 
-      {/* Leads from Form */}
+      {/* Leads Table */}
       <div style={styles.card}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
           <div style={styles.cardTitle}>Leads from Form ({submissions.length})</div>
@@ -329,7 +413,7 @@ const CampaignDetail = () => {
           <table style={styles.table}>
             <thead>
               <tr>
-                {['Name', 'Phone', 'Email', 'Platform', 'Score', 'Date', 'Action'].map(h => (
+                {['Name', 'Phone', 'Email', 'Platform', 'Score', 'Status', 'Date', 'Action'].map(h => (
                   <th key={h} style={styles.th}>{h}</th>
                 ))}
               </tr>
@@ -365,6 +449,20 @@ const CampaignDetail = () => {
                       {lead.quality_score || 0}/10
                     </span>
                   </td>
+                  <td style={styles.td}>
+                    {lead.status ? (
+                      <span style={{
+                        padding: '2px 8px', borderRadius: '20px', fontSize: '10px', fontWeight: '700',
+                        background: (statusColors[lead.status] || statusColors['Not Connected']).bg,
+                        color: (statusColors[lead.status] || statusColors['Not Connected']).text,
+                        border: `1px solid ${(statusColors[lead.status] || statusColors['Not Connected']).border}`,
+                      }}>
+                        {lead.status}
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: '10px', color: '#c7ccdb' }}>—</span>
+                    )}
+                  </td>
                   <td style={styles.td}>{lead.created_at ? new Date(lead.created_at).toLocaleDateString('en-IN') : '—'}</td>
                   <td style={styles.td}>
                     <button
@@ -380,10 +478,12 @@ const CampaignDetail = () => {
         )}
       </div>
 
-      {/* Lead Detail Modal */}
+      {/* ── Lead Detail Modal ── */}
       {selectedLead && (
         <div style={styles.modalOverlay} onClick={() => setSelectedLead(null)}>
           <div style={styles.modal} onClick={e => e.stopPropagation()}>
+
+            {/* Modal Header */}
             <div style={styles.modalHeader}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: '#e8f0fe', color: '#1A73E8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '18px' }}>
@@ -400,6 +500,7 @@ const CampaignDetail = () => {
                 onClick={() => setSelectedLead(null)}>✕</button>
             </div>
 
+            {/* Score / Platform / Date chips */}
             <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
               {[
                 { label: 'Quality Score', val: `${selectedLead.quality_score || 0}/10`, color: selectedLead.quality_score >= 8 ? '#16a34a' : selectedLead.quality_score >= 5 ? '#ca8a04' : '#dc2626' },
@@ -413,16 +514,48 @@ const CampaignDetail = () => {
               ))}
             </div>
 
+            {/* ── Status ── */}
+            <div style={styles.modalSection}>
+              <div style={styles.modalSectionTitle}>🏷️ Status</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {STATUS_OPTIONS.map(opt => {
+                  const isActive = selectedLead.status === opt
+                  const c = statusColors[opt] || statusColors['Not Connected']
+                  return (
+                    <button
+                      key={opt}
+                      onClick={() => handleStatusChange(selectedLead, opt)}
+                      style={{
+                        padding: '7px 14px',
+                        borderRadius: '20px',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        fontFamily: 'inherit',
+                        background: isActive ? c.bg : '#fff',
+                        color: isActive ? c.text : '#5a6178',
+                        border: `1.5px solid ${isActive ? c.border : '#e0e4ef'}`,
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      {opt}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Contact Details */}
             <div style={styles.modalSection}>
               <div style={styles.modalSectionTitle}>📋 Contact Details</div>
               {[
-                { label: 'Full Name',     val: selectedLead.full_name },
-                { label: 'Phone',         val: selectedLead.phone },
-                { label: 'Email',         val: selectedLead.email },
-                { label: 'Location',      val: selectedLead.location },
-                { label: 'Budget Range',  val: selectedLead.budget_range },
-                { label: 'Timeline',      val: selectedLead.timeline },
-                { label: 'Requirement',   val: selectedLead.requirement },
+                { label: 'Full Name',    val: selectedLead.full_name },
+                { label: 'Phone',        val: selectedLead.phone },
+                { label: 'Email',        val: selectedLead.email },
+                { label: 'Location',     val: selectedLead.location },
+                { label: 'Budget Range', val: selectedLead.budget_range },
+                { label: 'Timeline',     val: selectedLead.timeline },
+                { label: 'Requirement',  val: selectedLead.requirement },
               ].filter(f => f.val).map((field, i) => (
                 <div key={i} style={styles.modalRow}>
                   <span style={styles.modalLabel}>{field.label}</span>
@@ -431,6 +564,7 @@ const CampaignDetail = () => {
               ))}
             </div>
 
+            {/* Extra / Additional Details */}
             {selectedLead.extra_data && Object.keys(selectedLead.extra_data).length > 0 && (
               <div style={styles.modalSection}>
                 <div style={styles.modalSectionTitle}>📊 Additional Details</div>
@@ -443,16 +577,80 @@ const CampaignDetail = () => {
               </div>
             )}
 
+            {/* ── Timeline ── */}
+            <div style={styles.modalSection}>
+              <div style={styles.modalSectionTitle}>🕐 Timeline</div>
+              <div style={{ paddingLeft: '4px' }}>
+                {getLeadTimeline(selectedLead).map((item, i, arr) => (
+                  <div key={i} style={{ position: 'relative', paddingLeft: '18px', paddingBottom: i === arr.length - 1 ? '0' : '16px' }}>
+                    {/* dot */}
+                    <div style={{ position: 'absolute', left: 0, top: '3px', width: '8px', height: '8px', borderRadius: '50%', background: '#1A73E8' }} />
+                    {/* connecting line */}
+                    {i !== arr.length - 1 && (
+                      <div style={{ position: 'absolute', left: '3.5px', top: '11px', bottom: '-4px', width: '1px', background: '#e0e4ef' }} />
+                    )}
+                    <div style={{ fontSize: '11px', color: '#8892b0', marginBottom: '2px' }}>{formatActivityDate(item.at)}</div>
+                    <div style={{ fontSize: '12.5px', fontWeight: '700', color: '#1a1a2e' }}>{item.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* ── Action Buttons: Call / WhatsApp / Email ── */}
             <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
-              <a href={`tel:${selectedLead.phone}`} style={{ flex: 1, padding: '10px', borderRadius: '8px', background: '#1A73E8', color: '#fff', textAlign: 'center', fontSize: '13px', fontWeight: '600', textDecoration: 'none' }}>
+
+              {/* 📞 Call Now */}
+              <a
+                href={`tel:${selectedLead.phone}`}
+                style={{
+                  flex: 1, padding: '12px 8px', borderRadius: '10px',
+                  background: '#1A73E8', color: '#fff',
+                  textAlign: 'center', fontSize: '13px', fontWeight: '600',
+                  textDecoration: 'none', display: 'flex', alignItems: 'center',
+                  justifyContent: 'center', gap: '6px',
+                }}
+              >
                 📞 Call Now
               </a>
+
+              {/* 💬 WhatsApp */}
+              {selectedLead.phone && (
+                <a
+                  href={getWhatsAppUrl(selectedLead.phone)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    flex: 1, padding: '12px 8px', borderRadius: '10px',
+                    background: '#25D366', color: '#fff',
+                    textAlign: 'center', fontSize: '13px', fontWeight: '600',
+                    textDecoration: 'none', display: 'flex', alignItems: 'center',
+                    justifyContent: 'center', gap: '6px',
+                  }}
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" style={{ flexShrink: 0 }}>
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                  </svg>
+                  WhatsApp
+                </a>
+              )}
+
+              {/* ✉️ Send Email */}
               {selectedLead.email && (
-                <a href={`mailto:${selectedLead.email}`} style={{ flex: 1, padding: '10px', borderRadius: '8px', background: '#f0f4ff', color: '#1A73E8', textAlign: 'center', fontSize: '13px', fontWeight: '600', textDecoration: 'none', border: '1px solid #c7d2fe' }}>
+                <a
+                  href={`mailto:${selectedLead.email}`}
+                  style={{
+                    flex: 1, padding: '12px 8px', borderRadius: '10px',
+                    background: '#f0f4ff', color: '#1A73E8',
+                    textAlign: 'center', fontSize: '13px', fontWeight: '600',
+                    textDecoration: 'none', border: '1.5px solid #c7d2fe',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                  }}
+                >
                   ✉️ Send Email
                 </a>
               )}
             </div>
+
           </div>
         </div>
       )}
