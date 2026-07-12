@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
@@ -36,6 +36,8 @@ const ShieldIcon = () => (<svg width="16" height="16" fill="none" viewBox="0 0 2
 const CalendarIcon = () => (<svg width="16" height="16" fill="none" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2" stroke="currentColor" strokeWidth="1.8"/><path d="M3 9h18M8 2v4M16 2v4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>)
 const CardIcon = () => (<svg width="16" height="16" fill="none" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2" stroke="currentColor" strokeWidth="1.8"/><path d="M2 10h20" stroke="currentColor" strokeWidth="1.8"/></svg>)
 const CheckCircleIcon = () => (<svg width="15" height="15" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8"/><path d="M8 12l3 3 5-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>)
+const MenuIcon = () => (<svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>)
+const CloseIcon = () => (<svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>)
 
 const TABS = [
   { key: 'profile', label: 'Profile', icon: <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.8"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg> },
@@ -45,6 +47,9 @@ const TABS = [
   { key: 'danger', label: 'Danger Zone', icon: <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.29 3.86l-8.16 14.14A1 1 0 0 0 3 19.5h18a1 1 0 0 0 .87-1.5L13.7 3.86a1 1 0 0 0-1.73 0z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg> },
   { key: 'signout', label: 'Sign Out', icon: <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/><polyline points="16 17 21 12 16 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/><line x1="21" y1="12" x2="9" y2="12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg> },
 ]
+
+// Breakpoint below which the sidebar becomes an overlay drawer
+const MOBILE_BREAKPOINT = 860
 
 const Settings = () => {
   const navigate = useNavigate()
@@ -60,6 +65,23 @@ const Settings = () => {
   const [activeTab, setActiveTab] = useState('profile')
   const [darkMode, setDarkMode] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+
+  // ── Responsive state ──
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== 'undefined' ? window.innerWidth <= MOBILE_BREAKPOINT : false
+  )
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
+
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth <= MOBILE_BREAKPOINT
+      setIsMobile(mobile)
+      if (!mobile) setMobileNavOpen(false)
+    }
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   const handleToggle = (key) => {
     setActiveTab((prev) => (prev === key ? null : key))
@@ -78,30 +100,49 @@ const Settings = () => {
     { id: 'settings', label: 'Settings', path: '/dashboard/settings', icon: <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.8"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06-.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" strokeWidth="1.8"/></svg> },
   ]
 
-  const wrap = { display: 'flex', height: '100vh', background: darkMode ? 'linear-gradient(135deg,#05101f 0%,#091830 50%,#05101f 100%)' : t.pageBg, fontFamily: "'DM Sans',system-ui,sans-serif", fontSize: '13px' }
-  const sidebar = { width: sidebarCollapsed ? '60px' : '230px', background: t.sidebarBg, borderRight: t.border, display: 'flex', flexDirection: 'column', flexShrink: 0, overflow: 'hidden', transition: 'width 0.22s ease', ...(darkMode ? { backdropFilter: 'blur(20px)' } : { boxShadow: '1px 0 0 #e4e9f5' }) }
-  const sbLogo = { display: 'flex', alignItems: 'center', gap: '10px', padding: '18px 16px 14px', borderBottom: t.border, minHeight: '58px', justifyContent: sidebarCollapsed ? 'center' : 'flex-start' }
+  // On mobile the sidebar is always "expanded" width when it slides in,
+  // and never permanently collapsed (that control only matters on desktop).
+  const effectiveCollapsed = isMobile ? false : sidebarCollapsed
+
+  const wrap = { display: 'flex', height: '100vh', background: darkMode ? 'linear-gradient(135deg,#05101f 0%,#091830 50%,#05101f 100%)' : t.pageBg, fontFamily: "'DM Sans',system-ui,sans-serif", fontSize: '13px', position: 'relative', overflow: 'hidden' }
+  const sidebar = {
+    width: effectiveCollapsed ? '60px' : '230px',
+    background: t.sidebarBg, borderRight: t.border, display: 'flex', flexDirection: 'column', flexShrink: 0, overflow: 'hidden',
+    transition: 'width 0.22s ease, transform 0.25s ease',
+    ...(darkMode ? { backdropFilter: 'blur(20px)' } : { boxShadow: '1px 0 0 #e4e9f5' }),
+    ...(isMobile ? {
+      position: 'fixed', top: 0, left: 0, height: '100%', zIndex: 40,
+      transform: mobileNavOpen ? 'translateX(0)' : 'translateX(-100%)',
+      boxShadow: mobileNavOpen ? '2px 0 24px rgba(0,0,0,0.25)' : 'none',
+    } : {}),
+  }
+  const backdrop = {
+    display: isMobile && mobileNavOpen ? 'block' : 'none',
+    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 30,
+  }
+  const sbLogo = { display: 'flex', alignItems: 'center', gap: '10px', padding: '18px 16px 14px', borderBottom: t.border, minHeight: '58px', justifyContent: effectiveCollapsed ? 'center' : 'space-between' }
   const sbLogoIcon = { width: '34px', height: '34px', borderRadius: '10px', background: 'linear-gradient(135deg,#2563eb,#1d4ed8)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 2px 10px rgba(37,99,235,0.4)' }
-  const sbNav = { display: 'flex', flexDirection: 'column', gap: '3px', padding: '12px 10px', flex: 1 }
+  const sbNav = { display: 'flex', flexDirection: 'column', gap: '3px', padding: '12px 10px', flex: 1, overflowY: 'auto' }
   const navItemBase = { display: 'flex', alignItems: 'center', gap: '11px', padding: '9px 12px', borderRadius: '10px', border: 'none', background: 'none', cursor: 'pointer', width: '100%', textAlign: 'left', fontFamily: 'inherit', fontSize: '13px', fontWeight: '500', color: t.navColor, whiteSpace: 'nowrap', overflow: 'hidden' }
   const navItemActiveStyle = { background: t.navActiveBg, color: t.navActiveColor, ...(darkMode ? { border: '1px solid rgba(59,139,255,0.28)' } : {}) }
   const sbBottom = { borderTop: t.border, padding: '12px 10px' }
   const userRow = { display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 8px', borderRadius: '10px', marginBottom: '4px', overflow: 'hidden' }
   const userAvatar = { width: '34px', height: '34px', borderRadius: '50%', flexShrink: 0, background: t.avatarBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700', fontSize: '12px', color: '#fff' }
-  const topbar = { background: t.topbarBg, borderBottom: t.border, padding: '0 24px', height: '54px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, ...(darkMode ? { backdropFilter: 'blur(12px)' } : { boxShadow: '0 1px 0 #e4e9f5' }) }
-  const toggleBtn = { display: 'flex', alignItems: 'center', gap: '6px', background: darkMode ? 'rgba(255,255,255,0.1)' : t.accentLight, border: darkMode ? '1px solid rgba(255,255,255,0.15)' : `1px solid ${t.accentBorder}`, borderRadius: '20px', padding: '5px 12px', fontSize: '12px', fontWeight: '500', cursor: 'pointer', color: darkMode ? '#fff' : t.accent, fontFamily: 'inherit' }
+  const topbar = { background: t.topbarBg, borderBottom: t.border, padding: isMobile ? '0 14px' : '0 24px', height: '54px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, gap: '10px', ...(darkMode ? { backdropFilter: 'blur(12px)' } : { boxShadow: '0 1px 0 #e4e9f5' }) }
+  const toggleBtn = { display: 'flex', alignItems: 'center', gap: '6px', background: darkMode ? 'rgba(255,255,255,0.1)' : t.accentLight, border: darkMode ? '1px solid rgba(255,255,255,0.15)' : `1px solid ${t.accentBorder}`, borderRadius: '20px', padding: isMobile ? '5px 10px' : '5px 12px', fontSize: '12px', fontWeight: '500', cursor: 'pointer', color: darkMode ? '#fff' : t.accent, fontFamily: 'inherit', flexShrink: 0 }
+  const hamburgerBtn = { display: isMobile ? 'flex' : 'none', alignItems: 'center', justifyContent: 'center', width: '34px', height: '34px', borderRadius: '9px', border: `1px solid ${t.borderColor}`, background: 'transparent', color: t.textPrimary, cursor: 'pointer', flexShrink: 0 }
 
-  // ── Layout now fills the width: left = accordion settings list,
-  // right = an "overview" panel that uses the space that was empty before.
-  const content = { flex: 1, overflow: 'auto', padding: '24px 28px' }
-  const accordionWrap = { maxWidth: '600px', display: 'flex', flexDirection: 'column', gap: '12px', minWidth: 0 }
+  // ── Layout fills the width: an accordion settings list that adapts
+  // its padding and max-width to the viewport.
+  const content = { flex: 1, overflow: 'auto', padding: isMobile ? '16px 14px' : '24px 28px' }
+  const accordionWrap = { maxWidth: isMobile ? '100%' : '600px', display: 'flex', flexDirection: 'column', gap: '12px', minWidth: 0 }
   const accordionItem = { background: t.cardBg, border: t.border, borderRadius: '16px', overflow: 'hidden', ...(darkMode ? { backdropFilter: 'blur(16px)' } : { boxShadow: t.shadow }) }
-  const accordionHeader = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '17px 22px', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }
-  const accordionHeaderLeft = { display: 'flex', alignItems: 'center', gap: '12px' }
+  const accordionHeader = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: isMobile ? '14px 16px' : '17px 22px', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', gap: '10px' }
+  const accordionHeaderLeft = { display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }
   const accordionIconBox = { width: '34px', height: '34px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }
-  const accordionLabel = { fontSize: '13.5px', fontWeight: '700', color: t.textPrimary }
+  const accordionLabel = { fontSize: '13.5px', fontWeight: '700', color: t.textPrimary, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }
   const accordionChevron = { color: t.textMuted, transition: 'transform 0.2s', flexShrink: 0 }
-  const accordionBody = { padding: '0 22px 24px 22px' }
+  const accordionBody = { padding: isMobile ? '0 16px 20px 16px' : '0 22px 24px 22px' }
   const card = { position: 'relative' }
   const cardAccent = { display: 'none' }
   const cardTitle = { fontSize: '16px', fontWeight: '700', color: t.textPrimary, margin: 0 }
@@ -110,7 +151,7 @@ const Settings = () => {
   const input = { width: '100%', padding: '11px 13px', borderRadius: '10px', border: `1px solid ${t.borderColor}`, background: t.inputBg, color: t.textPrimary, fontSize: '13.5px', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }
   const passwordWrap = { position: 'relative', width: '100%' }
   const eyeIcon = { position: 'absolute', right: '13px', top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', display: 'flex', color: t.textMuted }
-  const primaryButton = { marginTop: '22px', padding: '11px 20px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#2563eb,#1d4ed8)', color: '#fff', fontWeight: '600', fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 2px 10px rgba(37,99,235,0.35)' }
+  const primaryButton = { marginTop: '22px', padding: '11px 20px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#2563eb,#1d4ed8)', color: '#fff', fontWeight: '600', fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 2px 10px rgba(37,99,235,0.35)', width: isMobile ? '100%' : 'auto' }
   const secondaryButton = { padding: '8px 16px', borderRadius: '10px', border: `1px solid ${t.borderColor}`, background: 'transparent', color: t.textPrimary, fontWeight: '600', fontSize: '12.5px', cursor: 'pointer', fontFamily: 'inherit' }
   const rulesBox = { marginTop: '10px', padding: '12px 14px', background: t.inputBg, borderRadius: '10px', border: `1px solid ${t.borderColor}` }
   const ruleRow = { display: 'flex', alignItems: 'center', gap: '8px', padding: '3px 0' }
@@ -124,48 +165,65 @@ const Settings = () => {
 
   return (
     <div style={wrap}>
+      {/* Mobile backdrop */}
+      <div style={backdrop} onClick={() => setMobileNavOpen(false)} />
+
       {/* Sidebar */}
       <aside style={sidebar}>
         <div style={sbLogo}>
-          <div style={sbLogoIcon}>
-            <svg width="18" height="18" viewBox="0 0 32 32" fill="none"><path d="M8 24L16 8L24 24" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M10.5 19h11" stroke="#fff" strokeWidth="2" strokeLinecap="round"/></svg>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+            <div style={sbLogoIcon}>
+              <svg width="18" height="18" viewBox="0 0 32 32" fill="none"><path d="M8 24L16 8L24 24" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M10.5 19h11" stroke="#fff" strokeWidth="2" strokeLinecap="round"/></svg>
+            </div>
+            {!effectiveCollapsed && <span style={{ fontSize: '16px', fontWeight: '700', color: t.textPrimary }}>AdNexus</span>}
           </div>
-          {!sidebarCollapsed && <span style={{ fontSize: '16px', fontWeight: '700', color: t.textPrimary }}>AdNexus</span>}
+          {isMobile && (
+            <button onClick={() => setMobileNavOpen(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '30px', height: '30px', borderRadius: '8px', border: 'none', background: 'transparent', color: t.textSecondary, cursor: 'pointer', flexShrink: 0 }} aria-label="Close menu">
+              <CloseIcon />
+            </button>
+          )}
         </div>
         <nav style={sbNav}>
           {navItems.map(item => (
-            <button key={item.id} title={sidebarCollapsed ? item.label : ''}
-              onClick={() => navigate(item.path)}
-              style={{ ...navItemBase, ...(item.id === 'settings' ? navItemActiveStyle : {}), justifyContent: sidebarCollapsed ? 'center' : 'flex-start' }}>
+            <button key={item.id} title={effectiveCollapsed ? item.label : ''}
+              onClick={() => { navigate(item.path); setMobileNavOpen(false) }}
+              style={{ ...navItemBase, ...(item.id === 'settings' ? navItemActiveStyle : {}), justifyContent: effectiveCollapsed ? 'center' : 'flex-start' }}>
               <span style={{ flexShrink: 0, display: 'flex' }}>{item.icon}</span>
-              {!sidebarCollapsed && <span>{item.label}</span>}
+              {!effectiveCollapsed && <span>{item.label}</span>}
             </button>
           ))}
         </nav>
         <div style={sbBottom}>
           <div style={userRow}>
             <div style={userAvatar}>{displayInitials}</div>
-            {!sidebarCollapsed && (
+            {!effectiveCollapsed && (
               <div style={{ flex: 1, overflow: 'hidden', minWidth: 0 }}>
                 <div style={{ fontSize: '13px', fontWeight: '600', color: t.textPrimary, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{displayName}</div>
                 <div style={{ fontSize: '11px', color: t.textSecondary }}>{displayRole}</div>
               </div>
             )}
           </div>
-          <button onClick={() => setSidebarCollapsed(v => !v)} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px', borderRadius: '10px', border: 'none', background: 'none', cursor: 'pointer', width: '100%', fontFamily: 'inherit', color: t.textSecondary, justifyContent: sidebarCollapsed ? 'center' : 'flex-start' }}>
-            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" style={{ transform: sidebarCollapsed ? 'rotate(180deg)' : 'none', transition: 'transform 0.22s' }}><polyline points="15 18 9 12 15 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            {!sidebarCollapsed && <span style={{ fontSize: '12px' }}>Collapse</span>}
-          </button>
+          {!isMobile && (
+            <button onClick={() => setSidebarCollapsed(v => !v)} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px', borderRadius: '10px', border: 'none', background: 'none', cursor: 'pointer', width: '100%', fontFamily: 'inherit', color: t.textSecondary, justifyContent: sidebarCollapsed ? 'center' : 'flex-start' }}>
+              <svg width="16" height="16" fill="none" viewBox="0 0 24 24" style={{ transform: sidebarCollapsed ? 'rotate(180deg)' : 'none', transition: 'transform 0.22s' }}><polyline points="15 18 9 12 15 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              {!sidebarCollapsed && <span style={{ fontSize: '12px' }}>Collapse</span>}
+            </button>
+          )}
         </div>
       </aside>
 
       {/* Main */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
         <header style={topbar}>
-          <div style={{ fontSize: '16px', fontWeight: '700', color: t.textPrimary }}>Settings</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+            <button style={hamburgerBtn} onClick={() => setMobileNavOpen(true)} aria-label="Open menu">
+              <MenuIcon />
+            </button>
+            <div style={{ fontSize: isMobile ? '15px' : '16px', fontWeight: '700', color: t.textPrimary, whiteSpace: 'nowrap' }}>Settings</div>
+          </div>
           <button style={toggleBtn} onClick={() => setDarkMode(v => !v)}>
             {darkMode ? <SunIcon /> : <MoonIcon />}
-            {darkMode ? 'Light' : 'Dark'}
+            {!isMobile && (darkMode ? 'Light' : 'Dark')}
           </button>
         </header>
 
@@ -203,10 +261,10 @@ const Settings = () => {
 
       {isOpen && !isAdminTab && (
         <div style={accordionBody}>
-          {tab.key === 'profile' && <ProfileSection styles={{ card, cardAccent, cardTitle, cardSubtitle, label, input, primaryButton, secondaryButton, t }} displayInitials={displayInitials} />}
+          {tab.key === 'profile' && <ProfileSection styles={{ card, cardAccent, cardTitle, cardSubtitle, label, input, primaryButton, secondaryButton, t }} displayInitials={displayInitials} isMobile={isMobile} />}
           {tab.key === 'account' && <AccountSection styles={{ card, cardAccent, cardTitle, cardSubtitle, label, input, passwordWrap, eyeIcon, primaryButton, rulesBox, ruleRow, t }} passwordRules={passwordRules} EyeIcon={EyeIcon} EyeOffIcon={EyeOffIcon} />}
-          {tab.key === 'notifications' && <NotificationsSection styles={{ card, cardAccent, cardTitle, cardSubtitle, t, darkMode }} />}
-          {tab.key === 'billing' && <BillingSection styles={{ card, cardAccent, cardTitle, cardSubtitle, label, primaryButton, t }} />}
+          {tab.key === 'notifications' && <NotificationsSection styles={{ card, cardAccent, cardTitle, cardSubtitle, t, darkMode }} isMobile={isMobile} />}
+          {tab.key === 'billing' && <BillingSection styles={{ card, cardAccent, cardTitle, cardSubtitle, label, primaryButton, t }} isMobile={isMobile} />}
           {tab.key === 'danger' && <DangerZoneSection styles={{ card, cardTitle, cardSubtitle, label, input, t }} />}
           {tab.key === 'signout' && <SignOutSection styles={{ card, cardAccent, cardTitle, cardSubtitle, primaryButton, t }} navigate={navigate} />}
         </div>
@@ -222,7 +280,7 @@ const Settings = () => {
 }
 
 /* ---------------- Profile ---------------- */
-const ProfileSection = ({ styles: s, displayInitials }) => {
+const ProfileSection = ({ styles: s, displayInitials, isMobile }) => {
   const [name, setName] = useState('Shobhit Pandey')
   const [email, setEmail] = useState('shobhit@example.com')
   const [saved, setSaved] = useState(false)
@@ -236,8 +294,8 @@ const ProfileSection = ({ styles: s, displayInitials }) => {
   return (
     <div style={s.card}>
       <p style={{ ...s.cardSubtitle, marginTop: 0 }}>Update your personal details</p>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '10px' }}>
-        <div style={{ width: '58px', height: '58px', borderRadius: '50%', background: s.t.avatarBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700', fontSize: '22px', color: '#fff' }}>{displayInitials}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '10px', flexWrap: 'wrap' }}>
+        <div style={{ width: '58px', height: '58px', borderRadius: '50%', background: s.t.avatarBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700', fontSize: '22px', color: '#fff', flexShrink: 0 }}>{displayInitials}</div>
         <button type="button" style={s.secondaryButton}>Change photo</button>
       </div>
       <form onSubmit={handleSave}>
@@ -304,7 +362,7 @@ const AccountSection = ({ styles: s, passwordRules, EyeIcon, EyeOffIcon }) => {
 }
 
 /* ---------------- Notifications ---------------- */
-const NotificationsSection = ({ styles: s }) => {
+const NotificationsSection = ({ styles: s, isMobile }) => {
   const [prefs, setPrefs] = useState({ campaignAlerts: true, weeklyReport: true, leadNotifications: true, productUpdates: false })
   const toggle = (key) => setPrefs((prev) => ({ ...prev, [key]: !prev[key] }))
   const items = [
@@ -317,8 +375,8 @@ const NotificationsSection = ({ styles: s }) => {
     <div style={s.card}>
       <p style={{ ...s.cardSubtitle, marginTop: 0 }}>Choose what you want to be notified about</p>
       {items.map((item, i) => (
-        <div key={item.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 0', borderBottom: i < items.length - 1 ? `1px solid ${s.t.borderColor}` : 'none' }}>
-          <div>
+        <div key={item.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', padding: '15px 0', borderBottom: i < items.length - 1 ? `1px solid ${s.t.borderColor}` : 'none' }}>
+          <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: '13.5px', fontWeight: '600', color: s.t.textPrimary }}>{item.label}</div>
             <div style={{ fontSize: '12px', color: s.t.textSecondary, marginTop: '2px' }}>{item.desc}</div>
           </div>
@@ -332,15 +390,15 @@ const NotificationsSection = ({ styles: s }) => {
 }
 
 /* ---------------- Billing ---------------- */
-const BillingSection = ({ styles: s }) => (
+const BillingSection = ({ styles: s, isMobile }) => (
   <div style={s.card}>
     <p style={{ ...s.cardSubtitle, marginTop: 0 }}>Manage your subscription and payment details</p>
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 20px', background: s.t.inputBg, borderRadius: '12px', border: `1px solid ${s.t.borderColor}`, marginBottom: '18px' }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', flexDirection: isMobile ? 'column' : 'row', gap: '14px', padding: '18px 20px', background: s.t.inputBg, borderRadius: '12px', border: `1px solid ${s.t.borderColor}`, marginBottom: '18px' }}>
       <div>
         <div style={{ fontSize: '14px', fontWeight: '700', color: s.t.textPrimary }}>Free Plan</div>
         <div style={{ fontSize: '12.5px', color: s.t.textSecondary, marginTop: '2px' }}>Up to ₹1,000 ad spend / month</div>
       </div>
-      <button style={{ ...s.primaryButton, marginTop: 0 }}>Upgrade plan</button>
+      <button style={{ ...s.primaryButton, marginTop: 0, width: isMobile ? '100%' : 'auto' }}>Upgrade plan</button>
     </div>
     <label style={s.label}>Payment Method</label>
     <div style={{ padding: '16px', background: s.t.inputBg, borderRadius: '10px', border: `1px dashed ${s.t.borderColor}`, fontSize: '13px', color: s.t.textSecondary, marginTop: '6px' }}>No payment method added yet.</div>
@@ -355,7 +413,7 @@ const DangerZoneSection = ({ styles: s }) => {
       <p style={{ ...s.cardSubtitle, marginTop: 0 }}>This action is permanent and cannot be undone</p>
       <label style={s.label}>Type "DELETE" to confirm</label>
       <input style={s.input} type="text" value={confirmText} onChange={(e) => setConfirmText(e.target.value)} placeholder="DELETE" />
-      <button style={{ marginTop: '20px', padding: '11px 20px', borderRadius: '10px', border: 'none', background: '#dc2626', color: '#fff', fontWeight: '600', fontSize: '13px', fontFamily: 'inherit', opacity: confirmText === 'DELETE' ? 1 : 0.5, cursor: confirmText === 'DELETE' ? 'pointer' : 'not-allowed' }} disabled={confirmText !== 'DELETE'}>
+      <button style={{ marginTop: '20px', padding: '11px 20px', borderRadius: '10px', border: 'none', background: '#dc2626', color: '#fff', fontWeight: '600', fontSize: '13px', fontFamily: 'inherit', opacity: confirmText === 'DELETE' ? 1 : 0.5, cursor: confirmText === 'DELETE' ? 'pointer' : 'not-allowed', width: '100%' }} disabled={confirmText !== 'DELETE'}>
         Delete my account
       </button>
     </div>

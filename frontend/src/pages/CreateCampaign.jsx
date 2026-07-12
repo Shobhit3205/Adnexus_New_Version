@@ -299,6 +299,7 @@ const CampaignSummaryPopover = ({ formData, selectedPlatforms, step, selectedCit
         onClick={() => setOpen(o => !o)}
         aria-label="Toggle campaign summary"
         aria-expanded={open}
+        className="summary-trigger"
         style={{
           position:    'fixed',
           bottom:      '28px',
@@ -349,6 +350,7 @@ const CampaignSummaryPopover = ({ formData, selectedPlatforms, step, selectedCit
           ref={popoverRef}
           role="dialog"
           aria-label="Campaign summary"
+          className="summary-panel"
           style={{
             position:      'fixed',
             bottom:        '78px',
@@ -529,18 +531,19 @@ const LaunchSuccess = ({ launchResult, formData, selectedPlatforms, selectedCiti
   ]
 
   return (
-    <div style={{ display:'flex', minHeight:'100vh', fontFamily:'DM Sans, sans-serif', background:'#f0f2f8', overflow:'hidden' }}>
-      <style>{`*::-webkit-scrollbar{display:none}*{scrollbar-width:none;-ms-overflow-style:none}`}</style>
-      <div style={{ width:'260px', background:'linear-gradient(160deg,#0f1535 0%,#1a3a8f 100%)', padding:'28px 20px', display:'flex', flexDirection:'column', flexShrink:0, height:'100vh', overflowY:'auto' }}>
+    <div className="app-page" style={{ display:'flex', minHeight:'100vh', fontFamily:'DM Sans, sans-serif', background:'#f0f2f8', overflow:'hidden' }}>
+      <style>{globalStyles}</style>
+      <div className="app-sidebar" style={{ width:'260px', background:'linear-gradient(160deg,#0f1535 0%,#1a3a8f 100%)', padding:'28px 20px', display:'flex', flexDirection:'column', flexShrink:0, height:'100vh', overflowY:'auto' }}>
         <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'32px' }}>
           <div style={{ width:'36px', height:'36px', borderRadius:'10px', background:'rgba(255,255,255,0.15)', border:'1.5px solid rgba(255,255,255,0.3)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'18px', fontWeight:'800', color:'#fff', fontFamily:'Georgia,serif' }}>A</div>
           <span style={{ color:'#fff', fontSize:'18px', fontWeight:'700' }}>AdNexus</span>
         </div>
-        <div style={{ flex:1, color:'rgba(255,255,255,0.7)', fontSize:'13px', lineHeight:'1.7' }}>
+        <div className="mobile-step-info">Step {steps.length}/{steps.length} · Campaign launched</div>
+        <div className="desktop-only" style={{ flex:1, color:'rgba(255,255,255,0.7)', fontSize:'13px', lineHeight:'1.7' }}>
           <div style={{ fontSize:'17px', fontWeight:'700', color:'#fff', marginBottom:'10px' }}>Launch your next B2B campaign</div>
           <div style={{ fontSize:'12px', marginBottom:'28px' }}>Reach ₹10Cr+ turnover businesses across Google, LinkedIn, Facebook & Instagram.</div>
         </div>
-        <div style={{ display:'flex', flexDirection:'column', gap:'4px', marginBottom:'24px' }}>
+        <div className="desktop-only" style={{ display:'flex', flexDirection:'column', gap:'4px', marginBottom:'24px' }}>
           {steps.map(st => (
             <div key={st.num} style={{ display:'flex', alignItems:'center', gap:'10px', padding:'5px 0' }}>
               <div style={{ width:'24px', height:'24px', borderRadius:'50%', background:'#22c55e', border:'1.5px solid #22c55e', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'11px', color:'#fff', fontWeight:'700', flexShrink:0 }}>✓</div>
@@ -548,7 +551,7 @@ const LaunchSuccess = ({ launchResult, formData, selectedPlatforms, selectedCiti
             </div>
           ))}
         </div>
-        <div style={{ background:'rgba(255,255,255,0.07)', borderRadius:'12px', padding:'14px', border:'1px solid rgba(255,255,255,0.12)' }}>
+        <div className="desktop-only" style={{ background:'rgba(255,255,255,0.07)', borderRadius:'12px', padding:'14px', border:'1px solid rgba(255,255,255,0.12)' }}>
           <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'6px' }}>
             <span style={{ fontSize:'16px' }}>📞</span>
             <span style={{ fontSize:'13px', fontWeight:'700', color:'#fff' }}>Need Help?</span>
@@ -558,11 +561,11 @@ const LaunchSuccess = ({ launchResult, formData, selectedPlatforms, selectedCiti
         </div>
       </div>
 
-      <div style={{ flex:1, padding:'24px 28px', overflowY:'auto', display:'flex', flexDirection:'column', gap:'20px' }}>
+      <div className="app-main" style={{ flex:1, padding:'24px 28px', overflowY:'auto', display:'flex', flexDirection:'column', gap:'20px' }}>
         <button style={{ background:'none', border:'none', color:'#1A73E8', fontSize:'13px', cursor:'pointer', padding:0, fontFamily:'inherit', display:'flex', alignItems:'center', gap:'4px', alignSelf:'flex-start' }} onClick={() => navigate('/')}>
           ← Back to Dashboard
         </button>
-        <div style={{ background:'#fff', borderRadius:'20px', border:'1px solid #e8eaf0', padding:'32px 40px', display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:'24px', position:'relative', overflow:'hidden' }}>
+        <div className="hero-card" style={{ background:'#fff', borderRadius:'20px', border:'1px solid #e8eaf0', padding:'32px 40px', display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:'24px', position:'relative', overflow:'hidden' }}>
           {[{top:'18px',left:'200px',color:'#F59E0B',size:8},{top:'40px',left:'320px',color:'#EC4899',size:6},{top:'60px',left:'150px',color:'#10B981',size:5},{top:'30px',right:'320px',color:'#6366F1',size:7},{top:'70px',right:'200px',color:'#F59E0B',size:5}].map((d,i) => (
             <div key={i} style={{ position:'absolute', top:d.top, left:d.left, right:d.right, width:d.size, height:d.size, borderRadius:'50%', background:d.color, opacity:0.7 }} />
           ))}
@@ -594,7 +597,7 @@ const LaunchSuccess = ({ launchResult, formData, selectedPlatforms, selectedCiti
           </div>
         </div>
 
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 340px', gap:'20px' }}>
+        <div className="success-columns" style={{ display:'grid', gridTemplateColumns:'1fr 340px', gap:'20px' }}>
           <div style={{ background:'#fff', borderRadius:'16px', border:'1px solid #e8eaf0', padding:'24px' }}>
             <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'20px' }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1A73E8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -602,7 +605,7 @@ const LaunchSuccess = ({ launchResult, formData, selectedPlatforms, selectedCiti
               </svg>
               <span style={{ fontSize:'16px', fontWeight:'700', color:'#1a1a2e' }}>Campaign Overview</span>
             </div>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'12px' }}>
+            <div className="overview-grid" style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'12px' }}>
               {overviewItems.map((item, i) => (
                 <div key={i} style={{ display:'flex', alignItems:'center', gap:'12px', padding:'14px', background:'#f8faff', borderRadius:'12px', border:'1px solid #f0f2f8' }}>
                   <div style={{ width:'36px', height:'36px', borderRadius:'10px', background:item.bg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'17px', flexShrink:0 }}>{item.icon}</div>
@@ -651,7 +654,7 @@ const LaunchSuccess = ({ launchResult, formData, selectedPlatforms, selectedCiti
           </div>
         </div>
 
-        <div style={{ display:'flex', gap:'16px', maxWidth:'720px' }}>
+        <div className="success-actions" style={{ display:'flex', gap:'16px', maxWidth:'720px' }}>
           <button style={{ flex:1, padding:'16px', borderRadius:'14px', border:'1.5px solid #e0e4ef', background:'#fff', color:'#1a1a2e', fontSize:'15px', fontWeight:'600', cursor:'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', justifyContent:'center', gap:'8px' }}
             onClick={() => navigate(`/campaigns/${launchResult.campaignId}`)}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1a1a2e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -675,7 +678,91 @@ const LaunchSuccess = ({ launchResult, formData, selectedPlatforms, selectedCiti
 // ════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ════════════════════════════════════════════════════
-const globalStyles = `*::-webkit-scrollbar{display:none}*{scrollbar-width:none;-ms-overflow-style:none}@keyframes spin{to{transform:rotate(360deg)}}`
+const globalStyles = `
+*::-webkit-scrollbar{display:none}
+*{scrollbar-width:none;-ms-overflow-style:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Responsive layout ── */
+.mobile-step-info{ display:none; }
+
+@media (max-width: 1024px){
+  .radius-section{ grid-template-columns: 1fr !important; }
+  .overview-grid{ grid-template-columns: 1fr 1fr !important; }
+  .goal-row{ grid-template-columns: 1fr 1fr !important; }
+  .success-columns{ grid-template-columns: 1fr !important; }
+  .city-metrics{ grid-template-columns: repeat(3, 1fr) !important; }
+}
+
+@media (max-width: 900px){
+  .app-page{ flex-direction: column !important; height: auto !important; }
+  .app-sidebar{
+    width: 100% !important;
+    height: auto !important;
+    position: relative !important;
+    top: auto !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: 14px 18px !important;
+    overflow: visible !important;
+    gap: 10px;
+  }
+  .app-sidebar .desktop-only{ display: none !important; }
+  .app-sidebar .mobile-step-info{
+    display: block !important;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    background: rgba(255,255,255,0.12);
+    padding: 6px 12px;
+    border-radius: 20px;
+    white-space: nowrap;
+  }
+  .app-main{
+    padding: 18px 16px !important;
+    height: auto !important;
+    overflow-y: visible !important;
+  }
+  .form-card{ padding: 20px 18px !important; }
+  .form-card h1{ font-size: 21px !important; }
+}
+
+@media (max-width: 768px){
+  .goal-row{ grid-template-columns: 1fr !important; }
+  .date-row{ flex-direction: column !important; align-items: stretch !important; gap: 12px !important; }
+  .date-row > div:nth-child(2){ display:none; }
+  .summary-row-grid{ grid-template-columns: 1fr 1fr !important; }
+  .overview-grid{ grid-template-columns: 1fr !important; }
+  .city-metrics{ grid-template-columns: repeat(2, 1fr) !important; }
+  .bottom-bar{ flex-direction: column !important; }
+  .bottom-bar button{ width: 100% !important; }
+  .success-actions{ flex-direction: column !important; max-width: 100% !important; }
+
+  .summary-trigger{
+    bottom: 16px !important;
+    right: 16px !important;
+    padding: 9px 14px !important;
+    font-size: 12px !important;
+  }
+  .summary-panel{
+    left: 12px !important;
+    right: 12px !important;
+    bottom: 12px !important;
+    width: auto !important;
+    max-height: 75vh;
+    overflow-y: auto;
+    border-radius: 16px !important;
+  }
+}
+
+@media (max-width: 480px){
+  .form-card{ padding: 16px 14px !important; }
+  .form-card h1{ font-size: 19px !important; }
+  .summary-row-grid{ grid-template-columns: 1fr !important; }
+  .city-metrics{ grid-template-columns: repeat(2, 1fr) !important; }
+}
+`
 
 const CreateCampaign = () => {
   const navigate = useNavigate()
@@ -910,20 +997,21 @@ const CreateCampaign = () => {
   }
 
   return (
-    <div style={s.page}>
+    <div className="app-page" style={s.page}>
       <style>{globalStyles}</style>
 
       {/* ── Left Panel ── */}
-      <div style={s.leftPanel}>
+      <div className="app-sidebar" style={s.leftPanel}>
         <div style={s.leftLogo}>
           <div style={s.logoMark}>A</div>
           <span style={s.leftLogoText}>AdNexus</span>
         </div>
-        <div style={s.leftContent}>
+        <div className="mobile-step-info">Step {step}/{steps.length} · {steps[step-1].label}</div>
+        <div className="desktop-only" style={s.leftContent}>
           <h2 style={s.leftTitle}>Launch your next B2B campaign</h2>
           <p style={s.leftDesc}>Reach ₹10Cr+ turnover businesses across Google, LinkedIn, Facebook & Instagram.</p>
         </div>
-        <div style={s.stepsIndicator}>
+        <div className="desktop-only" style={s.stepsIndicator}>
           {steps.map(st => (
             <div key={st.num} style={s.stepItem}>
               <div style={{ ...s.stepCircle, ...(step>st.num ? s.stepCircleDone:{}), ...(step===st.num ? s.stepCircleActive:{}) }}>
@@ -933,7 +1021,7 @@ const CreateCampaign = () => {
             </div>
           ))}
         </div>
-        <div style={s.needHelp}>
+        <div className="desktop-only" style={s.needHelp}>
           <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'6px' }}>
             <span style={{ fontSize:'16px' }}>❓</span>
             <span style={{ fontSize:'13px', fontWeight:'700', color:'#fff' }}>Need Help?</span>
@@ -944,9 +1032,9 @@ const CreateCampaign = () => {
       </div>
 
       {/* ── Center (now full width — no right panel) ── */}
-      <div style={s.mainContent}>
+      <div className="app-main" style={s.mainContent}>
         <button style={s.backBtn} onClick={() => navigate('/')}>← Back to Dashboard</button>
-        <div style={s.formCard}>
+        <div className="form-card" style={s.formCard}>
           <div style={s.formHeader}>
             <h1 style={s.formTitle}>{steps[step-1].label}</h1>
             <p style={s.formSubtitle}>Step {step} of {steps.length}</p>
@@ -963,7 +1051,7 @@ const CreateCampaign = () => {
               </div>
               <div style={s.formGroup}>
                 <label style={s.label}>Goal <span style={s.labelSub}>(What do you want to achieve?)</span></label>
-                <div style={s.goalRow}>
+                <div className="goal-row" style={s.goalRow}>
                   {GOALS.map(g => (
                     <div key={g.val} onClick={() => setFormData({...formData, goal:g.val})}
                       style={{ ...s.goalCard, ...(formData.goal===g.val ? s.goalCardActive:{}) }}>
@@ -1045,7 +1133,7 @@ const CreateCampaign = () => {
                   <span style={s.budgetUnit}>/day</span>
                 </div>
               </div>
-              <div style={s.dateRow}>
+              <div className="date-row" style={s.dateRow}>
                 <div style={{ flex:1 }}>
                   <label style={s.label}>Start Date</label>
                   <div style={s.dateInputWrap}>
@@ -1153,7 +1241,7 @@ const CreateCampaign = () => {
               <div style={s.divider} />
               <div style={{ fontSize:'11px', fontWeight:'600', color:'#8892b0', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:'6px' }}>Set targeting radius</div>
               <p style={{ fontSize:'12px', color:'#8892b0', marginBottom:'14px' }}>Adjust how far around the city your ads will show</p>
-              <div style={s.radiusSection}>
+              <div className="radius-section" style={s.radiusSection}>
                 <div style={s.mapWrap}><MapCanvas selectedCities={selectedCities} radiusKm={radiusKm} /></div>
                 <div style={s.radiusControls}>
                   <div style={s.toggleRow}>
@@ -1198,7 +1286,7 @@ const CreateCampaign = () => {
               {locationAnalyzed && locationData && (
                 <div style={s.reachResults}>
                   <div style={s.strategyTip}><span>💡</span><span style={{ fontSize:'12px', color:'#92400e', lineHeight:'1.6' }}>{locationData.strategy_tip}</span></div>
-                  <div style={s.summaryRowGrid}>
+                  <div className="summary-row-grid" style={s.summaryRowGrid}>
                     {[
                       {label:'Total Reach',  val:locationData.total_summary?.total_reach||'—',       icon:'👥'},
                       {label:'Impressions',  val:locationData.total_summary?.total_impressions||'—', icon:'👁️'},
@@ -1222,7 +1310,7 @@ const CreateCampaign = () => {
                             {data.competition_level} Competition
                           </span>
                         </div>
-                        <div style={s.cityMetrics}>
+                        <div className="city-metrics" style={s.cityMetrics}>
                           {[
                             {label:'Total Audience',val:data.total_audience},{label:'Est. Reach',val:data.estimated_reach},
                             {label:'Impressions',   val:data.estimated_impressions},{label:'Est. Leads',val:data.estimated_leads},
@@ -1356,7 +1444,7 @@ const CreateCampaign = () => {
         </div>
 
         {/* ── Bottom navigation ── */}
-        <div style={s.bottomBar}>
+        <div className="bottom-bar" style={s.bottomBar}>
           {step > 1 && step !== 5 && step !== 6 && (
             <button type="button" style={s.backStepBtn} onClick={() => setStep(step-1)}>← Back</button>
           )}
@@ -1432,7 +1520,7 @@ const s = {
   // Main content — now fills all space (no right panel)
  mainContent: { flex:1, padding:'28px 24px', overflowY:'auto', minWidth:0, height:'100vh', display:'flex', flexDirection:'column' },
   backBtn:      { background:'none', border:'none', color:'#1A73E8', fontSize:'13px', cursor:'pointer', padding:'0 0 16px 0', fontFamily:'inherit', display:'flex', alignItems:'center', gap:'4px', alignSelf:'flex-start' },
-  formCard: { background:'#fff', borderRadius:'16px', border:'0.5px solid #e0e4ef', padding:'32px 36px', width:'100%', maxWidth:'100%' },
+  formCard: { background:'#fff', borderRadius:'16px', border:'0.5px solid #e0e4ef', padding:'32px 36px', width:'100%', maxWidth:'100%', boxSizing:'border-box' },
   formTitle:    { fontSize:'26px', fontWeight:'700', color:'#1a1a2e', margin:'0 0 4px 0' },
   formSubtitle: { fontSize:'13px', color:'#8892b0', margin:0 },
   // Form elements
@@ -1460,7 +1548,7 @@ const s = {
   // Step 3
   budgetInputWrap: { display:'flex', alignItems:'center', border:'1.5px solid #e0e4ef', borderRadius:'10px', background:'#fff', overflow:'hidden' },
   budgetSymbol:    { padding:'12px 14px', background:'#f4f6fb', color:'#8892b0', fontSize:'14px', fontWeight:'600', borderRight:'1.5px solid #e0e4ef' },
-  budgetInput:     { flex:1, padding:'12px 14px', border:'none', fontSize:'13px', color:'#1a1a2e', outline:'none', fontFamily:'inherit' },
+  budgetInput:     { flex:1, padding:'12px 14px', border:'none', fontSize:'13px', color:'#1a1a2e', outline:'none', fontFamily:'inherit', minWidth:0 },
   budgetUnit:      { padding:'12px 14px', background:'#f4f6fb', color:'#8892b0', fontSize:'12px', borderLeft:'1.5px solid #e0e4ef' },
   dateRow:         { display:'flex', gap:'12px', alignItems:'flex-end', marginBottom:'12px' },
   dateSeparator:   { color:'#8892b0', fontSize:'18px', paddingBottom:'12px', flexShrink:0 },
@@ -1471,7 +1559,7 @@ const s = {
   ageBadge:      { display:'inline-block', background:'#dbeafe', color:'#1d4ed8', fontSize:'13px', fontWeight:'600', padding:'4px 12px', borderRadius:'6px' },
   ageTicks:      { display:'flex', justifyContent:'space-between', marginTop:'8px', padding:'0 2px' },
   ageReachCard:  { display:'flex', alignItems:'center', gap:'12px', background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:'10px', padding:'12px 16px', marginTop:'16px' },
-  budgetSummaryBar:     { display:'flex', alignItems:'center', border:'1.5px solid #e0e4ef', borderRadius:'10px', overflow:'hidden', background:'#fff' },
+  budgetSummaryBar:     { display:'flex', alignItems:'center', border:'1.5px solid #e0e4ef', borderRadius:'10px', overflow:'hidden', background:'#fff', flexWrap:'wrap' },
   budgetSummaryItem:    { display:'flex', alignItems:'center', gap:'8px', flex:1, padding:'14px 18px' },
   budgetSummaryDivider: { width:'1px', height:'40px', background:'#e0e4ef', flexShrink:0 },
   // Step 2
@@ -1479,7 +1567,7 @@ const s = {
   platformCard:     { padding:'14px', borderRadius:'10px', border:'1.5px solid #e0e4ef', background:'#fff', cursor:'pointer', display:'flex', alignItems:'center', gap:'14px' },
   platformCardActive:{ background:'#f8fbff' },
   platIcon:  { width:'36px', height:'36px', borderRadius:'8px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'14px', fontWeight:'700', color:'#fff', flexShrink:0 },
-  platInfo:  { flex:1 }, platName: { fontSize:'13px', fontWeight:'600', color:'#1a1a2e' }, platDesc: { fontSize:'11px', color:'#8892b0' },
+  platInfo:  { flex:1, minWidth:0 }, platName: { fontSize:'13px', fontWeight:'600', color:'#1a1a2e' }, platDesc: { fontSize:'11px', color:'#8892b0' },
   platCheck: { width:'22px', height:'22px', borderRadius:'50%', border:'2px solid #d0d5e8', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', color:'#fff', fontWeight:'700', flexShrink:0 },
   selectedInfo: { marginTop:'10px', fontSize:'12px', color:'#1b7a4a', fontWeight:'500', background:'#e6f9f0', padding:'8px 12px', borderRadius:'8px' },
   // Step 4
@@ -1514,7 +1602,7 @@ const s = {
   cityCards:     { display:'flex', flexDirection:'column', gap:'10px', marginBottom:'14px' },
   cityCard:      { background:'#f4f6fb', borderRadius:'12px', padding:'14px', border:'1px solid #e0e4ef' },
   cityCardBest:  { background:'#e8f0fe', border:'1.5px solid #1A73E8' },
-  cityCardHeader:{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'10px' },
+  cityCardHeader:{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'10px', flexWrap:'wrap', gap:'6px' },
   cityCardName:  { fontSize:'14px', fontWeight:'700', color:'#1a1a2e', display:'flex', alignItems:'center', gap:'8px' },
   bestTag:       { fontSize:'10px', fontWeight:'700', background:'#1A73E8', color:'#fff', padding:'2px 8px', borderRadius:'10px' },
   competitionBadge:{ fontSize:'10px', fontWeight:'600', padding:'3px 10px', borderRadius:'20px' },
@@ -1527,7 +1615,7 @@ const s = {
   // Step 7
   reviewSection:    { background:'#f4f6fb', borderRadius:'10px', padding:'16px', marginBottom:'16px', border:'0.5px solid #e0e4ef' },
   reviewTitle:      { fontSize:'13px', fontWeight:'700', color:'#1a1a2e', marginBottom:'12px' },
-  reviewRow:        { display:'flex', justifyContent:'space-between', padding:'7px 0', borderBottom:'0.5px solid #e0e4ef' },
+  reviewRow:        { display:'flex', justifyContent:'space-between', padding:'7px 0', borderBottom:'0.5px solid #e0e4ef', gap:'12px', flexWrap:'wrap' },
   reviewLabel:      { fontSize:'12px', color:'#8892b0' },
   reviewVal:        { fontSize:'12px', color:'#1a1a2e', fontWeight:'500', textAlign:'right', maxWidth:'60%' },
   reviewPlatforms:  { display:'flex', flexDirection:'column', gap:'10px' },

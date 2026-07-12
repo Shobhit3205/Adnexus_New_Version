@@ -61,6 +61,42 @@ const formatActivityDate = (iso) => {
   return d.toLocaleDateString('en-IN')
 }
 
+// ── Responsive stylesheet (media queries override inline styles via className + !important) ──
+const RESPONSIVE_STYLES = `
+*::-webkit-scrollbar{display:none}
+*{scrollbar-width:none;-ms-overflow-style:none}
+
+.table-scroll{ width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+.table-scroll table{ min-width:640px; }
+
+@media (max-width: 1024px){
+  .kpi-row{ grid-template-columns: repeat(3, 1fr) !important; }
+  .info-grid{ grid-template-columns: 1fr !important; }
+}
+
+@media (max-width: 768px){
+  .page-container{ padding: 16px !important; }
+  .header-row{ flex-direction: column !important; align-items: stretch !important; gap: 12px !important; }
+  .header-row > button{ align-self: flex-start; }
+  .ad-content-btn-wrap{ width: 100% !important; }
+  .kpi-row{ grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
+  .kpi-val{ font-size: 16px !important; }
+  .ad-item-body{ flex-direction: column !important; }
+  .ad-item-image{ width: 100% !important; height: 180px !important; border-right: none !important; border-bottom: 1px solid #e8eaf0 !important; }
+  .lead-chips-row{ flex-direction: column !important; }
+  .modal{ padding: 18px !important; max-height: 92vh !important; }
+  .action-buttons-row{ flex-wrap: wrap !important; }
+  .action-buttons-row > a{ flex: 1 1 calc(50% - 5px) !important; min-width: 120px; }
+}
+
+@media (max-width: 480px){
+  .kpi-row{ grid-template-columns: 1fr 1fr !important; }
+  .title{ font-size: 19px !important; }
+  .modal{ padding: 14px !important; }
+  .action-buttons-row > a{ flex: 1 1 100% !important; }
+}
+`
+
 const CampaignDetail = () => {
   const { campaignId } = useParams()
   const navigate = useNavigate()
@@ -159,14 +195,15 @@ const CampaignDetail = () => {
   }
 
   return (
-    <div style={styles.container}>
+    <div className="page-container" style={styles.container}>
+      <style>{RESPONSIVE_STYLES}</style>
 
       {/* Header */}
       <div style={styles.header}>
         <button style={styles.backBtn} onClick={() => navigate('/')}>← Back to Dashboard</button>
-        <div style={styles.headerRow}>
+        <div className="header-row" style={styles.headerRow}>
           <div>
-            <h1 style={styles.title}>{campaign.name}</h1>
+            <h1 className="title" style={styles.title}>{campaign.name}</h1>
             <div style={styles.metaRow}>
               <span style={styles.goalBadge}>{campaign.goal}</span>
               <span style={styles.nicheBadge}>{campaign.business_niche}</span>
@@ -175,14 +212,14 @@ const CampaignDetail = () => {
               </span>
             </div>
           </div>
-          <button style={styles.adContentBtn} onClick={() => setShowAdContent(!showAdContent)}>
+          <button className="ad-content-btn-wrap" style={styles.adContentBtn} onClick={() => setShowAdContent(!showAdContent)}>
             {showAdContent ? '✕ Close Ad Content' : '📝 Manage Ad Content'}
           </button>
         </div>
       </div>
 
       {/* KPI Cards */}
-      <div style={styles.kpiRow}>
+      <div className="kpi-row" style={styles.kpiRow}>
         {[
           { label: 'Total Budget',      val: `₹${(campaign.budget || 0).toLocaleString()}` },
           { label: 'Total Spent',       val: `₹${totalSpent.toLocaleString()}` },
@@ -193,7 +230,7 @@ const CampaignDetail = () => {
         ].map((k, i) => (
           <div key={i} style={styles.kpiCard}>
             <div style={styles.kpiLabel}>{k.label}</div>
-            <div style={styles.kpiVal}>{k.val}</div>
+            <div className="kpi-val" style={styles.kpiVal}>{k.val}</div>
           </div>
         ))}
       </div>
@@ -201,7 +238,7 @@ const CampaignDetail = () => {
       {/* Ad Content Modal */}
       {showAdContent && (
         <div style={styles.modalOverlay} onClick={() => setShowAdContent(false)}>
-          <div style={{ background: '#fff', borderRadius: '16px', width: '90%', maxWidth: '860px', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.18)', display: 'flex', flexDirection: 'column' }}
+          <div className="modal" style={{ background: '#fff', borderRadius: '16px', width: '90%', maxWidth: '860px', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.18)', display: 'flex', flexDirection: 'column' }}
             onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: '1px solid #e8eaf0', flexShrink: 0 }}>
               <div style={{ fontSize: '15px', fontWeight: '700', color: '#1a1a2e' }}>📝 Ad Content per Platform</div>
@@ -232,13 +269,13 @@ const CampaignDetail = () => {
                             </span>
                           )}
                         </div>
-                        <div style={{ display: 'flex', background: '#fff', minHeight: '180px' }}>
+                        <div className="ad-item-body" style={{ display: 'flex', background: '#fff', minHeight: '180px' }}>
                           {ad.image_url && (
-                            <div style={{ flexShrink: 0, width: '200px', borderRight: '1px solid #e8eaf0' }}>
+                            <div className="ad-item-image" style={{ flexShrink: 0, width: '200px', borderRight: '1px solid #e8eaf0' }}>
                               <img src={ad.image_url} alt="Ad" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                             </div>
                           )}
-                          <div style={{ flex: 1, padding: '14px 20px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                          <div style={{ flex: 1, padding: '14px 20px', display: 'flex', flexDirection: 'column', justifyContent: 'center', minWidth: 0 }}>
                             {[
                               { label: 'Headline',    val: ad.headline },
                               { label: 'Description', val: ad.description },
@@ -270,47 +307,49 @@ const CampaignDetail = () => {
         {platformStats.length === 0 ? (
           <div style={styles.empty}>No platform is Connected.</div>
         ) : (
-          <table style={styles.table}>
-            <thead>
-              <tr>
-                {['Platform', 'Impressions', 'Clicks', 'Budget Spent', 'Leads', 'CPL', 'CTR'].map(h => (
-                  <th key={h} style={styles.th}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {platformStats.map((stat, i) => {
-                const color = platformColors[stat.platform_name] || '#8892b0'
-                const icon = platformIcons[stat.platform_name] || '?'
-                const ctr = stat.impressions > 0 ? ((stat.clicks / stat.impressions) * 100).toFixed(2) : '0.00'
-                return (
-                  <tr key={i} style={styles.tr}>
-                    <td style={styles.td}>
-                      <div style={styles.platformCell}>
-                        <div style={{ ...styles.platIcon, background: color }}>{icon}</div>
-                        <span style={{ fontWeight: '500' }}>{stat.platform_name}</span>
-                      </div>
-                    </td>
-                    <td style={styles.td}>{(stat.impressions || 0).toLocaleString()}</td>
-                    <td style={styles.td}>{(stat.clicks || 0).toLocaleString()}</td>
-                    <td style={styles.td}>₹{(stat.budget_spent || 0).toLocaleString()}</td>
-                    <td style={styles.td}>{stat.leads || 0}</td>
-                    <td style={styles.td}>
-                      <span style={stat.cpl > 0 ? styles.cplRed : styles.cplGray}>
-                        {stat.cpl > 0 ? `₹${stat.cpl}` : '—'}
-                      </span>
-                    </td>
-                    <td style={styles.td}>{ctr}%</td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+          <div className="table-scroll">
+            <table style={styles.table}>
+              <thead>
+                <tr>
+                  {['Platform', 'Impressions', 'Clicks', 'Budget Spent', 'Leads', 'CPL', 'CTR'].map(h => (
+                    <th key={h} style={styles.th}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {platformStats.map((stat, i) => {
+                  const color = platformColors[stat.platform_name] || '#8892b0'
+                  const icon = platformIcons[stat.platform_name] || '?'
+                  const ctr = stat.impressions > 0 ? ((stat.clicks / stat.impressions) * 100).toFixed(2) : '0.00'
+                  return (
+                    <tr key={i} style={styles.tr}>
+                      <td style={styles.td}>
+                        <div style={styles.platformCell}>
+                          <div style={{ ...styles.platIcon, background: color }}>{icon}</div>
+                          <span style={{ fontWeight: '500' }}>{stat.platform_name}</span>
+                        </div>
+                      </td>
+                      <td style={styles.td}>{(stat.impressions || 0).toLocaleString()}</td>
+                      <td style={styles.td}>{(stat.clicks || 0).toLocaleString()}</td>
+                      <td style={styles.td}>₹{(stat.budget_spent || 0).toLocaleString()}</td>
+                      <td style={styles.td}>{stat.leads || 0}</td>
+                      <td style={styles.td}>
+                        <span style={stat.cpl > 0 ? styles.cplRed : styles.cplGray}>
+                          {stat.cpl > 0 ? `₹${stat.cpl}` : '—'}
+                        </span>
+                      </td>
+                      <td style={styles.td}>{ctr}%</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
       {/* Campaign Info */}
-      <div style={styles.infoGrid}>
+      <div className="info-grid" style={styles.infoGrid}>
         <div style={styles.infoCard}>
           <div style={styles.cardTitle}>Campaign Info</div>
           {[
@@ -393,7 +432,7 @@ const CampaignDetail = () => {
 
       {/* Leads Table */}
       <div style={styles.card}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '6px' }}>
           <div style={styles.cardTitle}>Leads from Form ({submissions.length})</div>
           {submissions.length > 0 && (
             <span style={{ fontSize: '11px', color: '#8892b0' }}>Click on a lead to see full details</span>
@@ -405,103 +444,105 @@ const CampaignDetail = () => {
         ) : submissions.length === 0 ? (
           <div style={styles.empty}>
             Abhi koi leads nahi aaye. Share your form link to get leads!
-            <div style={{ marginTop: '8px', background: '#f0f4ff', borderRadius: '8px', padding: '8px 12px', fontSize: '12px', color: '#1A73E8', fontWeight: '600' }}>
+            <div style={{ marginTop: '8px', background: '#f0f4ff', borderRadius: '8px', padding: '8px 12px', fontSize: '12px', color: '#1A73E8', fontWeight: '600', wordBreak: 'break-all' }}>
               Form Link: {window.location.origin}/lead/{campaignId}
             </div>
           </div>
         ) : (
-          <table style={styles.table}>
-            <thead>
-              <tr>
-                {['Name', 'Phone', 'Email', 'Platform', 'Score', 'Status', 'Date', 'Action'].map(h => (
-                  <th key={h} style={styles.th}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {submissions.map((lead, i) => (
-                <tr key={lead.id || i}
-                  style={{ ...styles.tr, background: i % 2 === 0 ? '#fafbfd' : '#fff', cursor: 'pointer' }}
-                  onClick={() => setSelectedLead(lead)}
-                  onMouseEnter={e => e.currentTarget.style.background = '#f0f4ff'}
-                  onMouseLeave={e => e.currentTarget.style.background = i % 2 === 0 ? '#fafbfd' : '#fff'}>
-                  <td style={styles.td}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#e8f0fe', color: '#1A73E8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700', fontSize: '12px', flexShrink: 0 }}>
-                        {(lead.full_name || '?').charAt(0).toUpperCase()}
+          <div className="table-scroll">
+            <table style={styles.table}>
+              <thead>
+                <tr>
+                  {['Name', 'Phone', 'Email', 'Platform', 'Score', 'Status', 'Date', 'Action'].map(h => (
+                    <th key={h} style={styles.th}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {submissions.map((lead, i) => (
+                  <tr key={lead.id || i}
+                    style={{ ...styles.tr, background: i % 2 === 0 ? '#fafbfd' : '#fff', cursor: 'pointer' }}
+                    onClick={() => setSelectedLead(lead)}
+                    onMouseEnter={e => e.currentTarget.style.background = '#f0f4ff'}
+                    onMouseLeave={e => e.currentTarget.style.background = i % 2 === 0 ? '#fafbfd' : '#fff'}>
+                    <td style={styles.td}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#e8f0fe', color: '#1A73E8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700', fontSize: '12px', flexShrink: 0 }}>
+                          {(lead.full_name || '?').charAt(0).toUpperCase()}
+                        </div>
+                        <span style={{ fontWeight: '600', color: '#1A73E8' }}>{lead.full_name || '—'}</span>
                       </div>
-                      <span style={{ fontWeight: '600', color: '#1A73E8' }}>{lead.full_name || '—'}</span>
-                    </div>
-                  </td>
-                  <td style={styles.td}>{lead.phone || '—'}</td>
-                  <td style={styles.td}>{lead.email || '—'}</td>
-                  <td style={styles.td}>
-                    <span style={{ background: '#e8f0fe', color: '#1A73E8', padding: '2px 8px', borderRadius: '20px', fontSize: '10px', fontWeight: '600' }}>
-                      {lead.platform || 'Direct'}
-                    </span>
-                  </td>
-                  <td style={styles.td}>
-                    <span style={{
-                      padding: '2px 8px', borderRadius: '20px', fontSize: '10px', fontWeight: '700',
-                      background: lead.quality_score >= 8 ? '#dcfce7' : lead.quality_score >= 5 ? '#fef9c3' : '#fee2e2',
-                      color: lead.quality_score >= 8 ? '#16a34a' : lead.quality_score >= 5 ? '#ca8a04' : '#dc2626',
-                    }}>
-                      {lead.quality_score || 0}/10
-                    </span>
-                  </td>
-                  <td style={styles.td}>
-                    {lead.status ? (
+                    </td>
+                    <td style={styles.td}>{lead.phone || '—'}</td>
+                    <td style={styles.td}>{lead.email || '—'}</td>
+                    <td style={styles.td}>
+                      <span style={{ background: '#e8f0fe', color: '#1A73E8', padding: '2px 8px', borderRadius: '20px', fontSize: '10px', fontWeight: '600' }}>
+                        {lead.platform || 'Direct'}
+                      </span>
+                    </td>
+                    <td style={styles.td}>
                       <span style={{
                         padding: '2px 8px', borderRadius: '20px', fontSize: '10px', fontWeight: '700',
-                        background: (statusColors[lead.status] || statusColors['Not Connected']).bg,
-                        color: (statusColors[lead.status] || statusColors['Not Connected']).text,
-                        border: `1px solid ${(statusColors[lead.status] || statusColors['Not Connected']).border}`,
+                        background: lead.quality_score >= 8 ? '#dcfce7' : lead.quality_score >= 5 ? '#fef9c3' : '#fee2e2',
+                        color: lead.quality_score >= 8 ? '#16a34a' : lead.quality_score >= 5 ? '#ca8a04' : '#dc2626',
                       }}>
-                        {lead.status}
+                        {lead.quality_score || 0}/10
                       </span>
-                    ) : (
-                      <span style={{ fontSize: '10px', color: '#c7ccdb' }}>—</span>
-                    )}
-                  </td>
-                  <td style={styles.td}>{lead.created_at ? new Date(lead.created_at).toLocaleDateString('en-IN') : '—'}</td>
-                  <td style={styles.td}>
-                    <button
-                      style={{ background: '#1A73E8', color: '#fff', border: 'none', borderRadius: '6px', padding: '4px 10px', fontSize: '11px', cursor: 'pointer', fontFamily: 'inherit' }}
-                      onClick={e => { e.stopPropagation(); setSelectedLead(lead) }}>
-                      View Details
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    </td>
+                    <td style={styles.td}>
+                      {lead.status ? (
+                        <span style={{
+                          padding: '2px 8px', borderRadius: '20px', fontSize: '10px', fontWeight: '700',
+                          background: (statusColors[lead.status] || statusColors['Not Connected']).bg,
+                          color: (statusColors[lead.status] || statusColors['Not Connected']).text,
+                          border: `1px solid ${(statusColors[lead.status] || statusColors['Not Connected']).border}`,
+                        }}>
+                          {lead.status}
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: '10px', color: '#c7ccdb' }}>—</span>
+                      )}
+                    </td>
+                    <td style={styles.td}>{lead.created_at ? new Date(lead.created_at).toLocaleDateString('en-IN') : '—'}</td>
+                    <td style={styles.td}>
+                      <button
+                        style={{ background: '#1A73E8', color: '#fff', border: 'none', borderRadius: '6px', padding: '4px 10px', fontSize: '11px', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
+                        onClick={e => { e.stopPropagation(); setSelectedLead(lead) }}>
+                        View Details
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
       {/* ── Lead Detail Modal ── */}
       {selectedLead && (
         <div style={styles.modalOverlay} onClick={() => setSelectedLead(null)}>
-          <div style={styles.modal} onClick={e => e.stopPropagation()}>
+          <div className="modal" style={styles.modal} onClick={e => e.stopPropagation()}>
 
             {/* Modal Header */}
             <div style={styles.modalHeader}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: '#e8f0fe', color: '#1A73E8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '18px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+                <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: '#e8f0fe', color: '#1A73E8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '18px', flexShrink: 0 }}>
                   {(selectedLead.full_name || '?').charAt(0).toUpperCase()}
                 </div>
-                <div>
-                  <div style={{ fontSize: '16px', fontWeight: '700', color: '#1a1a2e' }}>{selectedLead.full_name}</div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: '16px', fontWeight: '700', color: '#1a1a2e', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedLead.full_name}</div>
                   <div style={{ fontSize: '12px', color: '#8892b0' }}>
                     {selectedLead.form_type?.replace(/_/g, ' ').toUpperCase()} • {selectedLead.platform || 'Direct'}
                   </div>
                 </div>
               </div>
-              <button style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#8892b0' }}
+              <button style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#8892b0', flexShrink: 0 }}
                 onClick={() => setSelectedLead(null)}>✕</button>
             </div>
 
             {/* Score / Platform / Date chips */}
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
+            <div className="lead-chips-row" style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
               {[
                 { label: 'Quality Score', val: `${selectedLead.quality_score || 0}/10`, color: selectedLead.quality_score >= 8 ? '#16a34a' : selectedLead.quality_score >= 5 ? '#ca8a04' : '#dc2626' },
                 { label: 'Platform', val: selectedLead.platform || 'Direct', color: '#1A73E8' },
@@ -597,7 +638,7 @@ const CampaignDetail = () => {
             </div>
 
             {/* ── Action Buttons: Call / WhatsApp / Email ── */}
-            <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
+            <div className="action-buttons-row" style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
 
               {/* 📞 Call Now */}
               <a
@@ -659,22 +700,22 @@ const CampaignDetail = () => {
 }
 
 const styles = {
-  container:    { padding: '24px', background: '#f4f6fb', minHeight: '100vh' },
+  container:    { padding: '24px', background: '#f4f6fb', minHeight: '100vh', boxSizing: 'border-box' },
   loading:      { textAlign: 'center', padding: '60px', color: '#8892b0', fontSize: '14px' },
   header:       { marginBottom: '20px' },
   backBtn:      { background: 'none', border: 'none', color: '#1A73E8', fontSize: '13px', cursor: 'pointer', marginBottom: '10px', padding: 0, fontFamily: 'inherit' },
-  headerRow:    { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' },
+  headerRow:    { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' },
   title:        { fontSize: '22px', fontWeight: '600', color: '#1a1a2e', margin: '0 0 8px 0' },
   metaRow:      { display: 'flex', gap: '8px', flexWrap: 'wrap' },
   goalBadge:    { background: '#e8f0fe', color: '#1A73E8', padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '500' },
   nicheBadge:   { background: '#f4f6fb', color: '#8892b0', padding: '3px 10px', borderRadius: '20px', fontSize: '11px', border: '0.5px solid #e0e4ef' },
   badgeActive:  { background: '#e6f9f0', color: '#1b7a4a', padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '500' },
   badgePaused:  { background: '#fff3e0', color: '#e65100', padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '500' },
-  adContentBtn: { background: '#1A73E8', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px 16px', fontSize: '13px', fontWeight: '500', cursor: 'pointer', fontFamily: 'inherit' },
+  adContentBtn: { background: '#1A73E8', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px 16px', fontSize: '13px', fontWeight: '500', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' },
   kpiRow:       { display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '10px', marginBottom: '16px' },
-  kpiCard:      { background: '#fff', border: '0.5px solid #e0e4ef', borderRadius: '10px', padding: '14px 16px' },
+  kpiCard:      { background: '#fff', border: '0.5px solid #e0e4ef', borderRadius: '10px', padding: '14px 16px', minWidth: 0 },
   kpiLabel:     { fontSize: '10px', fontWeight: '500', color: '#8892b0', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' },
-  kpiVal:       { fontSize: '18px', fontWeight: '600', color: '#1a1a2e' },
+  kpiVal:       { fontSize: '18px', fontWeight: '600', color: '#1a1a2e', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   card:         { background: '#fff', border: '0.5px solid #e0e4ef', borderRadius: '12px', padding: '16px', marginBottom: '16px' },
   cardTitle:    { fontSize: '11px', fontWeight: '600', color: '#8892b0', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '14px' },
   table:        { width: '100%', borderCollapse: 'collapse', fontSize: '13px' },
@@ -688,19 +729,19 @@ const styles = {
   empty:        { textAlign: 'center', padding: '30px', color: '#8892b0', fontSize: '13px' },
   infoGrid:     { display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '16px', marginBottom: '16px' },
   infoCard:     { background: '#fff', border: '0.5px solid #e0e4ef', borderRadius: '12px', padding: '16px' },
-  infoRow:      { display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '0.5px solid #e0e4ef' },
+  infoRow:      { display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '0.5px solid #e0e4ef', gap: '12px', flexWrap: 'wrap' },
   infoLabel:    { fontSize: '12px', color: '#8892b0' },
-  infoVal:      { fontSize: '12px', color: '#1a1a2e', fontWeight: '500' },
+  infoVal:      { fontSize: '12px', color: '#1a1a2e', fontWeight: '500', textAlign: 'right' },
   platformRow:  { display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: '0.5px solid #e0e4ef' },
   connectedBadge: { marginLeft: 'auto', background: '#e6f9f0', color: '#1b7a4a', padding: '2px 8px', borderRadius: '10px', fontSize: '10px', fontWeight: '500' },
   modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' },
-  modal:        { background: '#fff', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '520px', maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' },
-  modalHeader:  { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px solid #e8eaf0' },
+  modal:        { background: '#fff', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '520px', maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.15)', boxSizing: 'border-box' },
+  modalHeader:  { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px solid #e8eaf0', gap: '10px' },
   modalSection: { background: '#f8faff', borderRadius: '10px', padding: '14px', marginBottom: '12px', border: '1px solid #e8eaf0' },
   modalSectionTitle: { fontSize: '12px', fontWeight: '700', color: '#1a1a2e', marginBottom: '10px' },
-  modalRow:     { display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '0.5px solid #e8eaf0' },
-  modalLabel:   { fontSize: '12px', color: '#8892b0' },
-  modalVal:     { fontSize: '12px', color: '#1a1a2e', fontWeight: '500', textAlign: 'right', maxWidth: '60%' },
+  modalRow:     { display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '0.5px solid #e8eaf0', gap: '10px' },
+  modalLabel:   { fontSize: '12px', color: '#8892b0', flexShrink: 0 },
+  modalVal:     { fontSize: '12px', color: '#1a1a2e', fontWeight: '500', textAlign: 'right', maxWidth: '60%', wordBreak: 'break-word' },
 }
 
 export default CampaignDetail

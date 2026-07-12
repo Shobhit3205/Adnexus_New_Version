@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react'
 import { getCampaigns, deleteCampaign, getCampaignStats, getLeads } from '../services/api'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import './Dashboard.css'
 
 const fmt = n => {
   if (!n && n !== 0) return '—'
@@ -136,6 +135,170 @@ const MoonIcon = () => (
   </svg>
 )
 
+/* ── Merged styles (was Dashboard.css) ── */
+const DashboardStyles = () => (
+  <style>{`
+    .dashboard-kpis {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .dashboard-midrow {
+      display: grid;
+      grid-template-columns: 1fr 274px;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .dashboard-left-col,
+    .dashboard-right-col {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .dashboard-page {
+      min-height: 100vh;
+    }
+
+    .dashboard-main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    .dashboard-topbar,
+    .dashboard-filterbar {
+      width: 100%;
+    }
+
+    .dashboard-table-scroll {
+      overflow-x: auto;
+      width: 100%;
+    }
+
+    .dashboard-table-scroll table {
+      min-width: 680px;
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .dashboard-table-scroll::-webkit-scrollbar {
+      height: 7px;
+    }
+
+    .dashboard-table-scroll::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .dashboard-table-scroll::-webkit-scrollbar-thumb {
+      background: rgba(100, 116, 139, 0.25);
+      border-radius: 9999px;
+    }
+
+    @media (max-width: 1100px) {
+      .dashboard-kpis {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .dashboard-midrow {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .dashboard-kpis {
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+
+      .dashboard-midrow {
+        gap: 12px;
+      }
+
+      .dashboard-left-col,
+      .dashboard-right-col {
+        gap: 12px;
+      }
+
+      .dashboard-content {
+        padding: 14px !important;
+      }
+
+      .dashboard-filterbar {
+        flex-wrap: wrap;
+        height: auto !important;
+        padding: 10px 14px !important;
+        gap: 8px !important;
+      }
+
+      .dashboard-filterbar > div:last-child {
+        margin-left: 0 !important;
+        width: 100%;
+        justify-content: flex-start;
+      }
+    }
+
+    @media (max-width: 540px) {
+      .dashboard-kpis {
+        gap: 10px;
+      }
+
+      .dashboard-midrow {
+        gap: 10px;
+      }
+
+      .dashboard-topbar {
+        padding: 0 14px !important;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .dashboard-content {
+        padding: 10px !important;
+        gap: 12px !important;
+      }
+
+      .dashboard-topbar {
+        height: auto !important;
+        padding: 10px !important;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .dashboard-filterbar select {
+        max-width: 140px !important;
+      }
+    }
+
+    .dashboard-mobile-cards {
+      display: none;
+    }
+
+    @media (max-width: 640px) {
+      .dashboard-table-scroll {
+        display: none;
+      }
+
+      .dashboard-mobile-cards {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .dashboard-left-col > div,
+      .dashboard-right-col > div {
+        padding: 14px 16px !important;
+      }
+    }
+  `}</style>
+)
+
 const Dashboard = () => {
   const navigate = useNavigate()
   const { user } = useAuth()
@@ -162,6 +325,16 @@ const Dashboard = () => {
     .join('') || 'U'
 
   useEffect(() => { fetchAll() }, [])
+
+  // Chhoti screens par sidebar apne aap collapse ho jaye taaki content ko jagah mile
+  useEffect(() => {
+    const checkWidth = () => {
+      if (window.innerWidth <= 640) setSidebarCollapsed(true)
+    }
+    checkWidth()
+    window.addEventListener('resize', checkWidth)
+    return () => window.removeEventListener('resize', checkWidth)
+  }, [])
 
   const fetchAll = async () => {
     try {
@@ -231,7 +404,7 @@ const Dashboard = () => {
     const withCPL = platformStats.filter(p => p.leads > 0)
     if (withCPL.length >= 2) {
       const cheapest = [...withCPL].sort((a, b) => (a.spend / a.leads) - (b.spend / b.leads))[0]
-      aiSuggestions.push(`${cheapest.platform_name || cheapest.platform} has the lowest                                  (₹${(cheapest.spend / cheapest.leads).toFixed(2)}) — invest more here.`)
+      aiSuggestions.push(`${cheapest.platform_name || cheapest.platform} has the lowest CPL (₹${(cheapest.spend / cheapest.leads).toFixed(2)}) — invest more here.`)
     }
   }
 
@@ -254,6 +427,7 @@ const Dashboard = () => {
 
   /* Shared inline styles driven by theme tokens */
   const wrap        = { display:'flex', height:'100vh', background: darkMode ? 'linear-gradient(135deg,#05101f 0%,#091830 50%,#05101f 100%)' : t.pageBg, fontFamily:"'DM Sans',system-ui,sans-serif", fontSize:'13px' }
+  const mainCol      = { flex:1, display:'flex', flexDirection:'column', overflow:'hidden', minWidth:0, minHeight:0 }
   const sidebar     = { width: sidebarCollapsed ? '60px' : '230px', background: t.sidebarBg, borderRight: t.border, display:'flex', flexDirection:'column', flexShrink:0, overflow:'hidden', transition:'width 0.22s ease', ...(darkMode ? { backdropFilter:'blur(20px)' } : { boxShadow:'1px 0 0 #e4e9f5' }) }
   const sbLogo      = { display:'flex', alignItems:'center', gap:'10px', padding:'18px 16px 14px', borderBottom: t.border, minHeight:'58px', justifyContent: sidebarCollapsed ? 'center' : 'flex-start' }
   const sbLogoIcon  = { width:'34px', height:'34px', borderRadius:'10px', background:'linear-gradient(135deg,#2563eb,#1d4ed8)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, boxShadow:'0 2px 10px rgba(37,99,235,0.4)' }
@@ -309,6 +483,7 @@ const Dashboard = () => {
 
   return (
     <div className="dashboard-page" style={wrap}>
+      <DashboardStyles />
 
       {/* ── Sidebar ── */}
       <aside className="dashboard-sidebar" style={sidebar}>
@@ -359,7 +534,7 @@ const Dashboard = () => {
       </aside>
 
       {/* ── Main ── */}
-      <div className="dashboard-main" style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden', minWidth:0 }}>
+      <div className="dashboard-main" style={mainCol}>
 
         {/* Topbar */}
         <header className="dashboard-topbar" style={topbar}>
@@ -470,6 +645,7 @@ const Dashboard = () => {
                 {loading ? <div style={emptyStyle}>Loading…</div>
                 : campaigns.length === 0 ? <div style={emptyStyle}>No campaigns yet. Create one to get started.</div>
                 : (
+                  <>
                   <div className="dashboard-table-scroll">
                     <table style={table}>
                       <thead><tr>{['Campaign','Goal','Budget','Status','Start date','Actions'].map(h => <th key={h} style={th}>{h}</th>)}</tr></thead>
@@ -492,6 +668,28 @@ const Dashboard = () => {
                     </tbody>
                   </table>
                   </div>
+
+                  {/* Mobile card view — table par horizontal scroll ki jagah ye dikhta hai */}
+                  <div className="dashboard-mobile-cards">
+                    {campaigns.map(c => (
+                      <div key={c.id} style={{ border: t.border, borderRadius:'12px', padding:'12px 14px', background: darkMode ? 'rgba(255,255,255,0.03)' : '#fafbff' }}>
+                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:'8px', marginBottom:'8px' }}>
+                          <span style={{ fontWeight:'600', color: t.accent, cursor:'pointer', fontSize:'13px' }} onClick={() => navigate(`/dashboard/campaign/${c.id}`)}>{c.name}</span>
+                          {badge(c.status === 'active' ? 'badgeGreen' : 'badgeAmber', c.status || '—')}
+                        </div>
+                        <div style={{ display:'flex', flexWrap:'wrap', alignItems:'center', gap:'8px', marginBottom:'10px', fontSize:'11px', color: t.textSecondary }}>
+                          {badge('badgeBlue', c.goal || '—')}
+                          <span>₹{c.budget ? c.budget.toLocaleString() : '—'}</span>
+                          <span style={{ color: t.textMuted }}>{c.start_date || '—'}</span>
+                        </div>
+                        <div style={{ display:'flex', gap:'6px' }}>
+                          <button style={{ ...manageBtn, flex:1, textAlign:'center' }}>Manage</button>
+                          <button style={{ ...deleteBtn, flex:1, textAlign:'center' }} onClick={() => handleDelete(c.id)}>Delete</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  </>
                 )}
               </div>
 
@@ -503,6 +701,7 @@ const Dashboard = () => {
                 </div>
                 {campaignLeads.length === 0 ? <div style={emptyStyle}>No leads for this campaign yet.</div>
                 : (
+                  <>
                   <div className="dashboard-table-scroll">
                     <table style={table}>
                       <thead><tr>{['Name','Phone','Platform','Date','Score'].map(h => <th key={h} style={th}>{h}</th>)}</tr></thead>
@@ -535,6 +734,30 @@ const Dashboard = () => {
                     </tbody>
                   </table>
                   </div>
+
+                  {/* Mobile card view */}
+                  <div className="dashboard-mobile-cards">
+                    {campaignLeads.slice(0, 5).map((lead, i) => {
+                      const score = lead.quality_score
+                      const scoreColor = score >= 8 ? '#16a34a' : score >= 5 ? '#d97706' : '#dc2626'
+                      return (
+                        <div key={lead.id || i} style={{ border: t.border, borderRadius:'12px', padding:'12px 14px', background: darkMode ? 'rgba(255,255,255,0.03)' : '#fafbff' }}
+                          onClick={() => navigate(`/dashboard/campaign/${selectedCampaign?.id}`)}>
+                          <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'8px' }}>
+                            <div style={avatar}>{(lead.name || lead.full_name || '?').charAt(0).toUpperCase()}</div>
+                            <span style={{ fontWeight:'600', color: t.accent, fontSize:'13px' }}>{lead.name || lead.full_name || '—'}</span>
+                          </div>
+                          <div style={{ display:'flex', flexWrap:'wrap', alignItems:'center', gap:'8px', fontSize:'11px', color: t.textSecondary }}>
+                            <span>{lead.phone || '—'}</span>
+                            {badge('badgeGreen', lead.platform_name || lead.platform || 'Direct')}
+                            <span style={{ color: t.textMuted }}>{lead.created_at ? new Date(lead.created_at).toLocaleDateString('en-IN') : '—'}</span>
+                            {score != null && <span style={{ color: scoreColor, fontWeight:'600' }}>{score}/10</span>}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  </>
                 )}
               </div>
 

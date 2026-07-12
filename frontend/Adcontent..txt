@@ -126,7 +126,7 @@ const PREBUILT_TEMPLATES = [
 const badgeColors = {
   POPULAR:  '#7C3AED',
   HOT:      '#DC2626',
-  TRENDING: '#0891B2',
+  TRENDING: '#0891B2',c
   NEW:      '#059669',
   TOP:      '#7B1FA2',
 }

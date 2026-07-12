@@ -1,8 +1,9 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 const PrivacyPolicy = () => {
   const navigate = useNavigate()
+  const [menuOpen, setMenuOpen] = useState(false)
 
   const sections = [
     {
@@ -143,36 +144,59 @@ const PrivacyPolicy = () => {
 
   return (
     <div style={s.page}>
+      {/* ── Responsive CSS ── */}
+      <style>{responsiveCSS}</style>
 
       {/* ── Navbar ── */}
       <nav style={s.nav}>
-        <div style={s.navInner}>
+        <div style={s.navInner} className="nav-inner">
           <a href="/" style={s.logo}>
             <div style={s.logoMark}>A</div>
             <span style={s.logoText}>AdNexus</span>
           </a>
-          <div style={s.navLinks}>
+          <div style={s.navLinks} className="nav-links">
             <a href="/#features" style={s.navLink}>Features</a>
             <a href="/#how"      style={s.navLink}>How it works</a>
             <a href="/#pricing"  style={s.navLink}>Pricing</a>
             <a href="/about"     style={s.navLink}>About</a>
           </div>
-      <div style={s.navRight}>
+          <div style={s.navRight} className="nav-right">
             <button style={s.btnGhost} onClick={() => navigate('/login')}>Login</button>
             <button style={s.btnBlue} onClick={() => navigate('/signup')}>Get Started Free</button>
           </div>
+          <button
+            style={s.hamburger}
+            className="hamburger-btn"
+            onClick={() => setMenuOpen(!menuOpen)}
+            aria-label="Toggle menu"
+          >
+            <span style={s.hamburgerLine} />
+            <span style={s.hamburgerLine} />
+            <span style={s.hamburgerLine} />
+          </button>
         </div>
+        {menuOpen && (
+          <div style={s.mobileMenu} className="mobile-menu">
+            <a href="/#features" style={s.mobileMenuLink}>Features</a>
+            <a href="/#how"      style={s.mobileMenuLink}>How it works</a>
+            <a href="/#pricing"  style={s.mobileMenuLink}>Pricing</a>
+            <a href="/about"     style={s.mobileMenuLink}>About</a>
+            <div style={s.mobileMenuDivider} />
+            <button style={{ ...s.btnGhost, width: '100%' }} onClick={() => navigate('/login')}>Login</button>
+            <button style={{ ...s.btnBlue, width: '100%' }} onClick={() => navigate('/signup')}>Get Started Free</button>
+          </div>
+        )}
       </nav>
 
       {/* ── Header ── */}
-      <div style={s.header}>
+      <div style={s.header} className="header">
         <div style={s.headerInner}>
           <div style={s.breadcrumb}>
             <a href="/" style={s.breadcrumbLink}>Home</a>
             <span style={s.breadcrumbSep}>›</span>
             <span style={s.breadcrumbCurrent}>Privacy Policy</span>
           </div>
-          <h1 style={s.headerTitle}>Privacy Policy</h1>
+          <h1 style={s.headerTitle} className="header-title">Privacy Policy</h1>
           <p style={s.headerSub}>
             This Privacy Policy explains how AdNexus collects, uses, and protects
             your personal information when you use our platform.
@@ -185,11 +209,11 @@ const PrivacyPolicy = () => {
       </div>
 
       {/* ── Content ── */}
-      <div style={s.contentWrap}>
+      <div style={s.contentWrap} className="content-wrap">
         <div style={s.contentInner}>
 
           {/* Intro box */}
-          <div style={s.introBox}>
+          <div style={s.introBox} className="intro-box">
             <div style={s.introIcon}>🔒</div>
             <div>
               <div style={s.introTitle}>Your privacy matters to us</div>
@@ -203,7 +227,7 @@ const PrivacyPolicy = () => {
 
           {/* Sections */}
           {sections.map((section, i) => (
-            <div key={i} style={s.section}>
+            <div key={i} style={s.section} className="policy-section">
               <h2 style={s.sectionTitle}>{section.title}</h2>
               {section.content.map((item, j) => (
                 <div key={j} style={s.subsection}>
@@ -235,7 +259,7 @@ const PrivacyPolicy = () => {
 
       {/* ── Footer ── */}
       <footer style={s.footer}>
-        <div style={s.footerTop}>
+        <div style={s.footerTop} className="footer-top">
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
               <div style={s.logoMark}>A</div>
@@ -246,7 +270,7 @@ const PrivacyPolicy = () => {
               📧 support@adnexus.co.in
             </div>
           </div>
-          <div style={s.footerLinks}>
+          <div style={s.footerLinks} className="footer-links">
             <div style={s.footerCol}>
               <div style={s.footerColTitle}>Product</div>
               <a href="/#features" style={s.footerLink}>Features</a>
@@ -265,7 +289,7 @@ const PrivacyPolicy = () => {
             </div>
           </div>
         </div>
-        <div style={s.footerBottom}>
+        <div style={s.footerBottom} className="footer-bottom">
           <span style={s.footerCopy}>© 2026 AdNexus. All rights reserved.</span>
           <span style={s.footerCopy}>adnexus@adnexus.co.in</span>
         </div>
@@ -274,6 +298,28 @@ const PrivacyPolicy = () => {
     </div>
   )
 }
+
+const responsiveCSS = `
+  * { box-sizing: border-box; }
+  .hamburger-btn { display: none; }
+
+  @media (max-width: 968px) {
+    .nav-links, .nav-right { display: none !important; }
+    .hamburger-btn { display: flex !important; }
+    .footer-top { grid-template-columns: 1fr !important; gap: 40px !important; }
+  }
+
+  @media (max-width: 640px) {
+    .nav-inner { padding: 0 16px !important; }
+    .header { padding: 40px 20px !important; }
+    .header-title { font-size: 28px !important; }
+    .content-wrap { padding: 36px 16px !important; }
+    .intro-box { flex-direction: column !important; padding: 18px !important; }
+    .policy-section { padding: 20px !important; }
+    .footer-links { grid-template-columns: 1fr !important; gap: 24px !important; }
+    .footer-bottom { flex-direction: column !important; gap: 8px !important; text-align: center !important; }
+  }
+`
 
 const s = {
   page: { fontFamily: "'Inter', -apple-system, sans-serif", background: '#fff', color: '#1a1a2e', overflowX: 'hidden' },
@@ -289,6 +335,13 @@ const s = {
   navRight: { marginLeft: 'auto', display: 'flex', gap: '10px', alignItems: 'center' },
   btnGhost: { padding: '8px 16px', borderRadius: '8px', border: '1px solid #e0e4ef', background: '#fff', fontSize: '13px', color: '#1a1a2e', cursor: 'pointer', fontWeight: '500', fontFamily: 'inherit' },
   btnBlue:  { padding: '8px 18px', borderRadius: '8px', border: 'none', background: '#1A73E8', fontSize: '13px', color: '#fff', cursor: 'pointer', fontWeight: '600', fontFamily: 'inherit' },
+
+  // Hamburger
+  hamburger:     { marginLeft: 'auto', width: '36px', height: '36px', border: '1px solid #e0e4ef', borderRadius: '8px', background: '#fff', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '4px', cursor: 'pointer' },
+  hamburgerLine: { width: '18px', height: '2px', background: '#1a1a2e', borderRadius: '2px' },
+  mobileMenu:    { display: 'flex', flexDirection: 'column', gap: '4px', padding: '12px 16px 20px', borderTop: '0.5px solid #e8eaf0', background: '#fff' },
+  mobileMenuLink:{ fontSize: '15px', color: '#374151', textDecoration: 'none', fontWeight: '500', padding: '10px 4px' },
+  mobileMenuDivider: { height: '1px', background: '#e8eaf0', margin: '8px 0' },
 
   // Header
   header:      { background: 'linear-gradient(135deg, #0f1535 0%, #1a3a8f 100%)', padding: '60px 32px' },

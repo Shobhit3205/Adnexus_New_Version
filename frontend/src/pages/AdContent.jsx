@@ -315,6 +315,32 @@ const hiQualityUrl = (url) => {
 const API_BASE = 'http://127.0.0.1:8000/api'
 
 // ══════════════════════════════════════════════════════════════
+// RESPONSIVE STYLES — injected once via <style> in both render paths
+// ══════════════════════════════════════════════════════════════
+const responsiveCSS = `
+  * { box-sizing: border-box; }
+
+  @media (max-width: 900px) {
+    .split-layout { grid-template-columns: 1fr !important; }
+    .template-browser { flex-direction: column !important; height: auto !important; }
+    .template-browser .template-main { max-height: 60vh !important; }
+    .template-browser .detail-panel { width: 100% !important; min-width: 100% !important; border-left: none !important; border-top: 1px solid #EAECF0 !important; max-height: 380px !important; }
+    .standalone-wrap { padding: 18px !important; }
+    .standalone-header { flex-wrap: wrap !important; gap: 12px !important; }
+  }
+
+  @media (max-width: 640px) {
+    .template-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important; gap: 10px !important; }
+    .mode-tabs { grid-template-columns: 1fr !important; }
+    .standalone-wrap { padding: 14px !important; }
+    .platform-tabs-row { overflow-x: auto !important; -webkit-overflow-scrolling: touch !important; }
+    .platform-tabs-row button { flex: 0 0 auto !important; min-width: 100px !important; padding-left: 12px !important; padding-right: 12px !important; }
+    .ctx-row { flex-direction: column !important; align-items: flex-start !important; }
+    .template-topbar-row { flex-wrap: wrap !important; gap: 10px !important; }
+  }
+`
+
+// ══════════════════════════════════════════════════════════════
 // CREATIVE HEALTH SCORE PANEL — unchanged from original
 // ══════════════════════════════════════════════════════════════
 const HealthScorePanel = ({ healthData, leadFormUrl }) => {
@@ -484,13 +510,13 @@ const TemplateBrowser = ({ onApply, onUpload, onSwitchToAI, selectedTemplateId, 
   const detailTemplate = PREBUILT_TEMPLATES.find(t => t.id === detailId)
 
   return (
-    <div style={{ display: 'flex', height: '520px', borderRadius: '12px', border: '1.5px solid #E5E7EB', overflow: 'hidden', background: '#F8F9FB' }}>
+    <div className="template-browser" style={{ display: 'flex', height: '520px', borderRadius: '12px', border: '1.5px solid #E5E7EB', overflow: 'hidden', background: '#F8F9FB' }}>
 
       {/* ── MAIN AREA ── */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div className="template-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
         {/* Top bar */}
         <div style={{ background: '#fff', borderBottom: '1px solid #EAECF0', padding: '10px 14px', flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: subcategories.length ? '8px' : '0' }}>
+          <div className="template-topbar-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: subcategories.length ? '8px' : '0' }}>
             <div>
               <div style={{ fontSize: '13px', fontWeight: '700', color: '#111827' }}>
                 {activeIndustry === 'All Templates' ? 'All Templates' : activeIndustry}
@@ -536,7 +562,7 @@ const TemplateBrowser = ({ onApply, onUpload, onSwitchToAI, selectedTemplateId, 
               <div style={{ fontSize: '12px' }}>Try a different category or <span style={{ color: '#1A73E8', cursor: 'pointer', textDecoration: 'underline' }} onClick={onSwitchToAI}>generate with AI</span></div>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '16px' }}>
+            <div className="template-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '16px' }}>
               {filtered.map(template => {
                 const isSelected = selectedTemplateId === template.id
                 const isHovered  = hoveredId === template.id
@@ -595,7 +621,7 @@ const TemplateBrowser = ({ onApply, onUpload, onSwitchToAI, selectedTemplateId, 
 
       {/* ── DETAIL PANEL — slides in when a card is clicked ── */}
       {detailTemplate && (
-        <div style={{ width: '260px', minWidth: '260px', background: '#fff', borderLeft: '1px solid #EAECF0', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div className="detail-panel" style={{ width: '260px', minWidth: '260px', background: '#fff', borderLeft: '1px solid #EAECF0', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div style={{ padding: '14px 16px 12px', borderBottom: '1px solid #EAECF0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: '12px', fontWeight: '700', color: '#111827' }}>Template details</span>
             <button onClick={() => setDetailId(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', fontSize: '17px', padding: 0, lineHeight: 1 }}>✕</button>
@@ -825,7 +851,7 @@ const AdContent = ({
 
   // ── Mode Tabs — Templates vs AI Generate, visually differentiated ──
   const ModeTabs = () => (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '20px' }}>
+    <div className="mode-tabs" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '20px' }}>
       {/* Templates tab */}
       <div onClick={() => { setActiveTab('template'); setMode('template') }}
         style={{
@@ -876,7 +902,7 @@ const AdContent = ({
   const aiScreen = (
     <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #E5E7EB', padding: '20px 22px' }}>
       {(campaignData?.name || campaignData?.goal || campaignData?.budget) && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
+        <div className="ctx-row" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
           <span style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: '500' }}>Campaign context:</span>
           {campaignData.name   && <span style={s.ctxChip}>📋 {campaignData.name}</span>}
           {campaignData.goal   && <span style={s.ctxChip}>🎯 {campaignData.goal}</span>}
@@ -939,7 +965,7 @@ const AdContent = ({
           onClick={() => { setMode('template'); setActiveTab('template'); setPlatformImages({}) }}
         >↩ Change</button>
       </div>
-      <div style={{ display: 'flex', borderBottom: '1px solid #F3F4F6' }}>
+      <div className="platform-tabs-row" style={{ display: 'flex', borderBottom: '1px solid #F3F4F6' }}>
         {platformList.map(p => {
           const isSaved  = embedded ? !!(localContents[p.id]?.headline) : savedContents.find(c => c.platform_id === p.id)
           const pContent = localContents[p.id] || {}
@@ -1016,7 +1042,7 @@ const AdContent = ({
   )
 
   const splitLayout = (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '20px', alignItems: 'start' }}>
+    <div className="split-layout" style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '20px', alignItems: 'start' }}>
       <div>{formSection}</div>
       <LivePreviewPanel platform={currentPlatform} content={content} previewImage={currentPreviewImage} />
     </div>
@@ -1026,7 +1052,7 @@ const AdContent = ({
   if (embedded) {
     return (
       <div>
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }` + responsiveCSS}</style>
         <p style={{ fontSize: '13px', color: '#6B7280', marginBottom: '18px' }}>Create ad content for each selected platform</p>
         <ModeTabs />
 
@@ -1065,11 +1091,11 @@ const AdContent = ({
 
   // ── Standalone Layout ──
   return (
-    <div style={{ padding: '24px 32px', background: '#F9FAFB', minHeight: '100vh', fontFamily: 'DM Sans, sans-serif' }}>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    <div className="standalone-wrap" style={{ padding: '24px 32px', background: '#F9FAFB', minHeight: '100vh', fontFamily: 'DM Sans, sans-serif' }}>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }` + responsiveCSS}</style>
       <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
         <button style={{ background: 'none', border: 'none', color: '#1A73E8', fontSize: '13px', cursor: 'pointer', marginBottom: '12px', padding: 0, fontFamily: 'inherit' }} onClick={() => navigate('/')}>← Back to Dashboard</button>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
+        <div className="standalone-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
           <div>
             <h2 style={{ fontSize: '22px', fontWeight: '700', color: '#111827', margin: '0 0 2px 0' }}>Ad Content</h2>
             <p style={{ fontSize: '12px', color: '#9CA3AF', margin: 0 }}>Step 5 of 6</p>

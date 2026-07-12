@@ -1,8 +1,9 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 const AboutUs = () => {
   const navigate = useNavigate()
+  const [menuOpen, setMenuOpen] = useState(false)
 
   const values = [
     { icon: '🇮🇳', title: 'Built for India', desc: 'Every feature is designed around the realities of Indian B2B markets — from ₹ budgets to regional targeting across all 28 states and 8 union territories.' },
@@ -29,36 +30,58 @@ const AboutUs = () => {
 
   return (
     <div style={s.page}>
+      {/* ── Responsive CSS ── */}
+      <style>{responsiveCSS}</style>
 
       {/* ── Navbar ── */}
       <nav style={s.nav}>
-        <div style={s.navInner}>
+        <div style={s.navInner} className="nav-inner">
           <a href="/" style={s.logo}>
             <div style={s.logoMark}>A</div>
             <span style={s.logoText}>AdNexus</span>
           </a>
-          <div style={s.navLinks}>
+          <div style={s.navLinks} className="nav-links">
             <a href="/#features" style={s.navLink}>Features</a>
             <a href="/#how"      style={s.navLink}>How it works</a>
             {/* <a href="/#pricing"  style={s.navLink}>Pricing</a> */}
             <a href="/about"     style={{ ...s.navLink, color: '#1A73E8', fontWeight: '600' }}>About</a>
           </div>
-          { <div style={s.navRight}>
-  <button style={s.btnGhost} onClick={() => navigate('/login')}>Login</button>
-  <button style={s.btnBlue} onClick={() => navigate('/signup')}>Get Started Free</button>
-</div> }
+          <div style={s.navRight} className="nav-right">
+            <button style={s.btnGhost} onClick={() => navigate('/login')}>Login</button>
+            <button style={s.btnBlue} onClick={() => navigate('/signup')}>Get Started Free</button>
+          </div>
+          <button
+            style={s.hamburger}
+            className="hamburger-btn"
+            onClick={() => setMenuOpen(!menuOpen)}
+            aria-label="Toggle menu"
+          >
+            <span style={s.hamburgerLine} />
+            <span style={s.hamburgerLine} />
+            <span style={s.hamburgerLine} />
+          </button>
         </div>
+        {menuOpen && (
+          <div style={s.mobileMenu} className="mobile-menu">
+            <a href="/#features" style={s.mobileMenuLink}>Features</a>
+            <a href="/#how"      style={s.mobileMenuLink}>How it works</a>
+            <a href="/about"     style={{ ...s.mobileMenuLink, color: '#1A73E8', fontWeight: '600' }}>About</a>
+            <div style={s.mobileMenuDivider} />
+            <button style={{ ...s.btnGhost, width: '100%' }} onClick={() => navigate('/login')}>Login</button>
+            <button style={{ ...s.btnBlue, width: '100%' }} onClick={() => navigate('/signup')}>Get Started Free</button>
+          </div>
+        )}
       </nav>
 
       {/* ── Hero ── */}
-      <section style={s.hero}>
+      <section style={s.hero} className="hero">
         <div style={s.heroBadge}>🇮🇳 Proudly Built in India</div>
-        <h1 style={s.heroTitle}>
+        <h1 style={s.heroTitle} className="hero-title">
           We're on a mission to make<br />
           <span style={{ color: '#1A73E8' }}>great advertising accessible</span><br />
           to every Indian business
         </h1>
-        <p style={s.heroSub}>
+        <p style={s.heroSub} className="hero-sub">
           AdNexus was built because Indian B2B businesses deserve better than
           expensive agencies, complicated tools, and opaque pricing. We built the
           platform we always wished existed.
@@ -67,10 +90,10 @@ const AboutUs = () => {
 
       {/* ── Stats ── */}
       <div style={s.statsBar}>
-        <div style={s.statsInner}>
+        <div style={s.statsInner} className="stats-inner">
           {stats.map((stat, i) => (
             <div key={i} style={s.statItem}>
-              <div style={s.statNum}>{stat.num}</div>
+              <div style={s.statNum} className="stat-num">{stat.num}</div>
               <div style={s.statLabel}>{stat.label}</div>
             </div>
           ))}
@@ -78,10 +101,10 @@ const AboutUs = () => {
       </div>
 
       {/* ── Story ── */}
-      <section style={s.section}>
+      <section style={s.section} className="section">
         <div style={s.sectionLabel}>Our Story</div>
-        <h2 style={s.sectionTitle}>Why we built AdNexus</h2>
-        <div style={s.storyGrid}>
+        <h2 style={s.sectionTitle} className="section-title">Why we built AdNexus</h2>
+        <div style={s.storyGrid} className="story-grid">
           <div style={s.storyText}>
             <p style={s.storyPara}>
               Running ads across Google, Facebook, Instagram and LinkedIn used to mean
@@ -122,12 +145,12 @@ const AboutUs = () => {
       </section>
 
       {/* ── What we do ── */}
-      <section style={{ ...s.section, background: '#f8faff', maxWidth: '100%', padding: '80px 32px' }}>
+      <section style={{ ...s.section, background: '#f8faff', maxWidth: '100%', padding: '80px 32px' }} className="section-wide">
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           <div style={s.sectionLabel}>What We Do</div>
-          <h2 style={s.sectionTitle}>One platform for all your ad campaigns</h2>
+          <h2 style={s.sectionTitle} className="section-title">One platform for all your ad campaigns</h2>
           <p style={s.sectionSub}>We connect your campaigns to all major ad networks and manage the complexity so you don't have to.</p>
-          <div style={s.platformsGrid}>
+          <div style={s.platformsGrid} className="platforms-grid">
             {platforms.map((p, i) => (
               <div key={i} style={s.platformCard}>
                 <div style={{ ...s.platformDot, background: p.color }} />
@@ -141,11 +164,11 @@ const AboutUs = () => {
       </section>
 
       {/* ── Values ── */}
-      <section style={s.section}>
+      <section style={s.section} className="section">
         <div style={s.sectionLabel}>Our Values</div>
-        <h2 style={s.sectionTitle}>What we stand for</h2>
+        <h2 style={s.sectionTitle} className="section-title">What we stand for</h2>
         <p style={s.sectionSub}>These aren't just words on a wall. They are the decisions we make every day when building AdNexus.</p>
-        <div style={s.valuesGrid}>
+        <div style={s.valuesGrid} className="values-grid">
           {values.map((v, i) => (
             <div key={i} style={s.valueCard}>
               <div style={s.valueIcon}>{v.icon}</div>
@@ -157,10 +180,10 @@ const AboutUs = () => {
       </section>
 
       {/* ── Coverage ── */}
-      <section style={{ ...s.section, background: '#f8faff', maxWidth: '100%', padding: '80px 32px' }}>
+      <section style={{ ...s.section, background: '#f8faff', maxWidth: '100%', padding: '80px 32px' }} className="section-wide">
         <div style={{ maxWidth: '1200px', margin: '0 auto', textAlign: 'center' }}>
           <div style={s.sectionLabel}>Coverage</div>
-          <h2 style={s.sectionTitle}>Serving businesses across all of India</h2>
+          <h2 style={s.sectionTitle} className="section-title">Serving businesses across all of India</h2>
           <p style={s.sectionSub}>From metro cities to tier-2 and tier-3 towns — AdNexus helps businesses of every size reach their audience.</p>
           <div style={s.coverageGrid}>
             {[
@@ -177,11 +200,11 @@ const AboutUs = () => {
       </section>
 
       {/* ── Contact ── */}
-      <section id="contact" style={s.section}>
+      <section id="contact" style={s.section} className="section">
         <div style={s.sectionLabel}>Contact</div>
-        <h2 style={s.sectionTitle}>Get in touch</h2>
+        <h2 style={s.sectionTitle} className="section-title">Get in touch</h2>
         <p style={s.sectionSub}>Have questions about AdNexus? We'd love to hear from you.</p>
-        <div style={s.contactGrid}>
+        <div style={s.contactGrid} className="contact-grid">
           <div style={s.contactCard}>
             <div style={s.contactIcon}>📧</div>
             <div style={s.contactTitle}>Email Us</div>
@@ -204,8 +227,8 @@ const AboutUs = () => {
       </section>
 
       {/* ── CTA ── */}
-      <section style={s.cta}>
-        <h2 style={s.ctaTitle}>Ready to grow your business?</h2>
+      <section style={s.cta} className="cta">
+        <h2 style={s.ctaTitle} className="cta-title">Ready to grow your business?</h2>
         <p style={s.ctaSub}>Join businesses across India already using AdNexus to launch smarter ad campaigns.</p>
         <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
           <button style={s.btnCta}>🚀 Start Free Trial</button>
@@ -215,7 +238,7 @@ const AboutUs = () => {
 
       {/* ── Footer ── */}
       <footer style={s.footer}>
-        <div style={s.footerTop}>
+        <div style={s.footerTop} className="footer-top">
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
               <div style={s.logoMark}>A</div>
@@ -227,7 +250,7 @@ const AboutUs = () => {
               <div style={s.footerContactItem}>🌐 adnexus.co.in</div>
             </div>
           </div>
-          <div style={s.footerLinks}>
+          <div style={s.footerLinks} className="footer-links">
             <div style={s.footerCol}>
               <div style={s.footerColTitle}>Product</div>
               <a href="/#features" style={s.footerLink}>Features</a>
@@ -246,7 +269,7 @@ const AboutUs = () => {
             </div>
           </div>
         </div>
-        <div style={s.footerBottom}>
+        <div style={s.footerBottom} className="footer-bottom">
           <span style={s.footerCopy}>© 2026 AdNexus. All rights reserved.</span>
           <span style={s.footerCopy}>adnexus.co.in</span>
         </div>
@@ -255,6 +278,43 @@ const AboutUs = () => {
     </div>
   )
 }
+
+const responsiveCSS = `
+  * { box-sizing: border-box; }
+  .hamburger-btn { display: none; }
+
+  @media (max-width: 968px) {
+    .nav-links, .nav-right { display: none !important; }
+    .hamburger-btn { display: flex !important; }
+    .story-grid { grid-template-columns: 1fr !important; gap: 36px !important; }
+    .platforms-grid { grid-template-columns: repeat(2, 1fr) !important; }
+    .values-grid { grid-template-columns: repeat(2, 1fr) !important; }
+    .contact-grid { grid-template-columns: 1fr !important; }
+    .footer-top { grid-template-columns: 1fr !important; gap: 40px !important; }
+  }
+
+  @media (max-width: 640px) {
+    .nav-inner { padding: 0 16px !important; }
+    .hero { padding: 48px 20px 40px !important; }
+    .hero-title { font-size: 30px !important; }
+    .hero-sub { font-size: 15px !important; }
+    .stats-inner { flex-wrap: wrap !important; gap: 24px !important; padding: 28px 20px !important; }
+    .stats-inner > div { flex: 1 1 40% !important; }
+    .stat-num { font-size: 26px !important; }
+    .section, .section-wide { padding: 48px 20px !important; }
+    .section-title { font-size: 26px !important; }
+    .platforms-grid { grid-template-columns: 1fr 1fr !important; gap: 12px !important; }
+    .values-grid { grid-template-columns: 1fr !important; }
+    .footer-links { grid-template-columns: 1fr !important; gap: 24px !important; }
+    .footer-bottom { flex-direction: column !important; gap: 8px !important; text-align: center !important; }
+    .cta { padding: 48px 20px !important; }
+    .cta-title { font-size: 26px !important; }
+  }
+
+  @media (max-width: 420px) {
+    .platforms-grid { grid-template-columns: 1fr !important; }
+  }
+`
 
 const s = {
   page: { fontFamily: "'Inter', -apple-system, sans-serif", background: '#fff', color: '#1a1a2e', overflowX: 'hidden' },
@@ -270,6 +330,13 @@ const s = {
   navRight: { marginLeft: 'auto', display: 'flex', gap: '10px', alignItems: 'center' },
   btnGhost: { padding: '8px 16px', borderRadius: '8px', border: '1px solid #e0e4ef', background: '#fff', fontSize: '13px', color: '#1a1a2e', cursor: 'pointer', fontWeight: '500', fontFamily: 'inherit' },
   btnBlue:  { padding: '8px 18px', borderRadius: '8px', border: 'none', background: '#1A73E8', fontSize: '13px', color: '#fff', cursor: 'pointer', fontWeight: '600', fontFamily: 'inherit' },
+
+  // Hamburger
+  hamburger:     { marginLeft: 'auto', width: '36px', height: '36px', border: '1px solid #e0e4ef', borderRadius: '8px', background: '#fff', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '4px', cursor: 'pointer' },
+  hamburgerLine: { width: '18px', height: '2px', background: '#1a1a2e', borderRadius: '2px' },
+  mobileMenu:    { display: 'flex', flexDirection: 'column', gap: '4px', padding: '12px 16px 20px', borderTop: '0.5px solid #e8eaf0', background: '#fff' },
+  mobileMenuLink:{ fontSize: '15px', color: '#374151', textDecoration: 'none', fontWeight: '500', padding: '10px 4px' },
+  mobileMenuDivider: { height: '1px', background: '#e8eaf0', margin: '8px 0' },
 
   // Hero
   hero:      { padding: '80px 32px 60px', textAlign: 'center', maxWidth: '1200px', margin: '0 auto' },
