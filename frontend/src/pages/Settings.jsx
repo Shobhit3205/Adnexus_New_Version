@@ -225,6 +225,9 @@ const Settings = () => {
             {darkMode ? <SunIcon /> : <MoonIcon />}
             {!isMobile && (darkMode ? 'Light' : 'Dark')}
           </button>
+          <button style={{ marginLeft: '10px', padding: '6px 14px', borderRadius: '20px', border: '1px solid #cbd5e1', background: '#f1f5f9', color: '#0f172a', fontSize: '12px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit' }}>
+  Test Button
+</button>
         </header>
 
         <div style={content}>
