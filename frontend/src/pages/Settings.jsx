@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { updateMe } from '../services/api'
 
 
 const AdminIcon = () => (<svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path d="M12 2l8 4v6c0 5-3.5 9-8 10-4.5-1-8-5-8-10V6l8-4z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/><path d="M9.5 12l2 2 3.5-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>)
@@ -53,7 +54,7 @@ const MOBILE_BREAKPOINT = 860
 
 const Settings = () => {
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, loginUser, logoutUser, token } = useAuth()
   // NOTE: activeTab now tracks a single open key. Toggling is done with a
   // functional state update so it never reads a stale value.
     const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL
@@ -262,12 +263,12 @@ const Settings = () => {
 
       {isOpen && !isAdminTab && (
         <div style={accordionBody}>
-          {tab.key === 'profile' && <ProfileSection styles={{ card, cardAccent, cardTitle, cardSubtitle, label, input, primaryButton, secondaryButton, t }} displayInitials={displayInitials} isMobile={isMobile} />}
+          {tab.key === 'profile' && <ProfileSection styles={{ card, cardAccent, cardTitle, cardSubtitle, label, input, primaryButton, secondaryButton, t }} displayInitials={displayInitials} isMobile={isMobile} user={user} />}
           {tab.key === 'account' && <AccountSection styles={{ card, cardAccent, cardTitle, cardSubtitle, label, input, passwordWrap, eyeIcon, primaryButton, rulesBox, ruleRow, t }} passwordRules={passwordRules} EyeIcon={EyeIcon} EyeOffIcon={EyeOffIcon} />}
           {tab.key === 'notifications' && <NotificationsSection styles={{ card, cardAccent, cardTitle, cardSubtitle, t, darkMode }} isMobile={isMobile} />}
           {tab.key === 'billing' && <BillingSection styles={{ card, cardAccent, cardTitle, cardSubtitle, label, primaryButton, t }} isMobile={isMobile} />}
           {tab.key === 'danger' && <DangerZoneSection styles={{ card, cardTitle, cardSubtitle, label, input, t }} />}
-          {tab.key === 'signout' && <SignOutSection styles={{ card, cardAccent, cardTitle, cardSubtitle, primaryButton, t }} navigate={navigate} />}
+          {tab.key === 'signout' && <SignOutSection styles={{ card, cardAccent, cardTitle, cardSubtitle, primaryButton, t }} navigate={navigate} logoutUser={logoutUser} />}
         </div>
       )}
     </div>
@@ -281,15 +282,35 @@ const Settings = () => {
 }
 
 /* ---------------- Profile ---------------- */
-const ProfileSection = ({ styles: s, displayInitials, isMobile }) => {
-  const [name, setName] = useState('Shobhit Pandey')
-  const [email, setEmail] = useState('shobhit@example.com')
+const ProfileSection = ({ styles: s, displayInitials, isMobile, user }) => {
+  const { loginUser, token } = useAuth()
+  const [name, setName] = useState(user?.name || '')
+  const [email, setEmail] = useState(user?.email || '')
+  const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [error, setError] = useState('')
 
-  const handleSave = (e) => {
+  // Agar user context thodi der baad load ho (page refresh case), fields sync kar do
+  useEffect(() => {
+    setName(user?.name || '')
+    setEmail(user?.email || '')
+  }, [user?.name, user?.email])
+
+  const handleSave = async (e) => {
     e.preventDefault()
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+    setError('')
+    setSaving(true)
+    try {
+      const res = await updateMe({ name, email })
+      // Context ka user turant update kar do — sidebar bhi turant naya naam dikhayega
+      loginUser(token, res.data)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to update profile. Try again.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -299,12 +320,15 @@ const ProfileSection = ({ styles: s, displayInitials, isMobile }) => {
         <div style={{ width: '58px', height: '58px', borderRadius: '50%', background: s.t.avatarBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700', fontSize: '22px', color: '#fff', flexShrink: 0 }}>{displayInitials}</div>
         <button type="button" style={s.secondaryButton}>Change photo</button>
       </div>
+      {error && <div style={{ background: s.t.dangerBg, border: `1px solid ${s.t.dangerBorder}`, color: s.t.dangerColor, padding: '10px 12px', borderRadius: '10px', fontSize: '13px', marginBottom: '10px' }}>{error}</div>}
       <form onSubmit={handleSave}>
         <label style={s.label}>Full Name</label>
-        <input style={s.input} type="text" value={name} onChange={(e) => setName(e.target.value)} />
+        <input style={s.input} type="text" value={name} onChange={(e) => setName(e.target.value)} required />
         <label style={s.label}>Email</label>
-        <input style={s.input} type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-        <button style={s.primaryButton} type="submit">{saved ? 'Saved ✓' : 'Save changes'}</button>
+        <input style={s.input} type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        <button style={s.primaryButton} type="submit" disabled={saving}>
+          {saving ? 'Saving...' : saved ? 'Saved ✓' : 'Save changes'}
+        </button>
       </form>
     </div>
   )
@@ -422,10 +446,10 @@ const DangerZoneSection = ({ styles: s }) => {
 }
 
 /* ---------------- Sign Out ---------------- */
-const SignOutSection = ({ styles: s, navigate }) => {
+const SignOutSection = ({ styles: s, navigate, logoutUser }) => {
   const handleSignOut = () => {
-    // localStorage.removeItem('token') // uncomment if you store auth token
-    navigate('/')
+    logoutUser()
+    navigate('/login')
   }
   return (
     <div style={s.card}>

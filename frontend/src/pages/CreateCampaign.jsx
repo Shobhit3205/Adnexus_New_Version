@@ -562,7 +562,7 @@ const LaunchSuccess = ({ launchResult, formData, selectedPlatforms, selectedCiti
       </div>
 
       <div className="app-main" style={{ flex:1, padding:'24px 28px', overflowY:'auto', display:'flex', flexDirection:'column', gap:'20px' }}>
-        <button style={{ background:'none', border:'none', color:'#1A73E8', fontSize:'13px', cursor:'pointer', padding:0, fontFamily:'inherit', display:'flex', alignItems:'center', gap:'4px', alignSelf:'flex-start' }} onClick={() => navigate('/')}>
+        <button style={{ background:'none', border:'none', color:'#1A73E8', fontSize:'13px', cursor:'pointer', padding:0, fontFamily:'inherit', display:'flex', alignItems:'center', gap:'4px', alignSelf:'flex-start' }} onClick={() => navigate('/dashboard')}>
           ← Back to Dashboard
         </button>
         <div className="hero-card" style={{ background:'#fff', borderRadius:'20px', border:'1px solid #e8eaf0', padding:'32px 40px', display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:'24px', position:'relative', overflow:'hidden' }}>
@@ -1033,7 +1033,7 @@ const CreateCampaign = () => {
 
       {/* ── Center (now full width — no right panel) ── */}
       <div className="app-main" style={s.mainContent}>
-        <button style={s.backBtn} onClick={() => navigate('/')}>← Back to Dashboard</button>
+        <button style={s.backBtn} onClick={() => navigate('/dashboard')}>← Back to Dashboard</button>
         <div className="form-card" style={s.formCard}>
           <div style={s.formHeader}>
             <h1 style={s.formTitle}>{steps[step-1].label}</h1>
