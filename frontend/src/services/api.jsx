@@ -24,6 +24,7 @@ export const updateCampaign = (id, data) => API.put(`/api/campaigns/${id}`, data
 export const deleteCampaign = (id) => API.delete(`/api/campaigns/${id}`)
 export const getCampaignDetail = (id) => API.get(`/api/campaigns/${id}/detail`)
 export const getCampaignStats = (id) => API.get(`/api/campaigns/${id}/stats`)  // ← naya
+export const updateMe = (data) => API.patch('/api/auth/me', data)
 
 // Ad Content APIs
 export const createAdContent = (campaignId, data) =>

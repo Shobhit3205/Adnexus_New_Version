@@ -805,7 +805,7 @@ const Dashboard = () => {
                 <div style={cardHeader}><span style={cardTitle}>Quick Actions</span></div>
                 {[
                   { label:'Create new campaign', icon:'+', iconBg: darkMode ? 'rgba(59,139,255,0.2)' : '#eff6ff', iconColor: darkMode ? '#7bb8ff' : '#2563eb', action: () => navigate('/dashboard/create-campaign') },
-                  { label:'Download leads (CSV)', icon:'↓', iconBg: darkMode ? 'rgba(52,211,153,0.15)' : '#f0fdf4', iconColor: darkMode ? '#6ee7b7' : '#16a34a', action: () => navigate('/dashboardleads') },
+                  { label:'Download leads (CSV)', icon:'↓', iconBg: darkMode ? 'rgba(52,211,153,0.15)' : '#f0fdf4', iconColor: darkMode ? '#6ee7b7' : '#16a34a', action: () => navigate('/dashboard/leads') },
                   { label:'Pause all ads', icon:'⏸', iconBg: darkMode ? 'rgba(248,113,113,0.15)' : '#fef2f2', iconColor: darkMode ? '#fca5a5' : '#dc2626', danger:true, action: () => {} },
                 ].map(a => (
                   <button key={a.label} style={{ ...actionBtn, ...(a.danger ? { color: darkMode ? '#fca5a5' : '#dc2626', borderColor: darkMode ? 'rgba(248,113,113,0.2)' : '#fecaca' } : {}) }} onClick={a.action}>

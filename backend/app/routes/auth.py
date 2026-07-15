@@ -7,6 +7,7 @@ import os
 
 from app.database import get_db
 from app.models.models import User
+
 from app.schemas.auth import (
     SignupRequest, LoginRequest, VerifyOtpRequest,
     ResendOtpRequest, UserResponse, TokenResponse, MessageResponse,
@@ -17,6 +18,12 @@ from app.core.security import (
     create_access_token, get_current_user
 )
 from app.services.otp_service import generate_otp, get_otp_expiry, send_otp_email
+
+from app.schemas.auth import (
+    SignupRequest, LoginRequest, VerifyOtpRequest,
+    ResendOtpRequest, UserResponse, TokenResponse, MessageResponse,
+    GoogleLoginRequest, UpdateProfileRequest
+)
 
 router = APIRouter()
 
@@ -184,3 +191,25 @@ def google_login(data: GoogleLoginRequest, db: Session = Depends(get_db)):
     token = create_access_token({"sub": str(user.id)})
 
     return {"access_token": token, "user": user}
+
+# ════════════════════════════════════════════════════
+# UPDATE CURRENT USER (/me)
+# ════════════════════════════════════════════════════
+@router.patch("/me", response_model=UserResponse)
+def update_me(
+    data: UpdateProfileRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if data.email and data.email != current_user.email:
+        existing = db.query(User).filter(User.email == data.email).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Email already in use")
+        current_user.email = data.email
+
+    if data.name:
+        current_user.name = data.name
+
+    db.commit()
+    db.refresh(current_user)
+    return current_user    

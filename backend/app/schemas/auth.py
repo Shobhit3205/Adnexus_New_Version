@@ -54,3 +54,7 @@ class MessageResponse(BaseModel):
     # ── Google Login ──
 class GoogleLoginRequest(BaseModel):
     id_token: str
+
+class UpdateProfileRequest(BaseModel):
+    name: str | None = None
+    email: EmailStr | None = None
