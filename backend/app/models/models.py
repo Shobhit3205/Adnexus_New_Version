@@ -63,6 +63,7 @@ class Campaign(Base):
     lead_forms       = relationship("LeadForm", back_populates="campaign")
     form_submissions = relationship("FormSubmission", back_populates="campaign")
     click_tracking   = relationship("ClickTracking", back_populates="campaign")
+    audience_profiles = relationship("AudienceProfile", back_populates="campaign")
 
 
 # ════════════════════════════════════════════════════
@@ -262,6 +263,7 @@ class ClickTracking(Base):
 
     # Relationship
     campaign = relationship("Campaign", back_populates="click_tracking")
+<<<<<<< HEAD
     
 
     # ════════════════════════════════════════════════════
@@ -285,3 +287,85 @@ class PlatformConnection(Base):
 
     # Relationship
     user = relationship("User", back_populates="platform_connections")
+=======
+
+    # ════════════════════════════════════════════════════
+# ADD THESE TO YOUR EXISTING app/models.py
+# (paste below the existing classes; imports already covered
+#  by your existing `from sqlalchemy import ...` line — just
+#  add JSON if you don't have it imported)
+# ════════════════════════════════════════════════════
+
+# from sqlalchemy import JSON   # <-- add this import if you want native JSON instead of Text
+
+
+# ════════════════════════════════════════════════════
+# Audience Profiles Table
+# AI-generated (or manual) generic audience profile for a campaign.
+# One campaign can technically have multiple profiles over time
+# (e.g. regenerated), but UI will typically use the latest one.
+# ════════════════════════════════════════════════════
+class AudienceProfile(Base):
+    __tablename__ = "audience_profiles"
+
+    id                = Column(Integer, primary_key=True, index=True)
+    campaign_id       = Column(Integer, ForeignKey("campaigns.id"))
+
+    source            = Column(String(20), default="ai")     # "ai" | "manual" | "hybrid"
+    industry_category = Column(String(255))
+    business_type     = Column(String(20))                    # "B2B" | "B2C" | "Both"
+
+    # Comma-separated strings, matching your existing style (e.g. TargetingRule.industries)
+    intent_keywords   = Column(Text)
+    job_functions     = Column(Text)   # B2B only
+    job_seniorities   = Column(Text)   # B2B only
+    interests         = Column(Text)   # B2C only
+
+    age_min           = Column(Integer, default=25)
+    age_max           = Column(Integer, default=55)
+    income_bracket    = Column(String(50))
+    reasoning         = Column(Text)          # AI's 1-line "why" explanation
+    raw_ai_output     = Column(Text)          # full AI JSON response, stored as text for debugging
+
+    created_at        = Column(DateTime, default=func.now())
+    updated_at        = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    # Relationships
+    campaign          = relationship("Campaign", back_populates="audience_profiles")
+    platform_targets  = relationship("PlatformTargeting", back_populates="audience_profile",
+                                      cascade="all, delete-orphan")
+
+
+# ════════════════════════════════════════════════════
+# Platform Targeting Table
+# Per-platform mapped targeting spec derived from an AudienceProfile.
+# targeting_spec stores platform-native shape as JSON text, e.g.:
+#   Google:   {"in_market_segments": [...], "custom_segment_keywords": [...]}
+#   Meta:     {"interests": [{"id":"...", "name":"..."}], "behaviors": [...]}
+#   LinkedIn: {"job_functions": [...], "seniorities": [...], "industries": [...]}
+# ════════════════════════════════════════════════════
+class PlatformTargeting(Base):
+    __tablename__ = "platform_targeting"
+
+    id                  = Column(Integer, primary_key=True, index=True)
+    audience_profile_id = Column(Integer, ForeignKey("audience_profiles.id"))
+
+    platform            = Column(String(20), nullable=False)  # "google" | "meta" | "linkedin" | "instagram"
+    targeting_spec      = Column(Text, default="{}")           # JSON string
+    is_ai_suggested      = Column(Boolean, default=True)
+    is_user_approved     = Column(Boolean, default=False)
+
+    created_at           = Column(DateTime, default=func.now())
+    updated_at           = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    # Relationships
+    audience_profile     = relationship("AudienceProfile", back_populates="platform_targets")
+
+
+# ════════════════════════════════════════════════════
+# ALSO ADD this relationship line inside your existing Campaign class,
+# next to the other relationships (targeting, ad_contents, etc.):
+#
+#   audience_profiles = relationship("AudienceProfile", back_populates="campaign")
+# ════════════════════════════════════════════════════
+>>>>>>> e3f86026ae8711508b2b140f8ee46eadee4fcfcb

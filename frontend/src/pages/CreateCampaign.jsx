@@ -175,11 +175,14 @@ const competitionColor = {
 // ════════════════════════════════════════════════════
 // MAP CANVAS
 // ════════════════════════════════════════════════════
+
+// ════════════════════════════════════════════════════
+// MAP CANVAS
+// ════════════════════════════════════════════════════
 const MapCanvas = ({ selectedCities, radiusKm }) => {
-  const mapRef     = useRef(null)
-  const leafletMap = useRef(null)
-  const circleRef  = useRef(null)
-  const markerRef  = useRef(null)
+  const mapRef      = useRef(null)
+  const leafletMap  = useRef(null)
+  const layersRef   = useRef([])   // holds {marker, circle} per city
   const [mapLoaded, setMapLoaded] = useState(false)
 
   useEffect(() => {
@@ -194,27 +197,58 @@ const MapCanvas = ({ selectedCities, radiusKm }) => {
     document.head.appendChild(js)
   }, [])
 
+  // init map once
   useEffect(() => {
     if (!mapLoaded || !mapRef.current || leafletMap.current) return
     const L = window.L
-    const city = selectedCities.length > 0 ? selectedCities[selectedCities.length - 1] : { lat: 28.6139, lng: 77.2090 }
-    leafletMap.current = L.map(mapRef.current, { center: [city.lat, city.lng], zoom: 11, zoomControl: true, scrollWheelZoom: true })
+    const first = selectedCities.length > 0 ? selectedCities[0] : { lat: 28.6139, lng: 77.2090 }
+    leafletMap.current = L.map(mapRef.current, { center: [first.lat, first.lng], zoom: 10, zoomControl: true, scrollWheelZoom: true })
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OSM', maxZoom: 18 }).addTo(leafletMap.current)
-    const icon = L.divIcon({ className: '', html: `<div style="width:14px;height:14px;background:#E53935;border:3px solid #fff;border-radius:50%;box-shadow:0 2px 8px rgba(229,57,53,.5)"></div>`, iconSize: [14,14], iconAnchor: [7,7] })
-    markerRef.current = L.marker([city.lat, city.lng], { icon }).addTo(leafletMap.current)
-    circleRef.current = L.circle([city.lat, city.lng], { radius: radiusKm * 1000, color: '#1A73E8', fillColor: '#1A73E8', fillOpacity: 0.12, weight: 1.5, dashArray: '6 4' }).addTo(leafletMap.current)
   }, [mapLoaded])
 
+  // redraw markers + circles whenever cities or radius change
   useEffect(() => {
-    if (!leafletMap.current || !circleRef.current || !markerRef.current) return
+    if (!leafletMap.current) return
+    const L = window.L
+
+    // clear old layers
+    layersRef.current.forEach(({ marker, circle }) => {
+      leafletMap.current.removeLayer(marker)
+      leafletMap.current.removeLayer(circle)
+    })
+    layersRef.current = []
+
     if (!selectedCities.length) return
-    const city = selectedCities[selectedCities.length - 1]
-    const ll   = [city.lat, city.lng]
-    const zoom = radiusKm <= 5 ? 13 : radiusKm <= 15 ? 12 : radiusKm <= 35 ? 11 : radiusKm <= 70 ? 10 : 9
-    markerRef.current.setLatLng(ll)
-    circleRef.current.setLatLng(ll)
-    circleRef.current.setRadius(radiusKm * 1000)
-    leafletMap.current.flyTo(ll, zoom, { duration: 1.0 })
+
+    const bounds = []
+
+    selectedCities.forEach(city => {
+      const icon = L.divIcon({
+        className: '',
+        html: `<div style="width:16px;height:16px;background:#0A66C2;border:3px solid #fff;border-radius:50%;box-shadow:0 2px 10px rgba(10,102,194,.6)"></div>`,
+        iconSize: [16,16], iconAnchor: [8,8],
+      })
+      const marker = L.marker([city.lat, city.lng], { icon }).addTo(leafletMap.current)
+      const circle = L.circle([city.lat, city.lng], {
+        radius: radiusKm * 1000,
+        color: '#0A66C2', fillColor: '#0A66C2',
+        fillOpacity: 0.4, weight: 2, opacity: 0.8,
+      }).addTo(leafletMap.current)
+
+      marker.bindTooltip(city.name, { permanent: false, direction: 'top', offset: [0, -10] })
+
+      layersRef.current.push({ marker, circle })
+      bounds.push(circle.getBounds())
+    })
+
+    // fit map to show all selected cities' circles
+    if (bounds.length === 1) {
+      leafletMap.current.flyTo([selectedCities[0].lat, selectedCities[0].lng], radiusKm <= 5 ? 13 : radiusKm <= 15 ? 12 : radiusKm <= 35 ? 11 : radiusKm <= 70 ? 10 : 9, { duration: 1.0 })
+    } else if (bounds.length > 1) {
+      let combined = bounds[0]
+      bounds.slice(1).forEach(b => { combined = combined.extend(b) })
+      leafletMap.current.fitBounds(combined, { padding: [30, 30], duration: 1.0 })
+    }
   }, [selectedCities, radiusKm])
 
   return (
@@ -229,7 +263,6 @@ const MapCanvas = ({ selectedCities, radiusKm }) => {
     </div>
   )
 }
-
 // ════════════════════════════════════════════════════
 // SUMMARY ICON (used inside popover)
 // ════════════════════════════════════════════════════
@@ -631,6 +664,27 @@ const LaunchSuccess = ({ launchResult, formData, selectedPlatforms, selectedCiti
                     </span>
                   </div>
                 ))}
+                {launchResult.audienceProfile && (
+              <div style={{ marginTop:'16px', padding:'14px', background:'#f8faff', borderRadius:'12px', border:'1px solid #f0f2f8' }}>
+                <div style={{ fontSize:'12px', fontWeight:'700', color:'#1a1a2e', marginBottom:'6px' }}>
+                  🎯 AI Suggested Audience
+                </div>
+                <div style={{ fontSize:'11px', color:'#8892b0', marginBottom:'10px' }}>
+                  {launchResult.audienceProfile.reasoning}
+                </div>
+                <div style={{ display:'flex', flexWrap:'wrap', gap:'6px' }}>
+                  {[
+                    ...launchResult.audienceProfile.job_functions,
+                    ...launchResult.audienceProfile.job_seniorities,
+                    ...launchResult.audienceProfile.interests,
+                  ].map((tag, i) => (
+                    <span key={i} style={{ fontSize:'11px', fontWeight:'500', color:'#1A73E8', background:'#e8f0fe', padding:'3px 10px', borderRadius:'20px' }}>
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
               </div>
             )}
             {Object.keys(launchResult.platformResults).length === 0 && (
@@ -795,9 +849,6 @@ const CreateCampaign = () => {
   const [adContents, setAdContents]   = useState({})
   const [websiteUrl, setWebsiteUrl]   = useState('')
   const [campaignId, setCampaignId]   = useState(null)
-  const [connections, setConnections]         = useState({})
-  const [connectionsLoading, setConnectionsLoading] = useState(true)
-  const popupRef = useRef(null)
 
   const isLeadGen = formData.goal === 'Lead Generation'
 
@@ -997,9 +1048,25 @@ const connectPlatform = async (apiKey) => {
       const platformResults = res.data.platforms || {}
       setCampaignId(newCampaignId)
 
+     let generatedAudience = null
       if (newCampaignId) {
-        try { await axios.post(`${API_BASE}/api/campaigns/${newCampaignId}/platforms`, selectedPlatforms) } catch (e) {}
+        try {
+          const primaryAdContent = getGoogleAdContent()
+          const audienceRes = await axios.post(
+            `${API_BASE}/api/campaigns/${newCampaignId}/audience/generate`,
+            {
+              ad_title: primaryAdContent.headline || formData.name,
+              ad_description: primaryAdContent.primary_text || primaryAdContent.descriptions?.[0] || formData.business_niche,
+              industry: formData.industry,
+              sub_category: formData.sub_category,
+            }
+          )
+          generatedAudience = audienceRes.data
+        } catch (e) {
+          console.warn('Audience targeting generation failed:', e)
+        }
       }
+      setAudienceProfile(generatedAudience)
 
       const adContentWarnings = []
       for (const platformId of selectedPlatforms) {
@@ -1027,6 +1094,7 @@ const connectPlatform = async (apiKey) => {
         campaignId: newCampaignId,
         platformResults,
         adContentWarnings,
+        audienceProfile: generatedAudience,
         success: true,
       })
     } catch (err) {
