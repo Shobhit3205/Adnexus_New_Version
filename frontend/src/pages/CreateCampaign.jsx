@@ -849,6 +849,10 @@ const CreateCampaign = () => {
   const [adContents, setAdContents]   = useState({})
   const [websiteUrl, setWebsiteUrl]   = useState('')
   const [campaignId, setCampaignId]   = useState(null)
+  const [audienceProfile, setAudienceProfile] = useState(null)
+  const [connections, setConnections]         = useState({})
+  const [connectionsLoading, setConnectionsLoading] = useState(true)
+  const popupRef = useRef(null)
 
   const isLeadGen = formData.goal === 'Lead Generation'
 

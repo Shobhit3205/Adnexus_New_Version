@@ -263,7 +263,7 @@ class ClickTracking(Base):
 
     # Relationship
     campaign = relationship("Campaign", back_populates="click_tracking")
-<<<<<<< HEAD
+
     
 
     # ════════════════════════════════════════════════════
@@ -287,7 +287,7 @@ class PlatformConnection(Base):
 
     # Relationship
     user = relationship("User", back_populates="platform_connections")
-=======
+
 
     # ════════════════════════════════════════════════════
 # ADD THESE TO YOUR EXISTING app/models.py
@@ -368,4 +368,3 @@ class PlatformTargeting(Base):
 #
 #   audience_profiles = relationship("AudienceProfile", back_populates="campaign")
 # ════════════════════════════════════════════════════
->>>>>>> e3f86026ae8711508b2b140f8ee46eadee4fcfcb
