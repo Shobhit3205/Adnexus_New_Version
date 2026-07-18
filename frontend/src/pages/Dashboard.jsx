@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react'
 import { getCampaigns, deleteCampaign, getCampaignStats, getLeads } from '../services/api'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 const fmt = n => {
   if (!n && n !== 0) return '—'
@@ -372,6 +374,45 @@ const Dashboard = () => {
       try { await deleteCampaign(id); fetchAll() } catch {}
     }
   }
+
+  const handleDownloadLeadsPDF = () => {
+  if (leads.length === 0) {
+    alert('No leads available to download.')
+    return
+  }
+
+  const doc = new jsPDF()
+
+  // Header
+  doc.setFontSize(16)
+  doc.setTextColor(37, 99, 235)
+  doc.text('AdNexus — Leads Report', 14, 15)
+
+  doc.setFontSize(10)
+  doc.setTextColor(100)
+  doc.text(`Generated: ${new Date().toLocaleDateString('en-IN')}`, 14, 22)
+  doc.text(`Total leads: ${leads.length}`, 14, 27)
+
+  // Table
+  autoTable(doc, {
+    startY: 33,
+    head: [['Name', 'Phone', 'Platform', 'Campaign', 'Date', 'Score']],
+    body: leads.map(lead => [
+      lead.name || lead.full_name || '—',
+      lead.phone || '—',
+      lead.platform_name || lead.platform || 'Direct',
+      campaigns.find(c => c.id === lead.campaign_id || c.id === String(lead.campaign_id))?.name || '—',
+      lead.created_at ? new Date(lead.created_at).toLocaleDateString('en-IN') : '—',
+      lead.quality_score != null ? `${lead.quality_score}/10` : '—',
+    ]),
+    theme: 'grid',
+    headStyles: { fillColor: [37, 99, 235], fontSize: 9 },
+    styles: { fontSize: 8, cellPadding: 3 },
+    alternateRowStyles: { fillColor: [240, 244, 255] },
+  })
+
+  doc.save(`adnexus-leads-${Date.now()}.pdf`)
+}
 
   const totalBudget     = campaigns.reduce((s, c) => s + (c.budget || 0), 0)
   const totalSpent      = campaigns.reduce((s, c) => s + (c.budget_spent || 0), 0)
@@ -805,9 +846,8 @@ const Dashboard = () => {
                 <div style={cardHeader}><span style={cardTitle}>Quick Actions</span></div>
                 {[
                   { label:'Create new campaign', icon:'+', iconBg: darkMode ? 'rgba(59,139,255,0.2)' : '#eff6ff', iconColor: darkMode ? '#7bb8ff' : '#2563eb', action: () => navigate('/dashboard/create-campaign') },
-                  { label:'Download leads (CSV)', icon:'↓', iconBg: darkMode ? 'rgba(52,211,153,0.15)' : '#f0fdf4', iconColor: darkMode ? '#6ee7b7' : '#16a34a', action: () => navigate('/dashboard/leads') },
-                  { label:'Pause all ads', icon:'⏸', iconBg: darkMode ? 'rgba(248,113,113,0.15)' : '#fef2f2', iconColor: darkMode ? '#fca5a5' : '#dc2626', danger:true, action: () => {} },
-                ].map(a => (
+                 { label:'Download leads (PDF)', icon:'↓', iconBg: darkMode ? 'rgba(52,211,153,0.15)' : '#f0fdf4', iconColor: darkMode ? '#6ee7b7' : '#16a34a', action: handleDownloadLeadsPDF },
+                 ].map(a => (
                   <button key={a.label} style={{ ...actionBtn, ...(a.danger ? { color: darkMode ? '#fca5a5' : '#dc2626', borderColor: darkMode ? 'rgba(248,113,113,0.2)' : '#fecaca' } : {}) }} onClick={a.action}>
                     <span style={{ ...actionIcon, background: a.iconBg, color: a.iconColor }}>{a.icon}</span>
                     {a.label}

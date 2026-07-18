@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models.models import Campaign, LeadForm, FormSubmission, ClickTracking
 from pydantic import BaseModel
 from typing import Optional
+from fastapi import APIRouter, Depends, HTTPException, Request, BackgroundTasks
+from app.models.models import Campaign, LeadForm, FormSubmission, ClickTracking, User
+from app.services.otp_service import send_lead_notification_email
 import json
 
 router = APIRouter(tags=["Public Forms"])
@@ -267,58 +268,6 @@ def setup_lead_form(
     }
 
 
-# ════════════════════════════════════════════════════
-# 3. POST: Submit form (customer fills and submits)
-# PUBLIC endpoint — no auth needed
-# Works for all 8 form types
-# When advanced access comes — just add webhook here ✅
-# ════════════════════════════════════════════════════
-@router.post("/submit/{campaign_id}")
-def submit_form(
-    campaign_id: int,
-    data: FormSubmissionCreate,
-    db: Session = Depends(get_db)
-):
-    campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
-    if not campaign:
-        raise HTTPException(status_code=404, detail="Campaign not found!")
-
-    form_type = get_form_type(
-        campaign.sub_category or "",
-        campaign.industry or ""
-    )
-
-    lead_form = db.query(LeadForm).filter(
-        LeadForm.campaign_id == campaign_id
-    ).first()
-
-    quality_score = calculate_quality_score(data.dict())
-
-    submission = FormSubmission(
-        campaign_id   = campaign_id,
-        form_id       = lead_form.id if lead_form else None,
-        platform      = data.platform,
-        utm_source    = data.utm_source,
-        form_type     = form_type,
-        full_name     = data.full_name,
-        phone         = data.phone,
-        email         = data.email,
-        location      = data.location,
-        budget_range  = data.budget_range,
-        timeline      = data.timeline,
-        requirement   = data.requirement,
-        extra_data    = json.dumps(data.extra_data),
-        quality_score = quality_score,
-    )
-    db.add(submission)
-    db.commit()
-    db.refresh(submission)
-
-    return {
-        "message":       "Form submitted successfully!",
-        "submission_id": submission.id,
-        "quality_score": quality_score,
-    }
 
 
 # ════════════════════════════════════════════════════
@@ -411,4 +360,66 @@ def get_clicks(campaign_id: int, db: Session = Depends(get_db)):
             }
             for c in clicks
         ]
+    }
+
+@router.post("/submit/{campaign_id}")
+def submit_form(
+    campaign_id: int,
+    data: FormSubmissionCreate,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found!")
+
+    form_type = get_form_type(
+        campaign.sub_category or "",
+        campaign.industry or ""
+    )
+
+    lead_form = db.query(LeadForm).filter(
+        LeadForm.campaign_id == campaign_id
+    ).first()
+
+    quality_score = calculate_quality_score(data.dict())
+
+    submission = FormSubmission(
+        campaign_id   = campaign_id,
+        form_id       = lead_form.id if lead_form else None,
+        platform      = data.platform,
+        utm_source    = data.utm_source,
+        form_type     = form_type,
+        full_name     = data.full_name,
+        phone         = data.phone,
+        email         = data.email,
+        location      = data.location,
+        budget_range  = data.budget_range,
+        timeline      = data.timeline,
+        requirement   = data.requirement,
+        extra_data    = json.dumps(data.extra_data),
+        quality_score = quality_score,
+    )
+    db.add(submission)
+    db.commit()
+    db.refresh(submission)
+
+    # ── Owner ko email notification bhejo (background mein, response slow na ho) ──
+    owner = db.query(User).filter(User.id == campaign.user_id).first()
+    print(f"DEBUG: campaign.user_id = {campaign.user_id}, owner = {owner}, owner.email = {owner.email if owner else 'N/A'}")
+    if owner and owner.email:
+        background_tasks.add_task(
+            send_lead_notification_email,
+            to_email=owner.email,
+            owner_name=owner.name,
+            lead_name=data.full_name,
+            lead_contact=data.phone,
+            campaign_name=campaign.name,
+            platform=data.platform or "",
+        )
+
+    return {
+        "message":       "Form submitted successfully!",
+        "submission_id": submission.id,
+        "quality_score": quality_score,
     }

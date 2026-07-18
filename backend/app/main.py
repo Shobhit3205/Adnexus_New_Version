@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine
 from app.models import models
-from app.routes import campaigns, leads, analytics, ad_content, public_forms, auth, admin
+from app.routes import campaigns, leads, analytics, ad_content, public_forms, auth, admin, audience_targeting
 
 
 
@@ -51,7 +51,10 @@ app.include_router(
     tags=["Admin"]
 )
 
+app.include_router(audience_targeting.router)
+
 # Test route
 @app.get("/")
 def root():
     return {"message": "AdNexus API is running! 🚀"}
+
