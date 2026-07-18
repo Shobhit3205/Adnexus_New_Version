@@ -11,19 +11,13 @@ from app.models.models import User
 from app.schemas.auth import (
     SignupRequest, LoginRequest, VerifyOtpRequest,
     ResendOtpRequest, UserResponse, TokenResponse, MessageResponse,
-    GoogleLoginRequest
+    GoogleLoginRequest, UpdateProfileRequest, ChangePasswordRequest
 )
 from app.core.security import (
     hash_password, verify_password,
     create_access_token, get_current_user
 )
 from app.services.otp_service import generate_otp, get_otp_expiry, send_otp_email
-
-from app.schemas.auth import (
-    SignupRequest, LoginRequest, VerifyOtpRequest,
-    ResendOtpRequest, UserResponse, TokenResponse, MessageResponse,
-    GoogleLoginRequest, UpdateProfileRequest
-)
 
 router = APIRouter()
 
@@ -212,4 +206,34 @@ def update_me(
 
     db.commit()
     db.refresh(current_user)
-    return current_user    
+    return current_user
+
+
+# ════════════════════════════════════════════════════
+# CHANGE PASSWORD (/me/password)
+# ════════════════════════════════════════════════════
+@router.patch("/me/password", response_model=MessageResponse)
+def change_password(
+    data: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    # Google-login users ke paas password hi nahi hota
+    if not current_user.password:
+        raise HTTPException(
+            status_code=400,
+            detail="This account uses Google sign-in and has no password set."
+        )
+
+    # Current password verify karo
+    if not verify_password(data.current_password, current_user.password):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+
+    # Same password dobara set na hone do
+    if verify_password(data.new_password, current_user.password):
+        raise HTTPException(status_code=400, detail="New password must be different from current password")
+
+    current_user.password = hash_password(data.new_password)
+    db.commit()
+
+    return {"message": "Password updated successfully."}

@@ -92,6 +92,9 @@ const getWhatsAppUrl = (phone) => {
   return `https://wa.me/${number}`
 }
 
+// Breakpoint below which the sidebar becomes an overlay drawer
+const MOBILE_BREAKPOINT = 860
+
 const Leads = () => {
   const navigate = useNavigate()
   const [leads, setLeads] = useState([])
@@ -101,6 +104,23 @@ const Leads = () => {
   const [hoveredRow, setHoveredRow] = useState(null)
   const [selectedLead, setSelectedLead] = useState(null)
   const [activityLog, setActivityLog] = useState({})
+
+  // ── Responsive state ──
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== 'undefined' ? window.innerWidth <= MOBILE_BREAKPOINT : false
+  )
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
+
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth <= MOBILE_BREAKPOINT
+      setIsMobile(mobile)
+      if (!mobile) setMobileNavOpen(false)
+    }
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   useEffect(() => {
     setActivityLog(loadActivityLog())
@@ -236,14 +256,50 @@ const Leads = () => {
     { key: 'Dead',          label: `Dead (${leads.filter(l => l.status === 'Dead').length})` },
   ]
 
+  // ── Responsive style overrides ──
+  const shellStyle = isMobile ? { ...s.shell, display: 'block' } : s.shell
+  const sidebarStyle = isMobile
+    ? {
+        ...s.sidebar,
+        position: 'fixed', top: 0, left: 0, height: '100%', width: '240px',
+        zIndex: 40, transform: mobileNavOpen ? 'translateX(0)' : 'translateX(-100%)',
+        transition: 'transform 0.25s ease',
+        boxShadow: mobileNavOpen ? '2px 0 24px rgba(0,0,0,0.3)' : 'none',
+        boxSizing: 'border-box',
+      }
+    : s.sidebar
+  const mainStyle = isMobile ? { ...s.main, padding: '16px 14px' } : s.main
+  const kpiRowStyle = isMobile ? { ...s.kpiRow, gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' } : s.kpiRow
+  const pageTitleStyle = isMobile ? { ...s.pageTitle, fontSize: '19px' } : s.pageTitle
+
   return (
-    <div style={s.shell}>
+    <div style={shellStyle}>
+
+      {/* Mobile backdrop for sidebar drawer */}
+      {isMobile && (
+        <div
+          onClick={() => setMobileNavOpen(false)}
+          style={{
+            display: mobileNavOpen ? 'block' : 'none',
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 30,
+          }}
+        />
+      )}
 
       {/* ───────── SIDEBAR ───────── */}
-      <div style={s.sidebar}>
+      <div style={sidebarStyle}>
         <div style={s.brand}>
           <div style={s.brandIcon}>A</div>
           <span style={s.brandName}>AdNexus</span>
+          {isMobile && (
+            <button
+              onClick={() => setMobileNavOpen(false)}
+              aria-label="Close menu"
+              style={{ marginLeft: 'auto', background: 'transparent', border: 'none', color: '#93b4d4', fontSize: '18px', cursor: 'pointer', lineHeight: 1 }}
+            >
+              ✕
+            </button>
+          )}
         </div>
 
         <div style={s.sbTitle}>B2B Leads Feed</div>
@@ -266,7 +322,7 @@ const Leads = () => {
                 ...s.navItem,
                 ...(item.label === 'Leads' ? s.navItemActive : {}),
               }}
-              onClick={() => navigate(item.path)}
+              onClick={() => { navigate(item.path); setMobileNavOpen(false) }}
             >
               <span style={{ fontSize: '15px' }}>{item.icon}</span>
               {item.label}
@@ -276,24 +332,40 @@ const Leads = () => {
       </div>
 
       {/* ───────── MAIN ───────── */}
-      <div style={s.main}>
+      <div style={mainStyle}>
 
         {/* Top nav */}
-        <div style={s.topNav}>
-          <button style={s.backBtn} onClick={() => navigate('/dashboard')}>
-            ← Back to Dashboard
-          </button>
+        <div style={{ ...s.topNav, flexWrap: 'wrap', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {isMobile && (
+              <button
+                onClick={() => setMobileNavOpen(true)}
+                aria-label="Open menu"
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  width: '32px', height: '32px', borderRadius: '8px',
+                  border: '0.5px solid #d0d5e8', background: '#fff',
+                  color: '#1a1a2e', cursor: 'pointer', flexShrink: 0, fontSize: '15px',
+                }}
+              >
+                ☰
+              </button>
+            )}
+            <button style={s.backBtn} onClick={() => navigate('/dashboard')}>
+              ← Back to Dashboard
+            </button>
+          </div>
           <button style={s.refreshBtn} onClick={fetchLeads} disabled={loading}>
             {loading ? 'Refreshing…' : '↻ Refresh'}
           </button>
         </div>
 
         {/* Page title */}
-        <div style={s.pageTitle}>B2B Leads Feed</div>
+        <div style={pageTitleStyle}>B2B Leads Feed</div>
         <div style={s.pageSub}>Verified ₹10Cr+ turnover leads — live from your campaigns</div>
 
         {/* KPI Cards */}
-        <div style={s.kpiRow}>
+        <div style={kpiRowStyle}>
           <div style={s.kpiCard}>
             <div style={s.kpiLabel}>Total leads</div>
             <div style={s.kpiVal}>{totalLeads}</div>
@@ -315,12 +387,15 @@ const Leads = () => {
         {loadError && <div style={s.errorBox}>{loadError}</div>}
 
         {/* Filter Tabs */}
-        <div style={s.filterRow}>
+        <div style={{ ...s.filterRow, overflowX: isMobile ? 'auto' : 'visible', flexWrap: isMobile ? 'nowrap' : 'wrap', paddingBottom: isMobile ? '4px' : 0 }}>
           {filterTabs.map(f => (
             <button
               key={f.key}
               onClick={() => setFilter(f.key)}
-              style={filter === f.key ? s.filterBtnActive : s.filterBtn}
+              style={{
+                ...(filter === f.key ? s.filterBtnActive : s.filterBtn),
+                flexShrink: 0,
+              }}
             >
               {f.label}
             </button>
@@ -345,119 +420,121 @@ const Leads = () => {
               </div>
             </div>
           ) : (
-            <table style={s.table}>
-              <thead>
-                <tr style={s.theadRow}>
-                  <th style={s.th}>Lead name</th>
-                  <th style={s.th}>Phone</th>
-                  <th style={s.th}>Sector</th>
-                  <th style={s.th}>Location</th>
-                  <th style={s.th}>Via</th>
-                  <th style={s.th}>Status</th>
-                  <th style={s.th}>Added</th>
-                  <th style={s.th}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredLeads.map((lead) => {
-                  const platform = platforms.find(p => p.name === lead.platform_name)
-                  const av = getAvatarColor(lead.name)
-                  const isCrm = lead.source === 'crm'
-                  const statusOptionsForLead = isCrm ? crmStatusOptions : formStatusOptions
-                  const statusStyleForLead = isCrm
-                    ? (crmStatusStyles[lead.status] || {})
-                    : (formStatusColors[lead.status]
-                        ? { background: formStatusColors[lead.status].bg, color: formStatusColors[lead.status].text, border: `0.5px solid ${formStatusColors[lead.status].border}` }
-                        : { background: '#f4f6fb', color: '#8892b0', border: '0.5px solid #e0e4ef' })
-                  return (
-                    <tr
-                      key={lead.id}
-                      style={{
-                        ...s.tr,
-                        cursor: 'pointer',
-                        background: hoveredRow === lead.id ? '#f8faff' : 'transparent',
-                      }}
-                      onMouseEnter={() => setHoveredRow(lead.id)}
-                      onMouseLeave={() => setHoveredRow(null)}
-                      onClick={() => setSelectedLead(lead)}
-                    >
-                      <td style={s.td}>
-                        <div style={s.leadCell}>
-                          <div style={{ ...s.avatar, background: av.bg, color: av.color }}>
-                            {lead.name?.charAt(0)?.toUpperCase() || '?'}
+            <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+              <table style={{ ...s.table, minWidth: isMobile ? '760px' : '100%' }}>
+                <thead>
+                  <tr style={s.theadRow}>
+                    <th style={s.th}>Lead name</th>
+                    <th style={s.th}>Phone</th>
+                    <th style={s.th}>Sector</th>
+                    <th style={s.th}>Location</th>
+                    <th style={s.th}>Via</th>
+                    <th style={s.th}>Status</th>
+                    <th style={s.th}>Added</th>
+                    <th style={s.th}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredLeads.map((lead) => {
+                    const platform = platforms.find(p => p.name === lead.platform_name)
+                    const av = getAvatarColor(lead.name)
+                    const isCrm = lead.source === 'crm'
+                    const statusOptionsForLead = isCrm ? crmStatusOptions : formStatusOptions
+                    const statusStyleForLead = isCrm
+                      ? (crmStatusStyles[lead.status] || {})
+                      : (formStatusColors[lead.status]
+                          ? { background: formStatusColors[lead.status].bg, color: formStatusColors[lead.status].text, border: `0.5px solid ${formStatusColors[lead.status].border}` }
+                          : { background: '#f4f6fb', color: '#8892b0', border: '0.5px solid #e0e4ef' })
+                    return (
+                      <tr
+                        key={lead.id}
+                        style={{
+                          ...s.tr,
+                          cursor: 'pointer',
+                          background: hoveredRow === lead.id ? '#f8faff' : 'transparent',
+                        }}
+                        onMouseEnter={() => setHoveredRow(lead.id)}
+                        onMouseLeave={() => setHoveredRow(null)}
+                        onClick={() => setSelectedLead(lead)}
+                      >
+                        <td style={s.td}>
+                          <div style={s.leadCell}>
+                            <div style={{ ...s.avatar, background: av.bg, color: av.color }}>
+                              {lead.name?.charAt(0)?.toUpperCase() || '?'}
+                            </div>
+                            <span style={{ fontWeight: 500, fontSize: '13px' }}>{lead.name || '—'}</span>
                           </div>
-                          <span style={{ fontWeight: 500, fontSize: '13px' }}>{lead.name || '—'}</span>
-                        </div>
-                      </td>
-                      <td style={s.td}>
-                        <span style={{ fontSize: '13px' }}>{lead.phone || '—'}</span>
-                      </td>
-                      <td style={s.td}>
-                        {lead.company_sector
-                          ? <span style={s.sectorPill}>{lead.company_sector}</span>
-                          : <span style={{ fontSize: '12px', color: '#c7ccdb' }}>—</span>}
-                      </td>
-                      <td style={s.td}>
-                        <span style={{ fontSize: '13px' }}>📍 {lead.location || '—'}</span>
-                      </td>
-                      <td style={s.td}>
-                        {platform ? (
-                          <div style={{ ...s.platIcon, background: platform.color }}>
-                            {platform.icon}
-                          </div>
-                        ) : (
-                          <span style={s.turnoverPill}>{lead.platform_name || 'Direct'}</span>
-                        )}
-                      </td>
-                      <td style={s.td}>
-                        <select
-                          value={lead.status || ''}
-                          onClick={(e) => e.stopPropagation()}
-                          onChange={(e) => handleStatusChange(lead, e.target.value)}
-                          style={{ ...s.statusSelect, ...statusStyleForLead }}
-                        >
-                          {!lead.status && <option value="">Set status</option>}
-                          {statusOptionsForLead.map(opt => (
-                            <option key={opt} value={opt}>
-                              {isCrm ? opt.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : opt}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                      <td style={s.td}>
-                        <span style={s.dateText}>
-                          {lead.created_at
-                            ? new Date(lead.created_at).toLocaleDateString('en-IN', {
-                                day: 'numeric', month: 'short', year: 'numeric',
-                              })
-                            : '—'}
-                        </span>
-                      </td>
-                      <td style={s.td}>
-                        {isCrm && (
-                          <button
-                            style={s.deleteBtn}
-                            onClick={(e) => { e.stopPropagation(); handleDelete(lead) }}
-                            onMouseEnter={e => {
-                              e.currentTarget.style.background = '#FEF2F2'
-                              e.currentTarget.style.borderColor = '#f87171'
-                              e.currentTarget.style.color = '#dc2626'
-                            }}
-                            onMouseLeave={e => {
-                              e.currentTarget.style.background = 'transparent'
-                              e.currentTarget.style.borderColor = '#e0e4ef'
-                              e.currentTarget.style.color = '#8892b0'
-                            }}
+                        </td>
+                        <td style={s.td}>
+                          <span style={{ fontSize: '13px' }}>{lead.phone || '—'}</span>
+                        </td>
+                        <td style={s.td}>
+                          {lead.company_sector
+                            ? <span style={s.sectorPill}>{lead.company_sector}</span>
+                            : <span style={{ fontSize: '12px', color: '#c7ccdb' }}>—</span>}
+                        </td>
+                        <td style={s.td}>
+                          <span style={{ fontSize: '13px' }}>📍 {lead.location || '—'}</span>
+                        </td>
+                        <td style={s.td}>
+                          {platform ? (
+                            <div style={{ ...s.platIcon, background: platform.color }}>
+                              {platform.icon}
+                            </div>
+                          ) : (
+                            <span style={s.turnoverPill}>{lead.platform_name || 'Direct'}</span>
+                          )}
+                        </td>
+                        <td style={s.td}>
+                          <select
+                            value={lead.status || ''}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) => handleStatusChange(lead, e.target.value)}
+                            style={{ ...s.statusSelect, ...statusStyleForLead }}
                           >
-                            🗑
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+                            {!lead.status && <option value="">Set status</option>}
+                            {statusOptionsForLead.map(opt => (
+                              <option key={opt} value={opt}>
+                                {isCrm ? opt.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : opt}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                        <td style={s.td}>
+                          <span style={s.dateText}>
+                            {lead.created_at
+                              ? new Date(lead.created_at).toLocaleDateString('en-IN', {
+                                  day: 'numeric', month: 'short', year: 'numeric',
+                                })
+                              : '—'}
+                          </span>
+                        </td>
+                        <td style={s.td}>
+                          {isCrm && (
+                            <button
+                              style={s.deleteBtn}
+                              onClick={(e) => { e.stopPropagation(); handleDelete(lead) }}
+                              onMouseEnter={e => {
+                                e.currentTarget.style.background = '#FEF2F2'
+                                e.currentTarget.style.borderColor = '#f87171'
+                                e.currentTarget.style.color = '#dc2626'
+                              }}
+                              onMouseLeave={e => {
+                                e.currentTarget.style.background = 'transparent'
+                                e.currentTarget.style.borderColor = '#e0e4ef'
+                                e.currentTarget.style.color = '#8892b0'
+                              }}
+                            >
+                              🗑
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
 
@@ -489,7 +566,7 @@ const Leads = () => {
                 </div>
 
                 {/* Quick stats row */}
-                <div style={s.modalStatsRow}>
+                <div style={{ ...s.modalStatsRow, gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3, 1fr)' }}>
                   <div style={s.modalStatBox}>
                     <div style={s.modalStatLabel}>Quality Score</div>
                     <div style={{ ...s.modalStatVal, color: '#16a34a' }}>

@@ -58,3 +58,9 @@ class GoogleLoginRequest(BaseModel):
 class UpdateProfileRequest(BaseModel):
     name: str | None = None
     email: EmailStr | None = None
+
+
+# ── Change Password ──
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str

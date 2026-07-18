@@ -509,6 +509,10 @@ const LaunchSuccess = ({ launchResult, formData, selectedPlatforms, selectedCiti
     if (!formData.start_date || !formData.end_date) return 0
     return Math.ceil((new Date(formData.end_date) - new Date(formData.start_date)) / (1000*60*60*24))
   }
+  const getTotalWithGST = () => {
+  const base = parseFloat(formData.budget || 0) * getDuration()
+  return base + base * 0.18
+}
   const platformNames = selectedPlatforms.map(id => platforms.find(p => p.id === id)?.name).filter(Boolean)
   const estLeads      = locationData?.total_summary?.total_leads || '450 - 700 Leads'
   const estCPL        = '₹1 - ₹2'
@@ -791,6 +795,9 @@ const CreateCampaign = () => {
   const [adContents, setAdContents]   = useState({})
   const [websiteUrl, setWebsiteUrl]   = useState('')
   const [campaignId, setCampaignId]   = useState(null)
+  const [connections, setConnections]         = useState({})
+  const [connectionsLoading, setConnectionsLoading] = useState(true)
+  const popupRef = useRef(null)
 
   const isLeadGen = formData.goal === 'Lead Generation'
 
@@ -798,10 +805,12 @@ const CreateCampaign = () => {
   const subcategoryList = formData.industry ? INDUSTRY_MAP[formData.industry]?.subcategories || [] : []
 
   const handleChange = (e) => {
-    const { name, value } = e.target
+    const {name, value } = e.target
     if (name === 'industry') setFormData(prev => ({ ...prev, industry:value, sub_category:'' }))
     else setFormData(prev => ({ ...prev, [name]:value }))
-  }
+
+   
+}
 
   const togglePlatform = (id) =>
     setSelectedPlatforms(prev => prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id])
@@ -852,6 +861,47 @@ const CreateCampaign = () => {
     return () => document.removeEventListener('click', handler)
   }, [])
 
+  useEffect(() => {
+  const fetchConnections = async () => {
+    try {
+      const res = await axios.get(`${API_BASE}/api/oauth/connections`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('adnexus_token')}` },
+      })
+      setConnections(res.data || {})
+    } catch (e) {
+      setConnections({})
+    } finally {
+      setConnectionsLoading(false)
+    }
+  }
+  fetchConnections()
+
+  const handleMessage = (event) => {
+    if (event.data?.type === 'oauth-connected') {
+      const platform = event.data.platform
+      setConnections(prev => ({
+        ...prev,
+        [platform]: { ...(prev[platform] || {}), connected: true },
+      }))
+    }
+  }
+  window.addEventListener('message', handleMessage)
+  return () => window.removeEventListener('message', handleMessage)
+}, [])
+
+const connectPlatform = async (apiKey) => {
+  try {
+    const res = await axios.get(`${API_BASE}/api/oauth/${apiKey}/connect`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem('adnexus_token')}` },
+    })
+    const authUrl = res.data?.auth_url
+    if (!authUrl) { setError('Could not start connection. Please try again.'); return }
+    popupRef.current = window.open(authUrl, 'oauth-popup', 'width=520,height=650')
+  } catch (e) {
+    setError(`Failed to connect ${apiKey}: ${e.response?.data?.detail || e.message}`)
+  }
+}
+
   const getSliderValue     = () => radiusUnit === 'km' ? radiusKm : Math.round(radiusKm * 0.621)
   const handleRadiusChange = (val) => { const v = parseInt(val); setRadiusKm(radiusUnit==='km' ? v : Math.round(v/0.621)) }
 
@@ -866,6 +916,10 @@ const CreateCampaign = () => {
     if (!formData.start_date || !formData.end_date) return 0
     return Math.ceil((new Date(formData.end_date)-new Date(formData.start_date))/(1000*60*60*24))
   }
+  const getTotalWithGST = () => {
+  const base = parseFloat(formData.budget || 0) * getDuration()
+  return base + base * 0.18
+}
 
   const getSelectedPlatformKeys  = () => selectedPlatforms.map(id => platforms.find(p => p.id===id)?.apiKey).filter(Boolean)
   const getSelectedPlatformNames = () => selectedPlatforms.map(id => platforms.find(p => p.id===id)?.name).filter(Boolean)
@@ -1100,27 +1154,48 @@ const CreateCampaign = () => {
           )}
 
           {/* ══ Step 2 ══ */}
-          {step === 2 && (
-            <div>
-              <div style={s.formGroup}>
-                <label style={s.label}>Select Platforms</label>
-                <p style={s.hint}>Choose where your ads will run</p>
-                <div style={s.platformGrid}>
-                  {platforms.map(p => (
-                    <div key={p.id} onClick={() => togglePlatform(p.id)}
-                      style={{ ...s.platformCard, ...(selectedPlatforms.includes(p.id) ? {...s.platformCardActive, borderColor:p.color}:{}) }}>
-                      <div style={{ ...s.platIcon, background:p.color }}>{p.icon}</div>
-                      <div style={s.platInfo}><div style={s.platName}>{p.name}</div><div style={s.platDesc}>{p.desc}</div></div>
-                      <div style={{ ...s.platCheck, ...(selectedPlatforms.includes(p.id) ? {background:p.color, borderColor:p.color}:{}) }}>
-                        {selectedPlatforms.includes(p.id) && '✓'}
-                      </div>
-                    </div>
-                  ))}
+       {step === 2 && (
+  <div>
+    <div style={s.formGroup}>
+      <label style={s.label}>Select Platforms</label>
+      <p style={s.hint}>Choose where your ads will run</p>
+      <div style={s.platformGrid}>
+        {platforms.map(p => {
+const isConnectable = ['google', 'meta', 'instagram'].includes(p.apiKey)
+// Instagram Meta ke hi connection se chalta hai — isliye instagram ke liye bhi meta ka connection status check karo
+const connectionKey = p.apiKey === 'instagram' ? 'meta' : p.apiKey
+const isConnected = connections[connectionKey]?.connected
+          return (
+            <div key={p.id} style={{ ...s.platformCard, ...(selectedPlatforms.includes(p.id) ? {...s.platformCardActive, borderColor:p.color}:{}) }}>
+              <div onClick={() => togglePlatform(p.id)} style={{ display:'flex', alignItems:'center', gap:'14px', flex:1, cursor:'pointer' }}>
+                <div style={{ ...s.platIcon, background:p.color }}>{p.icon}</div>
+                <div style={s.platInfo}><div style={s.platName}>{p.name}</div><div style={s.platDesc}>{p.desc}</div></div>
+                <div style={{ ...s.platCheck, ...(selectedPlatforms.includes(p.id) ? {background:p.color, borderColor:p.color}:{}) }}>
+                  {selectedPlatforms.includes(p.id) && '✓'}
                 </div>
-                {selectedPlatforms.length > 0 && <div style={s.selectedInfo}>✅ {selectedPlatforms.length} platform{selectedPlatforms.length>1?'s':''} selected</div>}
               </div>
+
+              {isConnectable && selectedPlatforms.includes(p.id) && (
+                isConnected ? (
+                  <span style={{ fontSize:'11px', color:'#16a34a', fontWeight:'600', marginLeft:'10px', whiteSpace:'nowrap' }}>✅ Connected</span>
+                ) : (
+                  <button
+                    type="button"
+                 onClick={(e) => { e.stopPropagation(); connectPlatform(connectionKey) }}
+                    style={{ marginLeft:'10px', padding:'6px 12px', fontSize:'11px', fontWeight:'600', color:'#fff', background:p.color, border:'none', borderRadius:'8px', cursor:'pointer', whiteSpace:'nowrap' }}
+                  >
+                    Connect Account
+                  </button>
+                )
+              )}
             </div>
-          )}
+          )
+        })}
+      </div>
+      {selectedPlatforms.length > 0 && <div style={s.selectedInfo}>✅ {selectedPlatforms.length} platform{selectedPlatforms.length>1?'s':''} selected</div>}
+    </div>
+  </div>
+)}
 
           {/* ══ Step 3 ══ */}
           {step === 3 && (
@@ -1178,7 +1253,7 @@ const CreateCampaign = () => {
                   <div style={s.budgetSummaryDivider} />
                   <div style={s.budgetSummaryItem}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1A73E8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
-                    <span style={{ fontSize:'13px', color:'#4b5563' }}><strong>Total:</strong> ₹{(parseFloat(formData.budget||0)*getDuration()).toLocaleString()}</span>
+                    <span style={{ fontSize:'13px', color:'#4b5563' }}><strong>Total (incl. 18% GST):</strong> ₹{getTotalWithGST().toLocaleString('en-IN', {maximumFractionDigits:0})}</span>
                   </div>
                 </div>
               )}
@@ -1192,7 +1267,7 @@ const CreateCampaign = () => {
                 <span style={s.contextChip}>{selectedPlatforms.map(id=>platforms.find(p=>p.id===id)?.name).join(', ')}</span>
                 <span style={s.contextChip}>₹{parseInt(formData.budget||0).toLocaleString()}/day</span>
                 <span style={s.contextChip}>{getDuration()} days</span>
-                <span style={s.contextChip}>₹{(parseFloat(formData.budget||0)*getDuration()).toLocaleString()} total</span>
+                <span style={s.contextChip}>₹{getTotalWithGST().toLocaleString('en-IN', {maximumFractionDigits:0})} total (incl. GST)</span>
               </div>
               <div style={s.formGroup}>
                 <label style={s.label}>Select Target Cities</label>
@@ -1400,7 +1475,9 @@ const CreateCampaign = () => {
                   {label:'Daily Budget',  val:`₹${parseFloat(formData.budget||0).toLocaleString()}/day`},
                   {label:'Age Targeting', val:`${ageMin} – ${ageMax} Years`},
                   {label:'Duration',      val:`${formData.start_date} → ${formData.end_date} (${getDuration()} days)`},
-                  {label:'Total Budget',  val:`₹${(parseFloat(formData.budget||0)*getDuration()).toLocaleString()}`},
+                  {label:'Subtotal',      val:`₹${(parseFloat(formData.budget||0)*getDuration()).toLocaleString('en-IN')}`},
+                 {label:'GST (18%)',     val:`₹${(parseFloat(formData.budget||0)*getDuration()*0.18).toLocaleString('en-IN', {maximumFractionDigits:0})}`},
+                 {label:'Total Payable', val:`₹${getTotalWithGST().toLocaleString('en-IN', {maximumFractionDigits:0})}`},
                 ].map((item,i) => (
                   <div key={i} style={s.reviewRow}>
                     <span style={s.reviewLabel}>{item.label}</span>
@@ -1455,11 +1532,23 @@ const CreateCampaign = () => {
             }}>Next: Select Platforms →</button>
           )}
           {step === 2 && (
-            <button type="button" style={s.nextBtnFull} onClick={() => {
-              if (!selectedPlatforms.length) { setError('Please select at least one platform!'); return }
-              setError(''); setStep(3)
-            }}>Next: Budget & Dates →</button>
-          )}
+  <button type="button" style={s.nextBtnFull} onClick={() => {
+    if (!selectedPlatforms.length) { setError('Please select at least one platform!'); return }
+const unconnected = selectedPlatforms
+  .map(id => platforms.find(p => p.id === id))
+  .filter(p => {
+    if (!['google','meta','instagram'].includes(p.apiKey)) return false
+    const key = p.apiKey === 'instagram' ? 'meta' : p.apiKey
+    return !connections[key]?.connected
+  })
+   if (unconnected.length) {
+   setError(`Please connect your ${unconnected.map(p=>p.name).join(', ')} account first!`)
+   return
+
+    }
+    setError(''); setStep(3)
+  }}>Next: Budget & Dates →</button>
+)}
           {step === 3 && (
             <button type="button" style={s.nextBtnFull} onClick={() => {
               if (!formData.budget||!formData.start_date||!formData.end_date) { setError('Please fill all required fields!'); return }

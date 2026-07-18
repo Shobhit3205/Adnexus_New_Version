@@ -27,6 +27,8 @@ import ThankYou from './pages/ThankYou.jsx'
 import Settings from './pages/Settings'
 import AdminDashboard from './pages/AdminDashboard.jsx'
 
+import OAuthSuccess from './pages/OAuthSuccess.jsx'
+
 const CampaignDetail = lazy(() => import('./pages/CampaignDetail.jsx'))
 const AdContent = lazy(() => import('./pages/AdContent.jsx'))
 
@@ -61,6 +63,7 @@ function App() {
             <Route path="/dashboard/create-campaign" element={
               <ProtectedRoute><CreateCampaign /></ProtectedRoute>
             } />
+            <Route path="/oauth-success" element={<OAuthSuccess />} />
             <Route path="/dashboard/leads" element={
               <ProtectedRoute><Leads /></ProtectedRoute>
             } />

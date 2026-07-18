@@ -25,6 +25,7 @@ export const deleteCampaign = (id) => API.delete(`/api/campaigns/${id}`)
 export const getCampaignDetail = (id) => API.get(`/api/campaigns/${id}/detail`)
 export const getCampaignStats = (id) => API.get(`/api/campaigns/${id}/stats`)  // ← naya
 export const updateMe = (data) => API.patch('/api/auth/me', data)
+export const changePassword = (data) => API.patch('/api/auth/me/password', data)
 
 // Ad Content APIs
 export const createAdContent = (campaignId, data) =>
@@ -56,3 +57,10 @@ export const getMe = (token) =>
   API.get('/api/auth/me', {
     headers: { Authorization: `Bearer ${token}` }
   })
+
+
+export const uploadPhoto = (formData) => {
+  return api.post('/users/me/photo', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+}

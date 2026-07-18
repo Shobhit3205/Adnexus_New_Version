@@ -30,6 +30,7 @@ class User(Base):
 
     # Relationship
     campaigns = relationship("Campaign", back_populates="user")
+    platform_connections = relationship("PlatformConnection", back_populates="user")
 
 
 # ════════════════════════════════════════════════════
@@ -261,3 +262,26 @@ class ClickTracking(Base):
 
     # Relationship
     campaign = relationship("Campaign", back_populates="click_tracking")
+    
+
+    # ════════════════════════════════════════════════════
+# Platform Connections Table
+# Stores each user's OAuth connection to an ad platform
+# ════════════════════════════════════════════════════
+class PlatformConnection(Base):
+    __tablename__ = "platform_connections"
+
+    id            = Column(Integer, primary_key=True, index=True)
+    user_id       = Column(Integer, ForeignKey("users.id"), nullable=False)
+    platform      = Column(String(50), nullable=False)   # "google" | "meta" | "linkedin"
+    account_id    = Column(String(200), nullable=True)
+    account_name  = Column(String(200), nullable=True)
+    refresh_token = Column(String(500), nullable=True)
+    access_token  = Column(String(500), nullable=True)
+    token_expiry  = Column(DateTime, nullable=True)
+    status        = Column(String(50), default="connected")  # "connected" | "expired" | "revoked"
+    created_at    = Column(DateTime, default=func.now())
+    updated_at    = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    # Relationship
+    user = relationship("User", back_populates="platform_connections")

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { updateMe } from '../services/api'
+import { updateMe, changePassword } from '../services/api'
 
 
 const AdminIcon = () => (<svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path d="M12 2l8 4v6c0 5-3.5 9-8 10-4.5-1-8-5-8-10V6l8-4z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/><path d="M9.5 12l2 2 3.5-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>)
@@ -289,12 +289,33 @@ const ProfileSection = ({ styles: s, displayInitials, isMobile, user }) => {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
+  const [photoPreview, setPhotoPreview] = useState(null)   // NEW: locally selected photo (no backend yet)
+  const fileInputRef = React.useRef(null)
 
   // Agar user context thodi der baad load ho (page refresh case), fields sync kar do
   useEffect(() => {
     setName(user?.name || '')
     setEmail(user?.email || '')
   }, [user?.name, user?.email])
+
+  const handleChangePhotoClick = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handlePhotoSelected = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      setError('Please select an image file.')
+      return
+    }
+    setError('')
+    const reader = new FileReader()
+    reader.onload = () => setPhotoPreview(reader.result)
+    reader.readAsDataURL(file)
+    // Reset input so selecting the same file again still fires onChange
+    e.target.value = ''
+  }
 
   const handleSave = async (e) => {
     e.preventDefault()
@@ -317,8 +338,24 @@ const ProfileSection = ({ styles: s, displayInitials, isMobile, user }) => {
     <div style={s.card}>
       <p style={{ ...s.cardSubtitle, marginTop: 0 }}>Update your personal details</p>
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '10px', flexWrap: 'wrap' }}>
-        <div style={{ width: '58px', height: '58px', borderRadius: '50%', background: s.t.avatarBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700', fontSize: '22px', color: '#fff', flexShrink: 0 }}>{displayInitials}</div>
-        <button type="button" style={s.secondaryButton}>Change photo</button>
+        <div style={{
+          width: '58px', height: '58px', borderRadius: '50%',
+          background: photoPreview ? `url(${photoPreview}) center/cover no-repeat` : s.t.avatarBg,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontWeight: '700', fontSize: '22px', color: '#fff', flexShrink: 0,
+        }}>
+          {!photoPreview && displayInitials}
+        </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handlePhotoSelected}
+          style={{ display: 'none' }}
+        />
+        <button type="button" style={s.secondaryButton} onClick={handleChangePhotoClick}>
+          {photoPreview ? 'Change photo' : 'Upload photo'}
+        </button>
       </div>
       {error && <div style={{ background: s.t.dangerBg, border: `1px solid ${s.t.dangerBorder}`, color: s.t.dangerColor, padding: '10px 12px', borderRadius: '10px', fontSize: '13px', marginBottom: '10px' }}>{error}</div>}
       <form onSubmit={handleSave}>
@@ -338,20 +375,35 @@ const ProfileSection = ({ styles: s, displayInitials, isMobile, user }) => {
 const AccountSection = ({ styles: s, passwordRules, EyeIcon, EyeOffIcon }) => {
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
+  const [showCurrent, setShowCurrent] = useState(false)   // NEW: current password visibility
   const [showNew, setShowNew] = useState(false)
   const [focused, setFocused] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+  const [saving, setSaving] = useState(false)
 
   const isValid = passwordRules.every((r) => r.test(newPassword))
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+    setSuccess(false)
+
     if (!isValid) { setError('New password does not meet all requirements.'); return }
-    setSuccess(true)
-    setCurrentPassword(''); setNewPassword('')
-    setTimeout(() => setSuccess(false), 2000)
+
+    setSaving(true)
+    try {
+      // Yahi wo call hai jo pehle missing thi — backend ko actual request bhejta hai
+      await changePassword({ current_password: currentPassword, new_password: newPassword })
+      setSuccess(true)
+      setCurrentPassword('')
+      setNewPassword('')
+      setTimeout(() => setSuccess(false), 2000)
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to update password. Try again.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -361,11 +413,42 @@ const AccountSection = ({ styles: s, passwordRules, EyeIcon, EyeOffIcon }) => {
       {success && <div style={{ background: s.t.successBg, border: `1px solid ${s.t.successBorder}`, color: s.t.successColor, padding: '10px 12px', borderRadius: '10px', fontSize: '13px' }}>Password updated successfully.</div>}
       <form onSubmit={handleSubmit}>
         <label style={s.label}>Current Password</label>
-        <input style={s.input} type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required />
+        <div style={s.passwordWrap}>
+          <input
+            style={{ ...s.input, paddingRight: '40px' }}
+            type={showCurrent ? 'text' : 'password'}
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
+            required
+          />
+          <span
+            style={s.eyeIcon}
+            onClick={() => setShowCurrent((p) => !p)}
+            role="button"
+            aria-label={showCurrent ? 'Hide current password' : 'Show current password'}
+          >
+            {showCurrent ? <EyeOffIcon /> : <EyeIcon />}
+          </span>
+        </div>
+
         <label style={s.label}>New Password</label>
         <div style={s.passwordWrap}>
-          <input style={{ ...s.input, paddingRight: '40px' }} type={showNew ? 'text' : 'password'} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} onFocus={() => setFocused(true)} required />
-          <span style={s.eyeIcon} onClick={() => setShowNew((p) => !p)} role="button">{showNew ? <EyeOffIcon /> : <EyeIcon />}</span>
+          <input
+            style={{ ...s.input, paddingRight: '40px' }}
+            type={showNew ? 'text' : 'password'}
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            onFocus={() => setFocused(true)}
+            required
+          />
+          <span
+            style={s.eyeIcon}
+            onClick={() => setShowNew((p) => !p)}
+            role="button"
+            aria-label={showNew ? 'Hide new password' : 'Show new password'}
+          >
+            {showNew ? <EyeOffIcon /> : <EyeIcon />}
+          </span>
         </div>
         {(focused || newPassword.length > 0) && (
           <div style={s.rulesBox}>
@@ -380,7 +463,9 @@ const AccountSection = ({ styles: s, passwordRules, EyeIcon, EyeOffIcon }) => {
             })}
           </div>
         )}
-        <button style={s.primaryButton} type="submit">Update password</button>
+        <button style={s.primaryButton} type="submit" disabled={saving}>
+          {saving ? 'Updating...' : 'Update password'}
+        </button>
       </form>
     </div>
   )
