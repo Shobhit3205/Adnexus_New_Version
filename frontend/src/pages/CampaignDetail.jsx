@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { getCampaignDetail } from '../services/api'
+import { getCampaignDetail, syncPlatformStats } from '../services/api'
 
 const platformColors = {
   'Google Ads': '#1A73E8',
@@ -107,6 +107,8 @@ const CampaignDetail = () => {
   const [leadsLoading, setLeadsLoading] = useState(false)
   const [showAdContent, setShowAdContent] = useState(false)
   const [activityLog, setActivityLog] = useState({}) // { [leadId]: [ {label, at} ] }
+  const [syncing, setSyncing] = useState(false)
+  const [syncError, setSyncError] = useState('')
 
   useEffect(() => {
     setActivityLog(loadActivityLog())
@@ -165,6 +167,20 @@ const CampaignDetail = () => {
       ? [{ label: `Added via ${lead.platform || 'Direct'}`, at: lead.created_at }]
       : []
     return [...stored, ...seed].sort((a, b) => new Date(b.at) - new Date(a.at))
+  }
+
+  const handleSyncStats = async () => {
+    setSyncing(true)
+    setSyncError('')
+    try {
+      await syncPlatformStats(campaignId)
+      const res = await getCampaignDetail(campaignId)
+      setCampaign(res.data)
+    } catch (err) {
+      setSyncError(err.response?.data?.detail || 'Sync failed')
+    } finally {
+      setSyncing(false)
+    }
   }
 
   const handleStatusChange = async (lead, newStatus) => {
@@ -303,7 +319,26 @@ const CampaignDetail = () => {
 
       {/* Platform Stats */}
       <div style={styles.card}>
-        <div style={styles.cardTitle}>Platform Performance Breakdown</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+          <div style={{ ...styles.cardTitle, marginBottom: 0 }}>Platform Performance Breakdown</div>
+          <button
+            onClick={handleSyncStats}
+            disabled={syncing}
+            style={{
+              background: syncing ? '#93b8f4' : '#1A73E8',
+              color: '#fff', border: 'none', borderRadius: '8px',
+              padding: '6px 14px', fontSize: '12px', fontWeight: '600',
+              cursor: syncing ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            {syncing ? '⏳ Syncing...' : '🔄 Refresh Stats'}
+          </button>
+        </div>
+        {syncError && (
+          <div style={{ background: '#fff5f5', color: '#c62828', padding: '8px 12px', borderRadius: '8px', fontSize: '12px', marginBottom: '12px' }}>
+            {syncError}
+          </div>
+        )}
         {platformStats.length === 0 ? (
           <div style={styles.empty}>No platform is Connected.</div>
         ) : (

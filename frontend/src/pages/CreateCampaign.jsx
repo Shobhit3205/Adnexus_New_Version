@@ -1037,14 +1037,28 @@ const connectPlatform = async (apiKey) => {
         end_date:       formData.end_date,
         platforms:      getSelectedPlatformKeys(),
         keywords:       formData.business_niche ? formData.business_niche.split(',').map(k => k.trim()) : ['business loan'],
-        targeting: {
-          locations: selectedCities.length > 0 ? selectedCities.map(c => c.name) : ['Delhi', 'Mumbai'],
-          radius_km: radiusKm,
-          age_min:   ageMin,
-          age_max:   ageMax,
-          genders:   [1, 2],
+targeting: {
+  locations: selectedCities.length > 0 ? selectedCities.map(c => c.name) : ['Delhi', 'Mumbai'],
+  // ── NAYA: har city ka lat/lng bhi bhejo, taaki Meta/Google
+  //    exact city+radius targeting kar sakein, na ki poora India ──
+  location_details: selectedCities.length > 0
+    ? selectedCities.map(c => ({ name: c.name, lat: c.lat, lng: c.lng }))
+    : [
+        { name: 'Delhi',  lat: 28.6139, lng: 77.2090 },
+        { name: 'Mumbai', lat: 19.0760, lng: 72.8777 },
+      ],
+  radius_km: radiusKm,
+  age_min:   ageMin,
+  age_max:   ageMax,
+  genders:   [1, 2],
+},
+        ad_content: {
+          ...getGoogleAdContent(),
+          // Step 5 ka website URL — sirf jab Lead Gen nahi hai, tabhi relevant hai.
+          // Agar user ne yahan URL bhara hai, toh yeh Step 6 ke kisi bhi
+          // (missing) link_url/final_url ko override kar dega.
+          ...(websiteUrl ? { link_url: websiteUrl, final_url: websiteUrl } : {}),
         },
-        ad_content: getGoogleAdContent(),
       }
 
       const res           = await axios.post(`${API_BASE}/api/campaigns/`, payload)
@@ -1607,6 +1621,7 @@ const isConnected = connections[connectionKey]?.connected
   <button type="button" style={s.nextBtnFull} onClick={() => {
     if (!selectedPlatforms.length) { setError('Please select at least one platform!'); return }
 const unconnected = selectedPlatforms
+/*
   .map(id => platforms.find(p => p.id === id))
   .filter(p => {
     if (!['google','meta','instagram'].includes(p.apiKey)) return false
@@ -1618,6 +1633,7 @@ const unconnected = selectedPlatforms
    return
 
     }
+   */
     setError(''); setStep(3)
   }}>Next: Budget & Dates →</button>
 )}

@@ -64,3 +64,6 @@ export const uploadPhoto = (formData) => {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
 }
+
+export const syncPlatformStats = (campaignId) =>
+  API.post(`/api/campaigns/${campaignId}/sync-stats`)

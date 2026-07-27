@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { getCampaigns, deleteCampaign, getCampaignStats, getLeads } from '../services/api'
+import { getCampaigns, deleteCampaign, getCampaignStats, getLeads, syncPlatformStats } from '../services/api'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import jsPDF from 'jspdf'
@@ -308,7 +308,9 @@ const Dashboard = () => {
   const [platformStats, setPlatformStats] = useState([])
   const [leads, setLeads]               = useState([])
   const [loading, setLoading]           = useState(true)
-  const [statsLoading, setStatsLoading] = useState(false)
+    const [statsLoading, setStatsLoading] = useState(false)
+  const [syncing, setSyncing]           = useState(false)
+  const [syncError, setSyncError]       = useState('')
   const [activeNav, setActiveNav]       = useState('dashboard')
   const [selectedCampaign, setSelectedCampaign] = useState(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
@@ -358,13 +360,27 @@ const Dashboard = () => {
     finally { setLoading(false) }
   }
 
-  const fetchStats = async (id) => {
+const fetchStats = async (id) => {
     setStatsLoading(true)
     try {
       const res = await getCampaignStats(id)
       setPlatformStats(res.data.stats || res.data || [])
     } catch { setPlatformStats([]) }
     finally { setStatsLoading(false) }
+  }
+
+  const handleSyncStats = async () => {
+    if (!selectedCampaign) return
+    setSyncing(true)
+    setSyncError('')
+    try {
+      await syncPlatformStats(selectedCampaign.id)
+      await fetchStats(selectedCampaign.id)
+    } catch (err) {
+      setSyncError(err.response?.data?.detail || 'Sync failed')
+    } finally {
+      setSyncing(false)
+    }
   }
 
   const handleCampaignChange = c => { setSelectedCampaign(c); fetchStats(c.id) }
@@ -641,11 +657,34 @@ const Dashboard = () => {
             <div className="dashboard-left-col">
 
               {/* Platform performance */}
+           
               <div style={card}>
                 <div style={cardHeader}>
                   <span style={cardTitle}>Platform Performance</span>
-                  {selectedCampaign && badge('badgeBlue', selectedCampaign.name)}
+                  <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
+                    {selectedCampaign && badge('badgeBlue', selectedCampaign.name)}
+                    {selectedCampaign && (
+                      <button
+                        onClick={handleSyncStats}
+                        disabled={syncing}
+                        style={{
+                          background: syncing ? '#93b8f4' : t.accent,
+                          color: '#fff', border: 'none', borderRadius: '8px',
+                          padding: '5px 12px', fontSize: '11px', fontWeight: '600',
+                          cursor: syncing ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {syncing ? '⏳ Syncing...' : '🔄 Refresh Stats'}
+                      </button>
+                    )}
+                  </div>
                 </div>
+                {syncError && (
+                  <div style={{ background: t.badgeRed.bg, color: t.badgeRed.color, padding: '8px 12px', borderRadius: '8px', fontSize: '12px', marginBottom: '12px', border: `1px solid ${t.badgeRed.border}` }}>
+                    {syncError}
+                  </div>
+                )}
                 {statsLoading ? <div style={emptyStyle}>Loading stats…</div>
                 : platformStats.length === 0 ? <div style={emptyStyle}>{selectedCampaign ? 'No platform data for this campaign yet.' : 'Select a campaign to see stats.'}</div>
                 : (

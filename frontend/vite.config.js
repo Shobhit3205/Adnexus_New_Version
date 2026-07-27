@@ -8,7 +8,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: 3000
+    port: 3000,
+    allowedHosts: [
+      'tubular-serpent-wake.ngrok-free.dev',
+      '.ngrok-free.dev',
+    ],
   },
   resolve: {
     alias: {

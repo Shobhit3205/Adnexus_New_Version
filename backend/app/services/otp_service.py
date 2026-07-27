@@ -2,6 +2,9 @@ import random
 import os
 import resend
 from datetime import datetime, timedelta
+from fastapi import APIRouter, Depends, HTTPException, Request, BackgroundTasks
+from app.models.models import Campaign, LeadForm, FormSubmission, ClickTracking, User
+# from app.services.otp_service import send_lead_notification_email
 
 # Resend API key set karo
 resend.api_key = os.getenv("RESEND_API_KEY")

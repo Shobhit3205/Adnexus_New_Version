@@ -297,7 +297,7 @@ def track_click(
     # Redirect to campaign's website
     return {
         "message":  "Click tracked!",
-        "redirect": campaign.name,
+        "redirect": campaign.website_url or "https://www.google.com",
     }
 
 

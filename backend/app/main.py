@@ -1,7 +1,9 @@
+import traceback
 from dotenv import load_dotenv
 load_dotenv()  # This loads .env into os.environ
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from app.database import engine
 from app.models import models
 from app.routes import campaigns, leads, analytics, ad_content, public_forms, auth, admin
@@ -19,11 +21,18 @@ app = FastAPI(
     version="1.0.0"
 )
 
+@app.exception_handler(Exception)
+async def debug_exception_handler(request, exc):
+    print("=" * 60)
+    print("UNHANDLED ERROR:")
+    traceback.print_exc()
+    print("=" * 60)
+    return JSONResponse(status_code=500, content={"detail": str(exc)})
 
 # CORS — React frontend se connect hone ke liye
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173"],
+    allow_origins=["http://localhost:3000", "http://localhost:5173","https://tubular-serpent-wake.ngrok-free.dev"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

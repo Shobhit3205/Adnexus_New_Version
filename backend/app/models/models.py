@@ -64,6 +64,13 @@ class Campaign(Base):
     form_submissions = relationship("FormSubmission", back_populates="campaign")
     click_tracking   = relationship("ClickTracking", back_populates="campaign")
     audience_profiles = relationship("AudienceProfile", back_populates="campaign")
+    
+
+    # ── Meta platform IDs — sync ke liye zaroori (jab tak Meta pe live nahi hota, yeh null rahenge) ──
+    meta_campaign_id = Column(String(100), nullable=True)
+    meta_adset_id    = Column(String(100), nullable=True)
+    meta_ad_id       = Column(String(100), nullable=True)
+    website_url = Column(String(500), nullable=True)   # Website Traffic/Brand Awareness ka destination URL
 
 
 # ════════════════════════════════════════════════════

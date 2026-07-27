@@ -1,7 +1,11 @@
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models.models import Campaign, Platform, PlatformStat, AdContent, TargetingRule, User
+from app.models.models import (
+    Campaign, Platform, PlatformStat, AdContent, TargetingRule, User,
+    Lead, LeadForm, FormSubmission, ClickTracking,
+    AudienceProfile, PlatformTargeting,
+)
 from app.core.security import get_current_user
 from pydantic import BaseModel
 from typing import Optional, List
@@ -15,10 +19,17 @@ except Exception:
     GOOGLE_AVAILABLE = False
 
 try:
-    from app.services.meta_ads_service import submit_campaign_to_meta, get_meta_campaign_status
+    from app.services.meta_ads_service import submit_campaign_to_meta, get_meta_campaign_status, get_meta_campaign_insights
     META_AVAILABLE = True
 except Exception:
     META_AVAILABLE = False
+
+try:
+    from app.services.audience_ai_service import generate_audience_profile
+    from app.services.platform_mapping.meta_mapper import map_to_meta
+    AUDIENCE_AI_AVAILABLE = True
+except Exception:
+    AUDIENCE_AI_AVAILABLE = False
 
 router = APIRouter(tags=["campaigns"])
 
@@ -27,12 +38,22 @@ router = APIRouter(tags=["campaigns"])
 # PYDANTIC MODELS
 # ════════════════════════════════════════════════════
 
+# ── NAYA: ek city ka lat/lng bhi carry karta hai, taaki Meta/Google
+# custom-location (proximity) targeting kar sakein, na ki sirf naam ═
+class LocationDetail(BaseModel):
+    name: str
+    lat:  float
+    lng:  float
+
+
 class TargetingData(BaseModel):
-    locations: List[str] = ["Delhi", "Mumbai"]
-    radius_km: int       = 25
-    age_min:   int       = 25
-    age_max:   int       = 55
-    genders:   List[int] = [1, 2]
+    locations:        List[str]            = ["Delhi", "Mumbai"]
+    # ── NAYA: frontend se city ka naam + lat/lng dono aate hain ab ──
+    location_details: List[LocationDetail]  = []
+    radius_km:        int                   = 25
+    age_min:          int                   = 25
+    age_max:          int                   = 55
+    genders:          List[int]             = [1, 2]
 
 class AdContentData(BaseModel):
     headlines:    List[str]     = []
@@ -187,6 +208,8 @@ def create_campaign(req: CampaignCreateRequest, db: Session = Depends(get_db), c
     db.commit()
     db.refresh(db_campaign)
     campaign_id = db_campaign.id
+    db_campaign.website_url = req.ad_content.link_url or req.ad_content.final_url or "" if req.ad_content else ""
+    db.commit()
 
     # ── Save targeting rule if provided ──
     if req.targeting:
@@ -239,13 +262,63 @@ def create_campaign(req: CampaignCreateRequest, db: Session = Depends(get_db), c
             "platform": "google"
         }
 
-    # ── Meta Ads ──
-    if "meta" in platform_keys and META_AVAILABLE:
+    # ── Age targeting + Location targeting bhi campaign_data mein
+    #    daalo (Meta/Google service tak pahunchane ke liye, top-level
+    #    keys ke roop mein — nested "targeting" dict ke bharose nahi
+    #    rehna, taaki services simple .get() se access kar sakein) ──
+    if req.targeting:
+        campaign_data["age_min"]         = req.targeting.age_min
+        campaign_data["age_max"]         = req.targeting.age_max
+        campaign_data["radius_km"]       = req.targeting.radius_km
+        # ── NAYA: lat/lng wali location list — Meta custom_locations
+        #    aur Google proximity criterion dono isi se banenge ──
+        campaign_data["location_details"] = [loc.dict() for loc in req.targeting.location_details]
+    else:
+        campaign_data["age_min"]          = 25
+        campaign_data["age_max"]          = 55
+        campaign_data["radius_km"]        = 25
+        campaign_data["location_details"] = []
+
+    # ── Meta Ads (Instagram bhi isi Meta Ad Account se chalta hai) ──
+    if ("meta" in platform_keys or "instagram" in platform_keys) and META_AVAILABLE:
+        # Generate AI audience targeting first (if available), so the real
+        # Meta Ad Set uses AI-resolved interests instead of just geo-only.
+        audience_targeting_for_meta = None
+        if AUDIENCE_AI_AVAILABLE:
+            try:
+                ai_profile = generate_audience_profile(
+                    ad_title=ad_content_data.get("headline") or req.name,
+                    ad_description=(
+                        ad_content_data.get("primary_text")
+                        or ad_content_data.get("description")
+                        or req.business_niche
+                    ),
+                    industry=req.industry or "",
+                    sub_category=req.sub_category or "",
+                )
+                audience_targeting_for_meta = map_to_meta(ai_profile)
+            except Exception as e:
+                # Non-fatal — Meta submission still proceeds with geo-only targeting
+                print(f"[create_campaign] Audience targeting generation failed: {e}")
+ 
         try:
-            meta_result = submit_campaign_to_meta(campaign_data, ad_content_data)
+            meta_result = submit_campaign_to_meta(
+                campaign_data,
+                ad_content_data,
+                audience_targeting=audience_targeting_for_meta,
+            )
         except Exception as e:
             meta_result = {"success": False, "error": str(e), "platform": "meta"}
         results["platforms"]["meta"] = meta_result
+        if "instagram" in platform_keys:
+            results["platforms"]["instagram"] = meta_result
+
+        # ── Meta IDs DB mein save karo, taaki baad mein stats sync ke liye use ho sakein ──
+        if meta_result.get("success"):
+            db_campaign.meta_campaign_id = meta_result.get("meta_campaign_id")
+            db_campaign.meta_adset_id    = meta_result.get("meta_adset_id")
+            db_campaign.meta_ad_id       = meta_result.get("meta_ad_id")
+            db.commit()
 
     return results
 
@@ -284,6 +357,37 @@ def update_campaign(campaign_id: int, req: CampaignUpdateRequest, db: Session = 
 @router.delete("/{campaign_id}")
 def delete_campaign(campaign_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     campaign = get_owned_campaign_or_404(campaign_id, current_user, db)
+
+    # ── AudienceProfile ke andar PlatformTargeting bhi hai — pehle usse clear karo ──
+    profile_ids = [
+        row[0] for row in
+        db.query(AudienceProfile.id).filter(AudienceProfile.campaign_id == campaign_id).all()
+    ]
+    if profile_ids:
+        db.query(PlatformTargeting).filter(
+            PlatformTargeting.audience_profile_id.in_(profile_ids)
+        ).delete(synchronize_session=False)
+
+    # ── LeadForm ke andar FormSubmission bhi hai — pehle usse clear karo ──
+    form_ids = [
+        row[0] for row in
+        db.query(LeadForm.id).filter(LeadForm.campaign_id == campaign_id).all()
+    ]
+    if form_ids:
+        db.query(FormSubmission).filter(
+            FormSubmission.form_id.in_(form_ids)
+        ).delete(synchronize_session=False)
+
+    # ── Ab campaign se seedhe linked sab tables clear karo ──
+    db.query(TargetingRule).filter(TargetingRule.campaign_id == campaign_id).delete()
+    db.query(AdContent).filter(AdContent.campaign_id == campaign_id).delete()
+    db.query(PlatformStat).filter(PlatformStat.campaign_id == campaign_id).delete()
+    db.query(Lead).filter(Lead.campaign_id == campaign_id).delete()
+    db.query(LeadForm).filter(LeadForm.campaign_id == campaign_id).delete()
+    db.query(FormSubmission).filter(FormSubmission.campaign_id == campaign_id).delete()
+    db.query(ClickTracking).filter(ClickTracking.campaign_id == campaign_id).delete()
+    db.query(AudienceProfile).filter(AudienceProfile.campaign_id == campaign_id).delete()
+
     db.delete(campaign)
     db.commit()
     return {"message": "Campaign deleted"}
@@ -386,12 +490,14 @@ def get_campaign_stats(campaign_id: int, db: Session = Depends(get_db), current_
     try:
         stats = db.query(PlatformStat).filter(PlatformStat.campaign_id == campaign_id).all()
         stats_data = [{
-            "platform_id":  s.platform_id,
-            "impressions":  s.impressions  or 0,
-            "clicks":       s.clicks       or 0,
-            "leads":        s.leads        or 0,
-            "cpl":          s.cpl          or 0,
-            "budget_spent": s.budget_spent or 0,
+            "platform_id":   s.platform_id,
+            "platform_name": s.platform.name if s.platform else "",
+            "impressions":   s.impressions   or 0,
+            "clicks":        s.clicks        or 0,
+            "leads":         s.leads         or 0,
+            "cpl":           s.cpl           or 0,
+            "spend":         s.budget_spent  or 0,   # frontend "spend" expect karta hai
+            "budget_spent":  s.budget_spent  or 0,   # backward-compat
         } for s in stats]
         return {"campaign_id": campaign_id, "stats": stats_data}
     except Exception as e:
@@ -446,3 +552,72 @@ def submit_to_platforms(campaign_id: int, db: Session = Depends(get_db), current
             results["meta"] = {"success": False, "error": str(e)}
 
     return {"campaign_id": campaign_id, "results": results}
+
+# ════════════════════════════════════════════════════
+# 11. POST SYNC PLATFORM STATS (only if campaign owned by current_user)
+# Generic, platform-agnostic sync — works for any connected platform.
+# Jab naya platform add ho (Google, LinkedIn), bas PLATFORM_INSIGHT_FETCHERS
+# dict mein ek line add karni hogi — baaki sab code same rahega.
+# ════════════════════════════════════════════════════
+
+PLATFORM_INSIGHT_FETCHERS = {}
+
+if META_AVAILABLE:
+    PLATFORM_INSIGHT_FETCHERS["meta"] = lambda campaign: get_meta_campaign_insights(campaign.meta_campaign_id)
+
+# Kal jab Google/LinkedIn ready ho, bas yeh jaisi line add karni hogi:
+# if GOOGLE_AVAILABLE:
+#     PLATFORM_INSIGHT_FETCHERS["google"] = lambda campaign: get_google_campaign_insights(campaign.google_campaign_id)
+
+
+@router.post("/{campaign_id}/sync-stats")
+def sync_platform_stats(campaign_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    campaign = get_owned_campaign_or_404(campaign_id, current_user, db)
+
+    synced = {}
+    errors = {}
+
+    for platform_key, fetch_fn in PLATFORM_INSIGHT_FETCHERS.items():
+        try:
+            id_field = f"{platform_key}_campaign_id"
+            if not getattr(campaign, id_field, None):
+                continue  # yeh campaign is platform pe launch hi nahi hua
+
+            insights = fetch_fn(campaign)
+
+            platform_row = db.query(Platform).filter(Platform.name.ilike(platform_key)).first()
+            if not platform_row:
+                platform_row = Platform(name=platform_key, icon="")
+                db.add(platform_row)
+                db.commit()
+                db.refresh(platform_row)
+
+            stat = db.query(PlatformStat).filter(
+                PlatformStat.campaign_id == campaign_id,
+                PlatformStat.platform_id == platform_row.id,
+            ).first()
+
+            if stat:
+                stat.impressions  = insights.get("impressions", 0)
+                stat.clicks       = insights.get("clicks", 0)
+                stat.budget_spent = insights.get("spend", 0)
+            else:
+                stat = PlatformStat(
+                    campaign_id  = campaign_id,
+                    platform_id  = platform_row.id,
+                    impressions  = insights.get("impressions", 0),
+                    clicks       = insights.get("clicks", 0),
+                    budget_spent = insights.get("spend", 0),
+                )
+                db.add(stat)
+
+            db.commit()
+            synced[platform_key] = insights
+
+        except Exception as e:
+            errors[platform_key] = str(e)
+
+    if not synced and not errors:
+        raise HTTPException(status_code=400, detail="Yeh campaign kisi bhi platform pe launch nahi hua hai")
+
+    return {"message": "Sync complete", "synced": synced, "errors": errors}

@@ -16,12 +16,8 @@ load_dotenv()
 CUSTOMER_ID       = os.getenv("GOOGLE_ADS_CUSTOMER_ID")
 LOGIN_CUSTOMER_ID = os.getenv("GOOGLE_ADS_LOGIN_CUSTOMER_ID")
 
-# Yeh add karo CUSTOMER_ID ke baad:
 CUSTOMER_ID = CUSTOMER_ID.replace("-", "") if CUSTOMER_ID else ""
 LOGIN_CUSTOMER_ID = LOGIN_CUSTOMER_ID.replace("-", "") if LOGIN_CUSTOMER_ID else ""
-
-# print("CUSTOMER_ID =", CUSTOMER_ID)
-# print("LOGIN_CUSTOMER_ID =", LOGIN_CUSTOMER_ID)
 
 
 # ─── Client banao ────────────────────────────────────────────
@@ -31,7 +27,6 @@ def get_google_ads_client():
         yaml_path = os.path.join(os.path.dirname(__file__), '..', '..', 'google-ads.yaml')
         client = GoogleAdsClient.load_from_storage(
             path=yaml_path,
-              # ← version explicitly do
         )
         return client
     except Exception as e:
@@ -62,7 +57,6 @@ def create_google_campaign(campaign_data: dict) -> dict:
     budget.delivery_method         = client.enums.BudgetDeliveryMethodEnum.STANDARD
     budget_amount = max(float(campaign_data.get("budget_amount", 1000)), 1.0)
     budget.amount_micros = int(budget_amount * 1_000_000)
-    
 
     try:
         budget_response = budget_service.mutate_campaign_budgets(
@@ -288,12 +282,97 @@ def get_campaign_status(campaign_id: str) -> dict:
 
 
 # ════════════════════════════════════════════════════════════
-# 5. MAIN FUNCTION — campaigns.py se yeh call karo
+# 5. AGE TARGETING SET KARO
+# ════════════════════════════════════════════════════════════
+def set_age_targeting(campaign_resource: str, age_min: int, age_max: int):
+    """
+    Google Ads mein age range targeting CampaignCriterion se set hoti hai.
+    Google ke fixed age brackets: 18-24, 25-34, 35-44, 45-54, 55-64, 65+
+    """
+    client = get_google_ads_client()
+    criterion_service = client.get_service("CampaignCriterionService")
+
+    # Age range ko Google ke AgeRangeTypeEnum brackets mein map karo
+    age_ranges = []
+    if age_min <= 24:
+        age_ranges.append(client.enums.AgeRangeTypeEnum.AGE_RANGE_18_24)
+    if age_min <= 34 and age_max >= 25:
+        age_ranges.append(client.enums.AgeRangeTypeEnum.AGE_RANGE_25_34)
+    if age_min <= 44 and age_max >= 35:
+        age_ranges.append(client.enums.AgeRangeTypeEnum.AGE_RANGE_35_44)
+    if age_min <= 54 and age_max >= 45:
+        age_ranges.append(client.enums.AgeRangeTypeEnum.AGE_RANGE_45_54)
+    if age_min <= 64 and age_max >= 55:
+        age_ranges.append(client.enums.AgeRangeTypeEnum.AGE_RANGE_55_64)
+    if age_max >= 65:
+        age_ranges.append(client.enums.AgeRangeTypeEnum.AGE_RANGE_65_UP)
+
+    operations = []
+    for age_range in age_ranges:
+        op = client.get_type("CampaignCriterionOperation")
+        crit = op.create
+        crit.campaign = campaign_resource
+        crit.age_range.type_ = age_range
+        operations.append(op)
+
+    if operations:
+        criterion_service.mutate_campaign_criteria(
+            customer_id=CUSTOMER_ID,
+            operations=operations
+        )
+
+
+# ════════════════════════════════════════════════════════════
+# 6. LOCATION TARGETING SET KARO (NAYA)
+# ════════════════════════════════════════════════════════════
+def set_location_targeting(campaign_resource: str, locations: list, radius_km: float):
+    """
+    Google Ads mein city+radius targeting "proximity" criterion se hoti hai
+    (CampaignCriterion.proximity) — ek criterion per city, radius sabke
+    liye same rehta hai (jaisa frontend se aata hai).
+
+    locations = [{"name": "Delhi", "lat": 28.6139, "lng": 77.2090}, ...]
+    radius_km = 25  (frontend ka radiusKm)
+
+    Agar locations khaali hai, function kuch nahi karta (campaign poore
+    India pe hi chalega, jo Google ka account-level default hai).
+    """
+    if not locations:
+        return
+
+    client = get_google_ads_client()
+    criterion_service = client.get_service("CampaignCriterionService")
+
+    operations = []
+    for loc in locations:
+        if loc.get("lat") is None or loc.get("lng") is None:
+            continue
+        op   = client.get_type("CampaignCriterionOperation")
+        crit = op.create
+        crit.campaign = campaign_resource
+        crit.proximity.radius = radius_km
+        crit.proximity.radius_units = client.enums.ProximityRadiusUnitsEnum.KILOMETERS
+        crit.proximity.geo_point.latitude_in_micro_degrees  = int(loc["lat"] * 1_000_000)
+        crit.proximity.geo_point.longitude_in_micro_degrees = int(loc["lng"] * 1_000_000)
+        operations.append(op)
+
+    if operations:
+        criterion_service.mutate_campaign_criteria(
+            customer_id=CUSTOMER_ID,
+            operations=operations
+        )
+
+
+# ════════════════════════════════════════════════════════════
+# 7. MAIN FUNCTION — campaigns.py se yeh call karo
 # ════════════════════════════════════════════════════════════
 def submit_campaign_to_google(campaign_data: dict, ad_content_data: dict) -> dict:
     """
     Ek hi function call — poora campaign Google pe submit ho jaata hai
     campaigns.py route se ise call karo
+
+    campaign_data mein ab "location_details" (list of {name,lat,lng}) aur
+    "radius_km" bhi expect kiye jaate hain — campaigns.py router se aate hain.
 
     Returns: {
         "success": True,
@@ -306,6 +385,26 @@ def submit_campaign_to_google(campaign_data: dict, ad_content_data: dict) -> dic
     try:
         # Step 1: Campaign banao
         campaign_result = create_google_campaign(campaign_data)
+
+        # ── Age targeting set karo (yahan andar, try ke andar hi) ──
+        try:
+            set_age_targeting(
+                campaign_result["campaign_resource"],
+                campaign_data.get("age_min", 18),
+                campaign_data.get("age_max", 65)
+            )
+        except Exception as e:
+            print(f"Age targeting warning: {e}")  # non-fatal, campaign phir bhi chalega
+
+        # ── NAYA: Location (city + radius) targeting set karo, same pattern ──
+        try:
+            set_location_targeting(
+                campaign_result["campaign_resource"],
+                campaign_data.get("location_details", []),
+                campaign_data.get("radius_km", 25)
+            )
+        except Exception as e:
+            print(f"Location targeting warning: {e}")  # non-fatal, campaign phir bhi chalega
 
         # Step 2: Ad group banao
         ag_result = create_ad_group(
