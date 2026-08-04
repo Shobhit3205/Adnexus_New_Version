@@ -1,0 +1,106 @@
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from app.database import get_db
+from app.models.models import Lead, Campaign, Platform
+from pydantic import BaseModel
+from typing import Optional
+
+router = APIRouter(tags=["campaigns"])
+
+
+class LeadCreate(BaseModel):
+    campaign_id: int
+    platform_id: int
+    name: str
+    company_sector: str
+    turnover: str
+    location: str
+    status: Optional[str] = "new"
+
+class LeadUpdate(BaseModel):
+    status: str
+
+# 1. Naya lead banao
+@router.post("/")
+def create_lead(lead: LeadCreate, db: Session = Depends(get_db)):
+    campaign = db.query(Campaign).filter(Campaign.id == lead.campaign_id).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign nahi mila!")
+
+    new_lead = Lead(
+        campaign_id=lead.campaign_id,
+        platform_id=lead.platform_id,
+        name=lead.name,
+        company_sector=lead.company_sector,
+        turnover=lead.turnover,
+        location=lead.location,
+        status=lead.status
+    )
+    db.add(new_lead)
+    db.commit()
+    db.refresh(new_lead)
+    return {"message": "Lead add ho gaya!", "lead": {
+        "id": new_lead.id,
+        "name": new_lead.name,
+        "company_sector": new_lead.company_sector,
+        "turnover": new_lead.turnover,
+        "location": new_lead.location,
+        "status": new_lead.status,
+    }}
+
+# 2. Saare leads dekho
+@router.get("/")
+def get_leads(db: Session = Depends(get_db)):
+    leads = db.query(Lead).all()
+    return {"leads": [
+        {
+            "id": l.id,
+            "campaign_id": l.campaign_id,
+            "platform_id": l.platform_id,
+            "platform_name": l.platform.name,
+            "name": l.name,
+            "company_sector": l.company_sector,
+            "turnover": l.turnover,
+            "location": l.location,
+            "status": l.status,
+            "created_at": str(l.created_at),
+        } for l in leads
+    ]}
+
+# 3. Campaign ke leads dekho
+@router.get("/campaign/{campaign_id}")
+def get_campaign_leads(campaign_id: int, db: Session = Depends(get_db)):
+    leads = db.query(Lead).filter(Lead.campaign_id == campaign_id).all()
+    return {"leads": [
+        {
+            "id": l.id,
+            "platform_name": l.platform.name,
+            "name": l.name,
+            "company_sector": l.company_sector,
+            "turnover": l.turnover,
+            "location": l.location,
+            "status": l.status,
+            "created_at": str(l.created_at),
+        } for l in leads
+    ]}
+
+# 4. Lead status update karo
+@router.put("/{lead_id}")
+def update_lead_status(lead_id: int, lead_data: LeadUpdate, db: Session = Depends(get_db)):
+    lead = db.query(Lead).filter(Lead.id == lead_id).first()
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead nahi mila!")
+    lead.status = lead_data.status
+    db.commit()
+    db.refresh(lead)
+    return {"message": "Lead status update ho gaya!", "status": lead.status}
+
+# 5. Lead delete karo
+@router.delete("/{lead_id}")
+def delete_lead(lead_id: int, db: Session = Depends(get_db)):
+    lead = db.query(Lead).filter(Lead.id == lead_id).first()
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead nahi mila!")
+    db.delete(lead)
+    db.commit()
+    return {"message": "Lead delete ho gaya!"}

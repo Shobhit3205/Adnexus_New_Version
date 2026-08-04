@@ -1,0 +1,497 @@
+
+import React, { useState, useEffect } from 'react'
+import { getCampaigns, deleteCampaign, getCampaignStats, getLeads } from '../services/api'
+import { useNavigate } from 'react-router-dom'
+ 
+const fmt = n => {
+  if (!n && n !== 0) return '—'
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M'
+  if (n >= 1e3) return (n / 1e3).toFixed(0) + 'K'
+  return n.toString()
+}
+ 
+const Dashboard = () => {
+  const navigate = useNavigate()
+  const [campaigns, setCampaigns] = useState([])
+  const [platformStats, setPlatformStats] = useState([])
+  const [leads, setLeads] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [statsLoading, setStatsLoading] = useState(false)
+  const [activeNav, setActiveNav] = useState('dashboard')
+  const [selectedCampaign, setSelectedCampaign] = useState(null)
+ 
+  useEffect(() => { fetchAll() }, [])
+ 
+  const fetchAll = async () => {
+    try {
+      const [campRes, leadsRes] = await Promise.all([
+        getCampaigns(),
+        getLeads()
+      ])
+      const list = campRes.data.campaigns || campRes.data || []
+      setCampaigns(list)
+      setLeads(leadsRes.data.leads || leadsRes.data || [])
+      if (list.length > 0) {
+        setSelectedCampaign(list[0])
+        fetchStats(list[0].id)
+      }
+    } catch (err) {
+      console.error('Fetch error:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+ 
+  const fetchStats = async (campaignId) => {
+    setStatsLoading(true)
+    try {
+      const res = await getCampaignStats(campaignId)
+      // backend returns array of platform stats
+      const stats = res.data.stats || res.data || []
+      setPlatformStats(stats)
+    } catch (err) {
+      console.error('Stats fetch error:', err)
+      setPlatformStats([])
+    } finally {
+      setStatsLoading(false)
+    }
+  }
+ 
+  const handleCampaignChange = (campaign) => {
+    setSelectedCampaign(campaign)
+    fetchStats(campaign.id)
+  }
+ 
+  const handleDelete = async (id) => {
+    if (window.confirm('Campaign delete karna chahte ho?')) {
+      try {
+        await deleteCampaign(id)
+        fetchAll()
+      } catch (err) {
+        console.error('Delete nahi hua!')
+      }
+    }
+  }
+ 
+  // KPI calculations from real data
+  const totalBudget = campaigns.reduce((sum, c) => sum + (c.budget || 0), 0)
+  const totalSpent = campaigns.reduce((sum, c) => sum + (c.budget_spent || 0), 0)
+  const activeCampaigns = campaigns.filter(c => c.status === 'active').length
+  const totalLeads = leads.length
+  const totalLeadsSpend = platformStats.reduce((s, p) => s + (p.spend || 0), 0)
+  const totalLeadsCount = platformStats.reduce((s, p) => s + (p.leads || 0), 0)
+  const unifiedCPL = totalLeadsCount > 0 ? (totalLeadsSpend / totalLeadsCount).toFixed(2) : '—'
+ 
+  // Recent 4 leads
+  const recentLeads = leads.slice(0, 4)
+ 
+  return (
+    <div style={s.wrap}>
+ 
+      {/* ── Sidebar ── */}
+      <aside style={s.sidebar}>
+        <div style={s.sidebarLogo}>
+          <svg width="26" height="26" viewBox="0 0 32 32" fill="none">
+            <path d="M8 24L16 8L24 24" stroke="#1A73E8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M10.5 19h11" stroke="#1A73E8" strokeWidth="2" strokeLinecap="round"/>
+          </svg>
+        </div>
+        <nav style={s.sidebarNav}>
+          {[
+            { id: 'dashboard', label: 'Dashboard', icon: <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.8"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.8"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.8"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.8"/></svg> },
+            { id: 'analytics', label: 'Analytics', icon: <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg> },
+            { id: 'leads', label: 'Leads', icon: <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="1.8"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg> },
+            { id: 'messages', label: 'Messages', icon: <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg> },
+          ].map(item => (
+            <button key={item.id} title={item.label}
+              onClick={() => { setActiveNav(item.id); if (item.id === 'leads') navigate('/leads') }}
+              style={{ ...s.navBtn, ...(activeNav === item.id ? s.navBtnActive : {}) }}>
+              {item.icon}
+            </button>
+          ))}
+        </nav>
+        <div style={s.sidebarBottom}>
+          <button style={s.navBtn} title="Settings">
+            <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.8"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" strokeWidth="1.8"/></svg>
+          </button>
+          <button style={s.navBtn} title="Logout">
+            <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><polyline points="16 17 21 12 16 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/><line x1="21" y1="12" x2="9" y2="12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
+          </button>
+        </div>
+      </aside>
+ 
+      {/* ── Main ── */}
+      <div style={s.main}>
+ 
+        {/* TopNav */}
+        <header style={s.topNav}>
+          <div style={s.topNavBrand}>
+            <svg width="20" height="20" viewBox="0 0 32 32" fill="none">
+              <path d="M8 24L16 8L24 24" stroke="#1A73E8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M10.5 19h11" stroke="#1A73E8" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+            <span style={s.topNavTitle}>AdNexus Dashboard</span>
+          </div>
+          <div style={s.topNavRight}>
+            <button style={s.iconBtn} title="Notifications">
+              <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="#8892b0" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/><path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="#8892b0" strokeWidth="1.8" strokeLinecap="round"/></svg>
+            </button>
+            <button style={s.iconBtn} title="Help">
+              <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="#8892b0" strokeWidth="1.8"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" stroke="#8892b0" strokeWidth="1.8" strokeLinecap="round"/><line x1="12" y1="17" x2="12.01" y2="17" stroke="#8892b0" strokeWidth="2" strokeLinecap="round"/></svg>
+            </button>
+          </div>
+        </header>
+ 
+        {/* Filter Bar */}
+        <div style={s.filterBar}>
+          <span style={s.filterLabel}>Campaign:</span>
+          <div style={s.filterPillWrap}>
+            <select style={s.filterSelect}
+              value={selectedCampaign?.id || ''}
+              onChange={e => {
+                const c = campaigns.find(x => x.id === parseInt(e.target.value))
+                if (c) handleCampaignChange(c)
+              }}>
+              {campaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+          <div style={s.datePill}>📅 All Time</div>
+          <div style={s.filterRight}>
+            <button style={s.createBtn} onClick={() => navigate('/create-campaign')}>+ Create New Campaign</button>
+            <button style={s.leadsBtn} onClick={() => navigate('/leads')}>View Leads</button>
+          </div>
+        </div>
+ 
+        {/* Content */}
+        <div style={s.content}>
+ 
+          {/* KPI Row */}
+          <div style={s.kpiRow}>
+            <div style={s.kpiCard}>
+              <div style={s.kpiLabel}>Total Spend</div>
+              <div style={s.kpiVal}>₹{totalSpent.toLocaleString()}<span style={s.kpiSub}> / ₹{totalBudget.toLocaleString()}</span></div>
+            </div>
+            <div style={s.kpiCard}>
+              <div style={s.kpiLabel}>Total Leads</div>
+              <div style={s.kpiVal}>{totalLeads}</div>
+            </div>
+            <div style={s.kpiCard}>
+              <div style={s.kpiLabel}>Unified CPL</div>
+              <div style={s.kpiVal}>{unifiedCPL !== '—' ? `₹${unifiedCPL}` : '—'}</div>
+            </div>
+            <div style={s.kpiCard}>
+              <div style={s.kpiLabel}>Active Campaigns</div>
+              <div style={s.kpiVal}>{activeCampaigns}</div>
+            </div>
+          </div>
+ 
+          {/* Mid Row */}
+          <div style={s.midRow}>
+ 
+            {/* Left Column */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+ 
+              {/* Platform Stats Table */}
+              <div style={s.card}>
+                <div style={s.cardTitle}>Omnichannel Performance Breakdown</div>
+                {statsLoading ? (
+                  <div style={s.empty}>Loading stats...</div>
+                ) : platformStats.length === 0 ? (
+                  <div style={s.empty}>
+                    {selectedCampaign
+                      ? 'Is campaign mein abhi koi platform stats nahi hain.'
+                      : 'Pehle ek campaign select karo.'}
+                  </div>
+                ) : (
+                  <table style={s.table}>
+                    <thead>
+                      <tr>
+                        {['Platform', 'Views / Impressions', 'Clicks', 'Budget Spent', 'Leads', 'CPL'].map(h => (
+                          <th key={h} style={s.th}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {platformStats.map((p, i) => {
+                        const cpl = p.leads > 0 ? (p.spend / p.leads).toFixed(2) : '—'
+                        return (
+                          <tr key={p.platform_id || i} style={i % 2 === 0 ? s.trEven : s.tr}>
+                            <td style={s.td}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <div style={{ ...s.platformChip, background: '#e8f0fe', color: '#1A73E8' }}>
+                                  {(p.platform_name || p.platform || 'P').charAt(0).toUpperCase()}
+                                </div>
+                                <span style={{ fontWeight: '500' }}>{p.platform_name || p.platform || '—'}</span>
+                              </div>
+                            </td>
+                            <td style={s.td}>{fmt(p.impressions)}</td>
+                            <td style={s.td}>{(p.clicks || 0).toLocaleString()}</td>
+                            <td style={s.td}>₹{(p.spend || 0).toLocaleString()}</td>
+                            <td style={s.td}><span style={s.leadsBadge}>{p.leads || 0}</span></td>
+                            <td style={s.td}><span style={s.cplBadge}>{cpl !== '—' ? `₹${cpl}` : '—'}</span></td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+ 
+              {/* Campaigns Table */}
+              <div style={s.card}>
+                <div style={s.cardTitle}>Your Campaigns</div>
+                {loading ? (
+                  <div style={s.empty}>Loading...</div>
+                ) : campaigns.length === 0 ? (
+                  <div style={s.empty}>Koi campaign nahi hai abhi.</div>
+                ) : (
+                  <table style={s.table}>
+                    <thead>
+                      <tr>
+                        {['Campaign', 'Goal', 'Budget', 'Status', 'Start Date', 'Actions'].map(h => (
+                          <th key={h} style={s.th}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {campaigns.map((c, i) => (
+                        <tr key={c.id} style={i % 2 === 0 ? s.trEven : s.tr}>
+                          <td style={{ ...s.td, cursor: 'pointer', color: '#1A73E8', fontWeight: '500' }}
+                            onClick={() => navigate(`/campaign/${c.id}`)}>
+                            {c.name}
+                          </td>
+                          <td style={s.td}><span style={s.goalBadge}>{c.goal}</span></td>
+                          <td style={s.td}>₹{(c.budget || 0).toLocaleString()}</td>
+                          <td style={s.td}>
+                            <span style={c.status === 'active' ? s.badgeActive : s.badgePaused}>{c.status}</span>
+                          </td>
+                          <td style={s.td}>{c.start_date}</td>
+                          <td style={s.td}>
+                            <div style={{ display: 'flex', gap: '5px' }}>
+                              <button style={s.adBtn} onClick={() => navigate(`/campaign/${c.id}/ad-content`)}>Ad Content</button>
+                              <button style={s.deleteBtn} onClick={() => handleDelete(c.id)}>Delete</button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+ 
+              {/* Recent Leads Feed */}
+              <div style={s.card}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                  <div style={s.cardTitle}>Recent B2B Leads Feed</div>
+                  <button style={s.leadsBtn} onClick={() => navigate('/leads')}>View All</button>
+                </div>
+                {recentLeads.length === 0 ? (
+                  <div style={s.empty}>Abhi koi leads nahi hain.</div>
+                ) : (
+                  <table style={s.table}>
+                    <thead>
+                      <tr>
+                        {['Lead Name', 'Company', 'Location', 'Platform', 'Status'].map(h => (
+                          <th key={h} style={s.th}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {recentLeads.map((lead, i) => (
+                        <tr key={lead.id || i} style={i % 2 === 0 ? s.trEven : s.tr}>
+                          <td style={s.td}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <div style={s.avatar}>{(lead.name || lead.lead_name || '?').charAt(0).toUpperCase()}</div>
+                              <span style={{ fontWeight: '500' }}>{lead.name || lead.lead_name || '—'}</span>
+                            </div>
+                          </td>
+                          <td style={s.td}>{lead.company || lead.company_name || '—'}</td>
+                          <td style={s.td}>{lead.location || '—'}</td>
+                          <td style={s.td}>{lead.platform || lead.platform_source || '—'}</td>
+                          <td style={s.td}>
+                            <span style={
+                              lead.status === 'Contacted' ? s.badgeContacted :
+                              lead.status === 'Meeting Set' ? s.badgeMeeting :
+                              s.badgeNew
+                            }>{lead.status || 'New Lead'}</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+ 
+            {/* Right Column */}
+            <div style={s.rightCol}>
+ 
+              {/* Geo Map */}
+              <div style={s.card}>
+                <div style={s.cardTitle}>Targeting &amp; Geographic Overview</div>
+                <div style={s.geoSub}>Who Saw It Where (Location)</div>
+                <div style={s.geoMap}>
+                  <svg viewBox="0 0 240 130" width="100%" height="100%" fill="none">
+                    <ellipse cx="130" cy="65" rx="90" ry="55" fill="#E8F0FE" opacity="0.5"/>
+                    <circle cx="148" cy="52" r="22" fill="#E53935" opacity="0.5"/>
+                    <circle cx="148" cy="52" r="13" fill="#E53935" opacity="0.6"/>
+                    <circle cx="128" cy="62" r="14" fill="#FF7043" opacity="0.45"/>
+                    <circle cx="82" cy="38" r="11" fill="#FF7043" opacity="0.4"/>
+                    <circle cx="95" cy="90" r="15" fill="#FF7043" opacity="0.4"/>
+                    <text x="57" y="30" fontSize="9" fill="#555">Ludhiana</text>
+                    <text x="157" y="45" fontSize="9" fill="#555">Noida</text>
+                    <text x="130" y="70" fontSize="9" fill="#555">Delhi NCR</text>
+                    <text x="70" y="108" fontSize="9" fill="#555">Mumbai</text>
+                  </svg>
+                </div>
+                {/* Targeting rules from selected campaign */}
+                <div style={s.targetBox}>
+                  <div style={s.targetTitle}>Targeting Rule</div>
+                  {selectedCampaign ? (
+                    <>
+                      <div style={s.targetText}>Campaign: {selectedCampaign.name}</div>
+                      <div style={s.targetText}>Goal: {selectedCampaign.goal}</div>
+                      <div style={s.targetText}>Budget: ₹{(selectedCampaign.budget || 0).toLocaleString()}</div>
+                    </>
+                  ) : (
+                    <div style={s.targetText}>Koi campaign selected nahi hai.</div>
+                  )}
+                </div>
+              </div>
+ 
+              {/* Quick Actions */}
+              <div style={s.card}>
+                <div style={s.cardTitle}>Quick Actions</div>
+                <button style={s.actionBtn} onClick={() => navigate('/create-campaign')}>
+                  <span style={s.actionIcon}>+</span> Create New Campaign
+                </button>
+                <button style={s.actionBtn} onClick={() => navigate('/leads')}>
+                  <span style={s.actionIcon}>↓</span> Download Leads (CSV)
+                </button>
+                <button style={{ ...s.actionBtn, ...s.actionBtnDanger }}>
+                  <span style={{ ...s.actionIcon, background: '#ffcdd2', color: '#c62828' }}>⏸</span> Pause All Ads
+                </button>
+              </div>
+ 
+              {/* AI Suggestions */}
+              <div style={s.card}>
+                <div style={s.cardTitle}>AI Optimization Suggestions</div>
+                {platformStats.length === 0 ? (
+                  <div style={s.empty}>Platform data aane ke baad suggestions milenge.</div>
+                ) : (
+                  <>
+                    {/* Best performing platform suggestion */}
+                    {(() => {
+                      const best = [...platformStats].sort((a, b) => (b.leads || 0) - (a.leads || 0))[0]
+                      return best ? (
+                        <div style={s.aiBox}>
+                          <div style={s.aiDot} />
+                          {best.platform_name || best.platform} pe sabse zyada leads ({best.leads}) — is platform ka budget badhao.
+                        </div>
+                      ) : null
+                    })()}
+                    {/* Lowest CPL suggestion */}
+                    {(() => {
+                      const withCPL = platformStats.filter(p => p.leads > 0)
+                      if (withCPL.length < 2) return null
+                      const cheapest = withCPL.sort((a, b) => (a.spend / a.leads) - (b.spend / b.leads))[0]
+                      return (
+                        <div style={{ ...s.aiBox, marginTop: '8px' }}>
+                          <div style={s.aiDot} />
+                          {cheapest.platform_name || cheapest.platform} ka CPL sabse kam (₹{(cheapest.spend / cheapest.leads).toFixed(2)}) — yahan invest karo.
+                        </div>
+                      )
+                    })()}
+                  </>
+                )}
+              </div>
+ 
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+ 
+const s = {
+  wrap: { display: 'flex', height: '100vh', background: '#f4f6fb', fontFamily: "'DM Sans', sans-serif", fontSize: '13px' },
+ 
+  sidebar: { width: '56px', background: '#fff', borderRight: '0.5px solid #e0e4ef', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '14px 0', flexShrink: 0 },
+  sidebarLogo: { marginBottom: '22px' },
+  sidebarNav: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', flex: 1 },
+  sidebarBottom: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' },
+  navBtn: { width: '38px', height: '38px', borderRadius: '10px', border: 'none', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8892b0', transition: 'all 0.15s' },
+  navBtnActive: { background: '#e8f0fe', color: '#1A73E8' },
+ 
+  main: { flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' },
+  topNav: { background: '#fff', borderBottom: '0.5px solid #e0e4ef', padding: '10px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 },
+  topNavBrand: { display: 'flex', alignItems: 'center', gap: '8px' },
+  topNavTitle: { fontSize: '15px', fontWeight: '600', color: '#1a1a2e' },
+  topNavRight: { display: 'flex', gap: '8px' },
+  iconBtn: { background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px' },
+ 
+  filterBar: { background: '#fff', borderBottom: '0.5px solid #e0e4ef', padding: '8px 20px', display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 },
+  filterLabel: { fontSize: '12px', color: '#8892b0' },
+  filterPillWrap: { position: 'relative' },
+  filterSelect: { background: '#f4f6fb', border: '0.5px solid #d0d5e8', borderRadius: '20px', padding: '4px 12px', fontSize: '12px', color: '#1a1a2e', cursor: 'pointer', fontFamily: 'inherit', outline: 'none', maxWidth: '220px' },
+  datePill: { background: '#f4f6fb', border: '0.5px solid #d0d5e8', borderRadius: '20px', padding: '4px 12px', fontSize: '12px', color: '#8892b0' },
+  filterRight: { marginLeft: 'auto', display: 'flex', gap: '8px' },
+  createBtn: { background: '#1A73E8', color: '#fff', border: 'none', borderRadius: '8px', padding: '7px 14px', fontSize: '12px', fontWeight: '500', cursor: 'pointer', fontFamily: 'inherit' },
+  leadsBtn: { background: '#fff', color: '#1A73E8', border: '0.5px solid #93b8f4', borderRadius: '8px', padding: '5px 12px', fontSize: '12px', fontWeight: '500', cursor: 'pointer', fontFamily: 'inherit' },
+ 
+  content: { flex: 1, overflow: 'auto', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '12px' },
+ 
+  kpiRow: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' },
+  kpiCard: { background: '#fff', border: '0.5px solid #e0e4ef', borderRadius: '10px', padding: '14px 16px' },
+  kpiLabel: { fontSize: '10px', fontWeight: '600', color: '#8892b0', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '8px' },
+  kpiVal: { fontSize: '24px', fontWeight: '600', color: '#1a1a2e' },
+  kpiSub: { fontSize: '13px', color: '#8892b0', fontWeight: '400' },
+ 
+  midRow: { display: 'grid', gridTemplateColumns: '1fr 280px', gap: '12px', alignItems: 'start' },
+  rightCol: { display: 'flex', flexDirection: 'column', gap: '12px' },
+ 
+  card: { background: '#fff', border: '0.5px solid #e0e4ef', borderRadius: '12px', padding: '14px 16px' },
+  cardTitle: { fontSize: '10px', fontWeight: '700', color: '#8892b0', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '12px' },
+ 
+  table: { width: '100%', borderCollapse: 'collapse', fontSize: '12px' },
+  th: { padding: '7px 10px', textAlign: 'left', color: '#8892b0', fontWeight: '600', borderBottom: '0.5px solid #e0e4ef', fontSize: '11px', whiteSpace: 'nowrap', background: '#fafbfd' },
+  tr: { borderBottom: '0.5px solid #f0f2f8' },
+  trEven: { borderBottom: '0.5px solid #f0f2f8', background: '#fafbfd' },
+  td: { padding: '10px 10px', color: '#1a1a2e', verticalAlign: 'middle' },
+ 
+  platformChip: { width: '26px', height: '26px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700', fontSize: '11px', flexShrink: 0 },
+  avatar: { width: '28px', height: '28px', borderRadius: '50%', background: '#e8f0fe', color: '#1A73E8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '600', fontSize: '12px', flexShrink: 0 },
+ 
+  goalBadge: { background: '#e8f0fe', color: '#1A73E8', padding: '2px 8px', borderRadius: '20px', fontSize: '10px', fontWeight: '600' },
+  badgeActive: { background: '#e6f9f0', color: '#1b7a4a', padding: '2px 8px', borderRadius: '20px', fontSize: '10px', fontWeight: '600' },
+  badgePaused: { background: '#fff3e0', color: '#e65100', padding: '2px 8px', borderRadius: '20px', fontSize: '10px', fontWeight: '600' },
+  leadsBadge: { background: '#e8f0fe', color: '#1A73E8', padding: '2px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '600' },
+  cplBadge: { background: '#f3e5f5', color: '#7b1fa2', padding: '2px 8px', borderRadius: '20px', fontSize: '10px', fontWeight: '600' },
+  badgeNew: { background: '#e8f0fe', color: '#1A73E8', padding: '2px 8px', borderRadius: '20px', fontSize: '10px', fontWeight: '600' },
+  badgeContacted: { background: '#e6f9f0', color: '#1b7a4a', padding: '2px 8px', borderRadius: '20px', fontSize: '10px', fontWeight: '600' },
+  badgeMeeting: { background: '#f3e5f5', color: '#7b1fa2', padding: '2px 8px', borderRadius: '20px', fontSize: '10px', fontWeight: '600' },
+ 
+  adBtn: { background: '#e8f0fe', color: '#1A73E8', border: '0.5px solid #93b8f4', borderRadius: '6px', padding: '3px 8px', fontSize: '11px', cursor: 'pointer', fontFamily: 'inherit', fontWeight: '500' },
+  deleteBtn: { background: '#fff5f5', color: '#c62828', border: '0.5px solid #ffcdd2', borderRadius: '6px', padding: '3px 8px', fontSize: '11px', cursor: 'pointer', fontFamily: 'inherit' },
+ 
+  geoSub: { fontSize: '11px', color: '#8892b0', marginBottom: '8px' },
+  geoMap: { background: 'linear-gradient(135deg, #e8f0fe 0%, #f0f4ff 100%)', borderRadius: '8px', height: '130px', overflow: 'hidden', marginBottom: '10px' },
+  targetBox: { lineHeight: '1.7' },
+  targetTitle: { fontWeight: '700', color: '#1a1a2e', fontSize: '12px', marginBottom: '3px' },
+  targetText: { fontSize: '11px', color: '#8892b0' },
+ 
+  actionBtn: { width: '100%', padding: '8px 12px', borderRadius: '8px', border: '0.5px solid #e0e4ef', background: '#fff', color: '#1a1a2e', fontSize: '12px', fontWeight: '500', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '7px', fontFamily: 'inherit' },
+  actionBtnDanger: { background: '#fff5f5', color: '#c62828', border: '0.5px solid #ffcdd2' },
+  actionIcon: { width: '22px', height: '22px', borderRadius: '6px', background: '#e8f0fe', color: '#1A73E8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: '700', flexShrink: 0 },
+ 
+  aiBox: { background: '#eef2ff', border: '0.5px solid #c5cae9', borderRadius: '8px', padding: '9px 12px', fontSize: '11px', color: '#3949ab', lineHeight: '1.55', display: 'flex', gap: '8px', alignItems: 'flex-start' },
+  aiDot: { width: '6px', height: '6px', borderRadius: '50%', background: '#3949ab', marginTop: '3px', flexShrink: 0 },
+ 
+  empty: { textAlign: 'center', padding: '24px', color: '#8892b0', fontSize: '12px' },
+}
+ 
+export default Dashboard
+ 
+
+

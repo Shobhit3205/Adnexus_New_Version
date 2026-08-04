@@ -1,0 +1,17 @@
+export const POPULAR_CITIES = [
+  { name: 'Delhi NCR',   lat: 28.6139, lng: 77.2090, area_diagonal_km: 90  },
+  { name: 'Mumbai',      lat: 19.0760, lng: 72.8777, area_diagonal_km: 70  },
+  { name: 'Bangalore',   lat: 12.9716, lng: 77.5946, area_diagonal_km: 60  },
+  { name: 'Hyderabad',   lat: 17.3850, lng: 78.4867, area_diagonal_km: 65  },
+  { name: 'Chennai',     lat: 13.0827, lng: 80.2707, area_diagonal_km: 60  },
+  { name: 'Pune',        lat: 18.5204, lng: 73.8567, area_diagonal_km: 55  },
+  { name: 'Kolkata',     lat: 22.5726, lng: 88.3639, area_diagonal_km: 60  },
+  { name: 'Ahmedabad',   lat: 23.0225, lng: 72.5714, area_diagonal_km: 55  },
+  { name: 'Jaipur',      lat: 26.9124, lng: 75.7873, area_diagonal_km: 50  },
+  { name: 'Lucknow',     lat: 26.8467, lng: 80.9462, area_diagonal_km: 45  },
+  { name: 'Surat',       lat: 21.1702, lng: 72.8311, area_diagonal_km: 45  },
+  { name: 'Chandigarh',  lat: 30.7333, lng: 76.7794, area_diagonal_km: 35  },
+  { name: 'Indore',      lat: 22.7196, lng: 75.8577, area_diagonal_km: 40  },
+  { name: 'Bhopal',      lat: 23.2599, lng: 77.4126, area_diagonal_km: 40  },
+  { name: 'Kochi',       lat: 9.9312,  lng: 76.2673, area_diagonal_km: 40  },
+]

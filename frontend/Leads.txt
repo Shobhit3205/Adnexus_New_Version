@@ -1,0 +1,533 @@
+import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { getLeads, getCampaigns, updateLeadStatus, deleteLead } from '../services/api'
+
+const platforms = [
+  { id: 1, name: 'Google Ads',  color: '#1A73E8', icon: 'G'  },
+  { id: 2, name: 'LinkedIn',    color: '#0A66C2', icon: 'in' },
+  { id: 3, name: 'Facebook',    color: '#1877F2', icon: 'f'  },
+  { id: 4, name: 'Instagram',   color: '#E1306C', icon: 'ig' },
+]
+
+const statusOptions = ['new', 'contacted', 'meeting_set', 'converted', 'lost']
+
+const statusStyles = {
+  new:         { background: '#EFF6FF', color: '#1d4ed8', border: '0.5px solid #BFDBFE' },
+  contacted:   { background: '#F0FDF4', color: '#15803d', border: '0.5px solid #BBF7D0' },
+  meeting_set: { background: '#FFFBEB', color: '#d97706', border: '0.5px solid #FDE68A' },
+  converted:   { background: '#F0FDF4', color: '#15803d', border: '0.5px solid #86efac' },
+  lost:        { background: '#FEF2F2', color: '#dc2626', border: '0.5px solid #FECACA' },
+}
+
+const avatarColors = [
+  { bg: '#DBEAFE', color: '#1d4ed8' },
+  { bg: '#D1FAE5', color: '#065f46' },
+  { bg: '#EDE9FE', color: '#6d28d9' },
+  { bg: '#FEF3C7', color: '#92400e' },
+  { bg: '#FCE7F3', color: '#9d174d' },
+]
+
+const getAvatarColor = (name = '') => {
+  if (!name) return avatarColors[0]
+  return avatarColors[name.charCodeAt(0) % avatarColors.length]
+}
+
+const navItems = [
+  { label: 'Dashboard',  icon: '⊞', path: '/'          },
+  { label: 'Campaigns',  icon: '📢', path: '/campaigns' },
+  { label: 'Leads',      icon: '👤', path: '/leads'     },
+  { label: 'Settings',   icon: '⚙',  path: '/settings'  },
+]
+
+const Leads = () => {
+  const navigate = useNavigate()
+  const [leads, setLeads] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [filter, setFilter] = useState('all')
+  const [hoveredRow, setHoveredRow] = useState(null)
+
+  useEffect(() => { fetchLeads() }, [])
+
+  const fetchLeads = async () => {
+    setLoading(true)
+    setLoadError('')
+    try {
+      // 1) Campaigns list chahiye taaki har campaign ke form-submissions fetch kar sakein
+      //    (Dashboard.jsx bhi bilkul isi tarah karta hai)
+      const campRes = await getCampaigns()
+      const campaignList = campRes.data?.campaigns || campRes.data || []
+
+      // 2) CRM leads table se leads (jo /api/leads/ se aate hain, status/delete inhi pe chalta hai)
+      const leadsRes = await getLeads()
+      const crmLeads = (Array.isArray(leadsRes.data) ? leadsRes.data : (leadsRes.data?.leads || []))
+        .map(l => ({ ...l, source: 'crm' }))
+
+      // 3) Har campaign ke public form-submissions (jaise Dashboard karta hai)
+      let formLeads = []
+      try {
+        for (const camp of campaignList) {
+          const res = await fetch(`http://127.0.0.1:8000/public/submissions/${camp.id}`)
+          const data = await res.json()
+          formLeads = [
+            ...formLeads,
+            ...(data.submissions || []).map(sub => ({
+              ...sub,
+              id: sub.id ?? `form-${camp.id}-${sub.phone || sub.full_name}`,
+              name: sub.full_name || sub.name,
+              company_sector: sub.company_sector || sub.sector || '—',
+              turnover: sub.turnover || '—',
+              location: sub.location || '—',
+              platform_name: sub.platform_name || sub.platform || 'Direct',
+              status: sub.status || 'new',
+              campaign_id: camp.id,
+              source: 'form',
+            })),
+          ]
+        }
+      } catch (e) {
+        console.error('Form submissions fetch failed', e)
+      }
+
+      // 4) Dono ko merge karo — sirf real data, koi fake/dummy nahi
+      setLeads([...crmLeads, ...formLeads])
+    } catch (err) {
+      console.error('Leads fetch nahi hue!', err)
+      setLoadError('Leads load nahi ho paaye. Backend/API connection check karein.')
+      setLeads([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleStatusChange = async (lead, newStatus) => {
+    // Sirf CRM leads (jo /api/leads/ table mein hain) ka status backend pe update hota hai.
+    // Form-submission leads ke liye ye endpoint exist nahi karta, isliye unhe yahin locally update karte hain.
+    setLeads(prev => prev.map(l => (l.id === lead.id ? { ...l, status: newStatus } : l)))
+    if (lead.source !== 'crm') return
+    try {
+      await updateLeadStatus(lead.id, { status: newStatus })
+    } catch (err) {
+      console.error('Status update nahi hua!', err)
+      fetchLeads() // revert to real state on failure
+    }
+  }
+
+  const handleDelete = async (lead) => {
+    if (lead.source !== 'crm') return // form-submission leads delete karne ka backend endpoint nahi hai
+    if (window.confirm('Lead delete karna chahte ho?')) {
+      try {
+        await deleteLead(lead.id)
+        fetchLeads()
+      } catch (err) {
+        console.error('Delete nahi hua!', err)
+      }
+    }
+  }
+
+  const filteredLeads = filter === 'all' ? leads : leads.filter(l => l.status === filter)
+  const totalLeads     = leads.length
+  const newLeads       = leads.filter(l => l.status === 'new').length
+  const contactedLeads = leads.filter(l => l.status === 'contacted').length
+  const convertedLeads = leads.filter(l => l.status === 'converted').length
+
+  const filterTabs = [
+    { key: 'all',         label: `All (${totalLeads})` },
+    { key: 'new',         label: `New (${newLeads})` },
+    { key: 'contacted',   label: `Contacted (${contactedLeads})` },
+    { key: 'meeting_set', label: `Meeting Set (${leads.filter(l => l.status === 'meeting_set').length})` },
+    { key: 'converted',   label: `Converted (${convertedLeads})` },
+    { key: 'lost',        label: `Lost (${leads.filter(l => l.status === 'lost').length})` },
+  ]
+
+  return (
+    <div style={s.shell}>
+
+      {/* ───────── SIDEBAR ───────── */}
+      <div style={s.sidebar}>
+        <div style={s.brand}>
+          <div style={s.brandIcon}>A</div>
+          <span style={s.brandName}>AdNexus</span>
+        </div>
+
+        <div style={s.sbTitle}>B2B Leads Feed</div>
+        <div style={s.sbSub}>Verified ₹10Cr+ turnover leads from your campaigns</div>
+
+        {[
+          '✦  Verified decision makers',
+          '✦  Real-time lead tracking',
+          '✦  AI-powered lead scoring',
+          '✦  Smart pipeline filters',
+        ].map((f, i) => (
+          <div key={i} style={s.sbFeat}>{f}</div>
+        ))}
+
+        <div style={s.navSection}>
+          {navItems.map(item => (
+            <div
+              key={item.label}
+              style={{
+                ...s.navItem,
+                ...(item.label === 'Leads' ? s.navItemActive : {}),
+              }}
+              onClick={() => navigate(item.path)}
+            >
+              <span style={{ fontSize: '15px' }}>{item.icon}</span>
+              {item.label}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ───────── MAIN ───────── */}
+      <div style={s.main}>
+
+        {/* Top nav */}
+        <div style={s.topNav}>
+          <button style={s.backBtn} onClick={() => navigate('/')}>
+            ← Back to Dashboard
+          </button>
+          <button style={s.refreshBtn} onClick={fetchLeads} disabled={loading}>
+            {loading ? 'Refreshing…' : '↻ Refresh'}
+          </button>
+        </div>
+
+        {/* Page title */}
+        <div style={s.pageTitle}>B2B Leads Feed</div>
+        <div style={s.pageSub}>Verified ₹10Cr+ turnover leads — live from your campaigns</div>
+
+        {/* KPI Cards */}
+        <div style={s.kpiRow}>
+          <div style={s.kpiCard}>
+            <div style={s.kpiLabel}>Total leads</div>
+            <div style={s.kpiVal}>{totalLeads}</div>
+          </div>
+          <div style={s.kpiCard}>
+            <div style={s.kpiLabel}>New</div>
+            <div style={{ ...s.kpiVal, color: '#2563eb' }}>{newLeads}</div>
+          </div>
+          <div style={s.kpiCard}>
+            <div style={s.kpiLabel}>Contacted</div>
+            <div style={{ ...s.kpiVal, color: '#d97706' }}>{contactedLeads}</div>
+          </div>
+          <div style={s.kpiCard}>
+            <div style={s.kpiLabel}>Converted</div>
+            <div style={{ ...s.kpiVal, color: '#16a34a' }}>{convertedLeads}</div>
+          </div>
+        </div>
+
+        {loadError && <div style={s.errorBox}>{loadError}</div>}
+
+        {/* Filter Tabs */}
+        <div style={s.filterRow}>
+          {filterTabs.map(f => (
+            <button
+              key={f.key}
+              onClick={() => setFilter(f.key)}
+              style={filter === f.key ? s.filterBtnActive : s.filterBtn}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Table */}
+        <div style={s.tableCard}>
+          {loading ? (
+            <div style={s.emptyState}>
+              <div style={s.spinner} />
+              Leads load ho rahe hain...
+            </div>
+          ) : filteredLeads.length === 0 ? (
+            <div style={s.emptyState}>
+              <div style={s.emptyIcon}>📭</div>
+              <div style={{ fontWeight: 500, color: '#4b5563', marginBottom: '4px' }}>
+                Koi lead nahi hai abhi
+              </div>
+              <div style={{ fontSize: '12px', color: '#8892b0' }}>
+                Jaise hi aapke campaigns se naya real lead aayega, wo yahan automatically show hoga.
+              </div>
+            </div>
+          ) : (
+            <table style={s.table}>
+              <thead>
+                <tr style={s.theadRow}>
+                  <th style={s.th}>Lead name</th>
+                  <th style={s.th}>Phone</th>
+                  <th style={s.th}>Sector</th>
+                  <th style={s.th}>Turnover</th>
+                  <th style={s.th}>Location</th>
+                  <th style={s.th}>Via</th>
+                  <th style={s.th}>Status</th>
+                  <th style={s.th}>Added</th>
+                  <th style={s.th}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredLeads.map((lead) => {
+                  const platform = platforms.find(p => p.name === lead.platform_name)
+                  const av = getAvatarColor(lead.name)
+                  return (
+                    <tr
+                      key={lead.id}
+                      style={{
+                        ...s.tr,
+                        background: hoveredRow === lead.id ? '#f8faff' : 'transparent',
+                      }}
+                      onMouseEnter={() => setHoveredRow(lead.id)}
+                      onMouseLeave={() => setHoveredRow(null)}
+                    >
+                      <td style={s.td}>
+                        <div style={s.leadCell}>
+                          <div style={{ ...s.avatar, background: av.bg, color: av.color }}>
+                            {lead.name?.charAt(0)?.toUpperCase() || '?'}
+                          </div>
+                          <span style={{ fontWeight: 500, fontSize: '13px' }}>{lead.name || '—'}</span>
+                        </div>
+                      </td>
+                      <td style={s.td}>
+                        <span style={{ fontSize: '13px' }}>{lead.phone || '—'}</span>
+                      </td>
+                      <td style={s.td}>
+                        <span style={s.sectorPill}>{lead.company_sector || '—'}</span>
+                      </td>
+                      <td style={s.td}>
+                        <span style={s.turnoverPill}>{lead.turnover || '—'}</span>
+                      </td>
+                      <td style={s.td}>
+                        <span style={{ fontSize: '13px' }}>📍 {lead.location || '—'}</span>
+                      </td>
+                      <td style={s.td}>
+                        {platform ? (
+                          <div style={{ ...s.platIcon, background: platform.color }}>
+                            {platform.icon}
+                          </div>
+                        ) : (
+                          <span style={s.turnoverPill}>{lead.platform_name || 'Direct'}</span>
+                        )}
+                      </td>
+                      <td style={s.td}>
+                        <select
+                          value={lead.status}
+                          onChange={(e) => handleStatusChange(lead, e.target.value)}
+                          style={{ ...s.statusSelect, ...statusStyles[lead.status] }}
+                        >
+                          {statusOptions.map(opt => (
+                            <option key={opt} value={opt}>
+                              {opt.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                      <td style={s.td}>
+                        <span style={s.dateText}>
+                          {lead.created_at
+                            ? new Date(lead.created_at).toLocaleDateString('en-IN', {
+                                day: 'numeric', month: 'short', year: 'numeric',
+                              })
+                            : '—'}
+                        </span>
+                      </td>
+                      <td style={s.td}>
+                        {lead.source === 'crm' && (
+                          <button
+                            style={s.deleteBtn}
+                            onClick={() => handleDelete(lead)}
+                            onMouseEnter={e => {
+                              e.currentTarget.style.background = '#FEF2F2'
+                              e.currentTarget.style.borderColor = '#f87171'
+                              e.currentTarget.style.color = '#dc2626'
+                            }}
+                            onMouseLeave={e => {
+                              e.currentTarget.style.background = 'transparent'
+                              e.currentTarget.style.borderColor = '#e0e4ef'
+                              e.currentTarget.style.color = '#8892b0'
+                            }}
+                          >
+                            🗑
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+      </div>
+    </div>
+  )
+}
+
+/* ─────────────────── STYLES ─────────────────── */
+const s = {
+
+  shell: {
+    display: 'grid',
+    gridTemplateColumns: '220px 1fr',
+    minHeight: '100vh',
+    fontFamily: 'inherit',
+  },
+
+  /* ── Sidebar ── */
+  sidebar: {
+    background: '#1e3a5f',
+    padding: '1.5rem',
+    display: 'flex',
+    flexDirection: 'column',
+    minHeight: '100vh',
+  },
+  brand: { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1.75rem' },
+  brandIcon: {
+    width: '28px', height: '28px', background: '#3b82f6',
+    borderRadius: '6px', display: 'flex', alignItems: 'center',
+    justifyContent: 'center', color: '#fff', fontSize: '14px', fontWeight: '700',
+  },
+  brandName: { color: '#fff', fontSize: '15px', fontWeight: '500' },
+  sbTitle: { color: '#fff', fontSize: '16px', fontWeight: '500', lineHeight: '1.4', marginBottom: '6px' },
+  sbSub:   { color: '#93b4d4', fontSize: '12px', lineHeight: '1.5', marginBottom: '1.25rem' },
+  sbFeat:  { color: '#93b4d4', fontSize: '12px', marginBottom: '10px' },
+  navSection: {
+    marginTop: 'auto', paddingTop: '1.25rem',
+    borderTop: '0.5px solid rgba(255,255,255,0.12)',
+  },
+  navItem: {
+    display: 'flex', alignItems: 'center', gap: '9px',
+    padding: '8px 10px', borderRadius: '8px', cursor: 'pointer',
+    fontSize: '13px', color: '#93b4d4', marginBottom: '2px',
+  },
+  navItemActive: {
+    background: 'rgba(59,130,246,0.2)', color: '#60a5fa',
+  },
+
+  /* ── Main area ── */
+  main: {
+    background: '#f4f6fb',
+    padding: '28px',
+    display: 'flex',
+    flexDirection: 'column',
+  },
+
+  /* Top nav */
+  topNav: {
+    display: 'flex', justifyContent: 'space-between',
+    alignItems: 'center', marginBottom: '18px',
+  },
+  backBtn: {
+    background: 'none', border: 'none', color: '#2563eb',
+    fontSize: '13px', cursor: 'pointer', padding: 0, fontFamily: 'inherit',
+  },
+  refreshBtn: {
+    background: 'transparent', color: '#2563eb',
+    border: '0.5px solid #bfdbfe', borderRadius: '8px',
+    padding: '8px 16px', fontSize: '13px', fontWeight: '500',
+    cursor: 'pointer', fontFamily: 'inherit',
+  },
+
+  /* Title */
+  pageTitle: { fontSize: '22px', fontWeight: '500', color: '#1a1a2e', marginBottom: '3px' },
+  pageSub:   { fontSize: '12px', color: '#8892b0', marginBottom: '20px' },
+
+  /* KPI */
+  kpiRow: {
+    display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)',
+    gap: '12px', marginBottom: '18px',
+  },
+  kpiCard: {
+    background: '#fff', border: '0.5px solid #e0e4ef',
+    borderRadius: '10px', padding: '16px 18px',
+  },
+  kpiLabel: {
+    fontSize: '11px', fontWeight: '500', color: '#8892b0',
+    textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px',
+  },
+  kpiVal: { fontSize: '24px', fontWeight: '500', color: '#1a1a2e' },
+
+  /* Alerts */
+  errorBox: {
+    background: '#FEF2F2', color: '#dc2626', padding: '10px 14px',
+    borderRadius: '8px', fontSize: '13px', marginBottom: '14px',
+    border: '0.5px solid #FECACA',
+  },
+
+  /* Filters */
+  filterRow: { display: 'flex', gap: '7px', marginBottom: '14px', flexWrap: 'wrap' },
+  filterBtn: {
+    padding: '5px 14px', borderRadius: '20px',
+    border: '0.5px solid #d0d5e8', background: '#fff',
+    fontSize: '12px', color: '#8892b0', cursor: 'pointer', fontFamily: 'inherit',
+  },
+  filterBtnActive: {
+    padding: '5px 14px', borderRadius: '20px',
+    border: '0.5px solid #2563eb', background: '#2563eb',
+    fontSize: '12px', color: '#fff', cursor: 'pointer',
+    fontFamily: 'inherit', fontWeight: '500',
+  },
+
+  /* Table */
+  tableCard: {
+    background: '#fff', border: '0.5px solid #e0e4ef',
+    borderRadius: '12px', overflow: 'hidden',
+  },
+  table: { width: '100%', borderCollapse: 'collapse', fontSize: '13px' },
+  theadRow: { background: '#f8faff' },
+  th: {
+    padding: '10px 14px', textAlign: 'left', color: '#8892b0',
+    fontWeight: '500', borderBottom: '0.5px solid #e0e4ef',
+    fontSize: '11px', textTransform: 'uppercase',
+    letterSpacing: '0.05em', whiteSpace: 'nowrap',
+  },
+  tr: { borderBottom: '0.5px solid #f0f2f8', transition: 'background 0.1s' },
+  td: { padding: '11px 14px', color: '#1a1a2e', verticalAlign: 'middle' },
+
+  /* Cell parts */
+  leadCell:    { display: 'flex', alignItems: 'center', gap: '9px' },
+  avatar: {
+    width: '30px', height: '30px', borderRadius: '50%',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    fontSize: '12px', fontWeight: '500', flexShrink: 0,
+  },
+  sectorPill: {
+    fontSize: '11px', background: '#EFF6FF', color: '#1d4ed8',
+    borderRadius: '20px', padding: '3px 10px', display: 'inline-block',
+  },
+  turnoverPill: {
+    fontSize: '11px', background: '#f4f6fb', color: '#8892b0',
+    borderRadius: '20px', padding: '3px 10px', display: 'inline-block',
+    border: '0.5px solid #e0e4ef',
+  },
+  platIcon: {
+    width: '26px', height: '26px', borderRadius: '6px',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    fontSize: '10px', fontWeight: '700', color: '#fff',
+  },
+  statusSelect: {
+    padding: '4px 22px 4px 10px', borderRadius: '20px',
+    fontSize: '11px', fontWeight: '500', cursor: 'pointer',
+    fontFamily: 'inherit', outline: 'none',
+    appearance: 'none', WebkitAppearance: 'none',
+    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%23888'/%3E%3C/svg%3E")`,
+    backgroundRepeat: 'no-repeat',
+    backgroundPosition: 'right 7px center',
+  },
+  dateText:  { fontSize: '12px', color: '#8892b0' },
+  deleteBtn: {
+    width: '28px', height: '28px', borderRadius: '7px',
+    border: '0.5px solid #e0e4ef', background: 'transparent',
+    color: '#8892b0', cursor: 'pointer', fontFamily: 'inherit',
+    fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+  },
+  emptyState: {
+    textAlign: 'center', padding: '60px 20px', color: '#8892b0', fontSize: '13px',
+  },
+  emptyIcon: { fontSize: '32px', marginBottom: '10px' },
+  spinner: {
+    width: '20px', height: '20px', margin: '0 auto 12px',
+    border: '2px solid #e0e4ef', borderTopColor: '#2563eb',
+    borderRadius: '50%', animation: 'spin 0.7s linear infinite',
+  },
+}
+
+export default Leads

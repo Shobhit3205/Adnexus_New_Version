@@ -1,0 +1,392 @@
+# ============================================================
+# backend/app/services/meta_ads_service.py
+# Meta Ads API Integration — Facebook + Instagram
+# pip install facebook-business
+# ============================================================
+
+from facebook_business.api import FacebookAdsApi
+from facebook_business.adobjects.adaccount import AdAccount
+from facebook_business.adobjects.campaign import Campaign
+from facebook_business.adobjects.adset import AdSet
+from facebook_business.adobjects.adcreative import AdCreative
+from facebook_business.adobjects.ad import Ad
+# from facebook_business.adobjects.adsimage import AdsImage
+from facebook_business.exceptions import FacebookRequestError
+import os
+import requests
+import hmac
+import hashlib
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# ─── Config ──────────────────────────────────────────────────
+META_APP_ID       = os.getenv("META_APP_ID")
+META_APP_SECRET   = os.getenv("META_APP_SECRET")
+META_ACCESS_TOKEN = os.getenv("META_ACCESS_TOKEN")       # Long-lived token
+META_AD_ACCOUNT   = os.getenv("META_AD_ACCOUNT_ID")      # act_XXXXXXXXX — test ya production
+
+
+# ─── Client initialize karo ──────────────────────────────────
+def init_meta_api():
+    appsecret_proof = hmac.new(
+        META_APP_SECRET.encode('utf-8'),
+        META_ACCESS_TOKEN.encode('utf-8'),
+        hashlib.sha256
+    ).hexdigest()
+    
+    FacebookAdsApi.init(
+        app_id=META_APP_ID,
+        app_secret=META_APP_SECRET,
+        access_token=META_ACCESS_TOKEN
+    )
+    
+    account = AdAccount(
+        META_AD_ACCOUNT,
+        api=FacebookAdsApi.get_default_api()
+    )
+    return account
+
+
+# ════════════════════════════════════════════════════════════
+# 1. CAMPAIGN BANAO
+# ════════════════════════════════════════════════════════════
+def create_meta_campaign(campaign_data: dict) -> dict:
+    """
+    campaign_data = {
+        "name": "Loan Goods Q1 2026",
+        "goal": "LEAD_GEN",
+        "budget_amount": 10000
+    }
+    """
+    try:
+        account = init_meta_api()
+
+        goal = campaign_data.get("goal", "LEAD_GEN")
+
+        # Meta v23+ objectives
+        objective_map = {
+            "LEAD_GEN": "OUTCOME_TRAFFIC",      # Testing ke liye
+            "SALES": "OUTCOME_SALES",
+            "TRAFFIC": "OUTCOME_TRAFFIC",
+            "AWARENESS": "OUTCOME_AWARENESS",
+            "ENGAGEMENT": "OUTCOME_ENGAGEMENT",
+        }
+
+        objective = objective_map.get(goal, "OUTCOME_TRAFFIC")
+
+        campaign = account.create_campaign(
+            fields=[],
+            params={
+                "name": campaign_data["name"],
+                "objective": objective,
+                "status": "PAUSED",
+                "special_ad_categories": [],
+                "is_adset_budget_sharing_enabled": False
+            }
+        )
+
+        return {
+            "campaign_id": campaign["id"],
+            "status": "PAUSED",
+            "platform": "meta"
+        }
+
+    except FacebookRequestError as e:
+     raise Exception(
+        f"""
+Meta Error Code: {e.api_error_code()}
+Meta Error Subcode: {e.api_error_subcode()}
+Meta Error Type: {e.api_error_type()}
+Meta Message: {e.api_error_message()}
+Meta Response: {e.body()}
+"""
+    )
+# ════════════════════════════════════════════════════════════
+# 2. AD SET BANAO (targeting yahan hota hai)
+# ════════════════════════════════════════════════════════════
+def create_meta_ad_set(campaign_id: str, ad_set_data: dict) -> dict:
+    """
+    ad_set_data = {
+        "name": "Loan Goods - Delhi NCR",
+        "daily_budget": 500,          # rupees mein
+        "start_time": "2026-05-27",
+        "end_time": "2026-06-27",
+        "targeting": {
+            "locations": ["Delhi", "Mumbai", "Noida"],
+            "age_min": 25,
+            "age_max": 55,
+            "genders": [1, 2]         # 1=male, 2=female
+        },
+        "goal": "LEAD_GEN"
+    }
+    Returns: { "adset_id": "..." }
+    """
+    try:
+        account = init_meta_api()
+
+        # Location targeting
+        geo_locations = {
+            "cities": [{"name": loc} for loc in ad_set_data["targeting"].get("locations", ["India"])],
+            "location_types": ["home", "recent"]
+        }
+
+        # Optimization goal
+        opt_goal_map = {
+            "LEAD_GEN":        AdSet.OptimizationGoal.lead_generation,
+            "BRAND_AWARENESS": AdSet.OptimizationGoal.reach,
+        }
+        opt_goal    = opt_goal_map.get(ad_set_data.get("goal", "LEAD_GEN"),
+                                       AdSet.OptimizationGoal.lead_generation)
+
+        billing_map = {
+            "LEAD_GEN":        AdSet.BillingEvent.impressions,
+            "BRAND_AWARENESS": AdSet.BillingEvent.impressions,
+        }
+        billing     = billing_map.get(ad_set_data.get("goal", "LEAD_GEN"),
+                                      AdSet.BillingEvent.impressions)
+
+        adset = account.create_ad_set(
+            fields=[],
+            params={
+                AdSet.Field.name:             ad_set_data["name"],
+                AdSet.Field.campaign_id:      campaign_id,
+                AdSet.Field.daily_budget:     int(ad_set_data["daily_budget"]) * 100,  # paise mein
+                AdSet.Field.billing_event:    billing,
+                AdSet.Field.optimization_goal: opt_goal,
+                AdSet.Field.bid_amount:       200 * 100,  # ₹200 bid
+                AdSet.Field.targeting: {
+                    "geo_locations": geo_locations,
+                    "age_min": ad_set_data["targeting"].get("age_min", 25),
+                    "age_max": ad_set_data["targeting"].get("age_max", 55),
+                    "genders": ad_set_data["targeting"].get("genders", [1, 2]),
+                    "publisher_platforms": ["facebook", "instagram"],
+                    "facebook_positions":  ["feed", "right_hand_column"],
+                    "instagram_positions": ["stream"],
+                },
+                AdSet.Field.start_time: f"{ad_set_data['start_time']}T00:00:00+0530",
+                AdSet.Field.end_time:   f"{ad_set_data['end_time']}T23:59:59+0530",
+                AdSet.Field.status:     AdSet.Status.paused,
+            }
+        )
+
+        return {
+            "adset_id": adset["id"],
+            "status":   "PAUSED"
+        }
+
+    except FacebookRequestError as e:
+        raise Exception(f"Meta ad set error: {e.api_error_message()}")
+
+
+# ════════════════════════════════════════════════════════════
+# 3. AD CREATIVE BANAO
+# ════════════════════════════════════════════════════════════
+def create_meta_ad_creative(ad_content: dict) -> dict:
+    """
+    ad_content = {
+        "name": "Loan Ad Creative",
+        "primary_text": "Get working capital loan upto ₹5Cr. Apply now!",
+        "headline": "Fast Business Loan",
+        "description": "No collateral. Quick approval.",
+        "cta": "APPLY_NOW",             # ya "LEARN_MORE", "SIGN_UP"
+        "link_url": "https://yourdomain.com/apply",
+        "image_url": "https://..."      # ya image_path for upload
+    }
+    Returns: { "creative_id": "..." }
+    """
+    try:
+        account = init_meta_api()
+
+        # Image upload (agar local file hai)
+        image_hash = None
+        if ad_content.get("image_path"):
+            image = account.create_ad_image(
+                params={"filename": ad_content["image_path"]}
+            )
+            image_hash = image["images"][list(image["images"].keys())[0]]["hash"]
+
+        # Creative object
+        creative_params = {
+            AdCreative.Field.name: ad_content.get("name", "AdNexus Creative"),
+            AdCreative.Field.object_story_spec: {
+                "page_id": os.getenv("META_PAGE_ID", ""),
+                "link_data": {
+                    "message":     ad_content["primary_text"],
+                    "name":        ad_content["headline"],
+                    "description": ad_content.get("description", ""),
+                    "link":        ad_content["link_url"],
+                    "call_to_action": {
+                        "type":  ad_content.get("cta", "LEARN_MORE"),
+                        "value": {"link": ad_content["link_url"]}
+                    },
+                    **({"image_hash": image_hash} if image_hash else
+                       {"picture": ad_content.get("image_url", "")}),
+                }
+            }
+        }
+
+        creative = account.create_ad_creative(
+            fields=[],
+            params=creative_params
+        )
+
+        return {
+            "creative_id": creative["id"]
+        }
+
+    except FacebookRequestError as e:
+        raise Exception(f"Meta creative error: {e.api_error_message()}")
+
+
+# ════════════════════════════════════════════════════════════
+# 4. AD BANAO
+# ════════════════════════════════════════════════════════════
+def create_meta_ad(adset_id: str, creative_id: str, ad_name: str) -> dict:
+    """
+    Returns: { "ad_id": "...", "status": "IN_REVIEW" }
+    """
+    try:
+        account = init_meta_api()
+
+        ad = account.create_ad(
+            fields=[],
+            params={
+                Ad.Field.name:        ad_name,
+                Ad.Field.adset_id:    adset_id,
+                Ad.Field.creative:    {"creative_id": creative_id},
+                Ad.Field.status:      Ad.Status.paused,
+            }
+        )
+
+        return {
+            "ad_id":  ad["id"],
+            "status": "PAUSED"
+        }
+
+    except FacebookRequestError as e:
+     raise Exception(
+        f"""
+Meta Error Code: {e.api_error_code()}
+Meta Error Subcode: {e.api_error_subcode()}
+Meta Error Type: {e.api_error_type()}
+Meta Message: {e.api_error_message()}
+Meta Response: {e.body()}
+"""
+    )
+
+
+# ════════════════════════════════════════════════════════════
+# 5. CAMPAIGN STATUS CHECK
+# ════════════════════════════════════════════════════════════
+def get_meta_campaign_status(campaign_id: str) -> dict:
+    """
+    Meta se latest status + basic stats fetch karo
+    Returns: { "status": "...", "reach": 0, "impressions": 0, "spend": 0 }
+    """
+    try:
+        init_meta_api()
+        campaign = Campaign(campaign_id)
+        data = campaign.api_get(
+            fields=[
+                Campaign.Field.name,
+                Campaign.Field.status,
+                Campaign.Field.effective_status,
+            ]
+        )
+
+        # Insights bhi lo (test mein 0 aayega)
+        insights = campaign.get_insights(
+            fields=["reach", "impressions", "spend"],
+            params={"date_preset": "lifetime"}
+        )
+
+        stats = {}
+        if insights:
+            stats = {
+                "reach":       insights[0].get("reach", 0),
+                "impressions": insights[0].get("impressions", 0),
+                "spend":       insights[0].get("spend", 0),
+            }
+
+        return {
+            "campaign_id":      campaign_id,
+            "name":             data.get("name"),
+            "status":           data.get("status"),
+            "effective_status": data.get("effective_status"),
+            **stats
+        }
+
+    except FacebookRequestError as e:
+        raise Exception(f"Meta status error: {e.api_error_message()}")
+
+
+# ════════════════════════════════════════════════════════════
+# 6. MAIN FUNCTION — campaigns.py se yeh call karo
+def submit_campaign_to_meta(campaign_data: dict, ad_content_data: dict) -> dict:
+    """
+    Ek hi function call — poora campaign Meta pe submit ho jaata hai
+    """
+
+    try:
+        # Step 1: Campaign
+        campaign_result = create_meta_campaign(campaign_data)
+        print("STEP 1 CAMPAIGN SUCCESS =", campaign_result)
+
+        # Step 2: Ad Set
+        adset_result = create_meta_ad_set(
+            campaign_result["campaign_id"],
+            {
+                "name": f"{campaign_data['name']} - Ad Set",
+                "daily_budget": max(
+                    100,
+                    int(campaign_data.get("budget_amount", 3000) / 30)
+                ),
+                "start_time": campaign_data.get("start_date", "2026-06-01"),
+                "end_time": campaign_data.get("end_date", "2026-06-30"),
+                "goal": campaign_data.get("goal", "LEAD_GEN"),
+                "targeting": campaign_data.get(
+                    "targeting",
+                    {
+                        "locations": ["Delhi", "Mumbai"],
+                        "age_min": 25,
+                        "age_max": 55,
+                        "genders": [1, 2]
+                    }
+                )
+            }
+        )
+
+        print("STEP 2 ADSET SUCCESS =", adset_result)
+
+        # Step 3: Creative
+        creative_result = create_meta_ad_creative(ad_content_data)
+        print("STEP 3 CREATIVE SUCCESS =", creative_result)
+
+        # Step 4: Ad
+        ad_result = create_meta_ad(
+            adset_result["adset_id"],
+            creative_result["creative_id"],
+            f"{campaign_data['name']} - Ad"
+        )
+
+        print("STEP 4 AD SUCCESS =", ad_result)
+
+        return {
+            "success": True,
+            "meta_campaign_id": campaign_result["campaign_id"],
+            "meta_adset_id": adset_result["adset_id"],
+            "meta_creative_id": creative_result["creative_id"],
+            "meta_ad_id": ad_result["ad_id"],
+            "status": "PAUSED",
+            "platform": "meta"
+        }
+
+    except Exception as e:
+        print("META ERROR =", str(e))
+
+        return {
+            "success": False,
+            "error": str(e),
+            "platform": "meta"
+        }

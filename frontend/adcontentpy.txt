@@ -1,0 +1,386 @@
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from app.database import get_db
+from app.models.models import AdContent, Campaign, Platform
+from pydantic import BaseModel
+from typing import Optional, List
+import os, json
+import httpx
+
+# ── Helper: Groq API call ──
+async def call_gemini(prompt: str, max_tokens: int = 2000) -> str:
+    GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+    if not GROQ_API_KEY:
+        raise HTTPException(status_code=500, detail="GROQ_API_KEY set nahi hai!")
+
+    async with httpx.AsyncClient(timeout=45.0) as client:
+        response = await client.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {GROQ_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": "llama-3.3-70b-versatile",
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": max_tokens,
+                "temperature": 0.7,
+            }
+        )
+
+    if response.status_code != 200:
+        raise HTTPException(status_code=500, detail=f"Groq API error: {response.text}")
+
+    data = response.json()
+    text = data["choices"][0]["message"]["content"]
+    text = text.replace("```json", "").replace("```", "").strip()
+    return text
+
+
+# ── Helper: Unsplash image fetch (no API key needed) ──
+async def get_unsplash_image(query: str) -> str:
+    """
+    Fetches a real Unsplash image URL by:
+    1. Hitting source.unsplash.com on the SERVER (no CORS issue)
+    2. Following the redirect to get the final images.unsplash.com CDN URL
+    3. Returning that direct CDN URL to the frontend — loads perfectly in <img>
+    
+    A unique sig= seed ensures a different image every generation.
+    """
+    import time
+    clean_query = query.strip().replace(" ", ",")[:60]
+    seed = int(time.time())
+    source_url = f"https://source.unsplash.com/800x500/?{clean_query}&sig={seed}"
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+            resp = await client.get(source_url)
+            final_url = str(resp.url)
+            # Make sure we got a real Unsplash CDN URL
+            if "images.unsplash.com" in final_url or "plus.unsplash.com" in final_url:
+                return final_url
+            # If redirect landed somewhere unexpected, fall back to a known working image
+            raise ValueError("Unexpected redirect destination")
+    except Exception:
+        # Reliable fallback — a curated Unsplash photo that always loads
+        fallback_map = {
+            "business finance":  "https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=800&q=80",
+            "savings investment": "https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?w=800&q=80",
+            "technology":        "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&q=80",
+            "logistics":         "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=800&q=80",
+            "default":           "https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=800&q=80",
+        }
+        for key, url in fallback_map.items():
+            if key in query:
+                return url
+        return fallback_map["default"]
+
+
+# ── Helper: Pick Unsplash search keyword from business niche ──
+def niche_to_image_query(business_niche: str, goal: str) -> str:
+    """
+    Maps common B2B business niches to better Unsplash search terms
+    so images are more relevant than just searching the raw prompt.
+    """
+    niche_lower = business_niche.lower()
+
+    keyword_map = [
+        (["loan", "lending", "credit", "working capital", "msme", "nbfc"], "business finance office"),
+        (["fixed deposit", "fd", "investment", "returns", "saving"],        "savings investment money"),
+        (["invoice", "discounting", "factoring"],                           "invoice business documents"),
+        (["insurance"],                                                      "insurance protection business"),
+        (["saas", "software", "automation", "tech", "platform"],            "technology software business"),
+        (["logistics", "transport", "fleet", "supply chain"],               "logistics transport trucks"),
+        (["machinery", "equipment", "manufacturing"],                        "factory machinery industry"),
+        (["real estate", "property", "construction"],                        "real estate building office"),
+        (["healthcare", "pharma", "medical"],                                "healthcare medical office"),
+        (["education", "training", "edtech"],                                "education learning office"),
+        (["partner", "partnership", "grow", "payout"],                      "business partnership team"),
+        (["b2b", "enterprise", "corporate"],                                 "corporate business meeting"),
+    ]
+
+    for keywords, image_query in keyword_map:
+        if any(kw in niche_lower for kw in keywords):
+            return image_query
+
+    # Default fallback based on goal
+    goal_lower = (goal or "").lower()
+    if "lead" in goal_lower:
+        return "business growth success"
+    if "brand" in goal_lower:
+        return "brand corporate professional"
+    return "business india office professional"
+
+
+# ════════════════════════════════════════════════════
+# ROUTER 1 — Campaign-specific ad content (DB routes)
+# ════════════════════════════════════════════════════
+router = APIRouter(tags=["campaigns"])
+
+class AdContentCreate(BaseModel):
+    platform_id: int
+    headline: str
+    description: str
+    image_url: Optional[str] = ""
+    cta_button: Optional[str] = "Apply Now"
+    target_age_min: Optional[int] = 25
+    target_age_max: Optional[int] = 55
+    target_audience: Optional[str] = ""
+
+@router.post("/{campaign_id}/ad-content")
+def create_ad_content(
+    campaign_id: int,
+    content: AdContentCreate,
+    db: Session = Depends(get_db)
+):
+    campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign nahi mila!")
+
+    ad = AdContent(
+        campaign_id=campaign_id,
+        platform_id=content.platform_id,
+        headline=content.headline,
+        description=content.description,
+        image_url=content.image_url,
+        cta_button=content.cta_button,
+        target_age_min=content.target_age_min,
+        target_age_max=content.target_age_max,
+        target_audience=content.target_audience
+    )
+    db.add(ad)
+    db.commit()
+    db.refresh(ad)
+    return {"message": "Ad content save ho gaya!", "ad_content": {
+        "id": ad.id,
+        "campaign_id": ad.campaign_id,
+        "platform_id": ad.platform_id,
+        "headline": ad.headline,
+        "description": ad.description,
+        "cta_button": ad.cta_button,
+    }}
+
+@router.get("/{campaign_id}/ad-content")
+def get_ad_contents(campaign_id: int, db: Session = Depends(get_db)):
+    campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign nahi mila!")
+
+    ads = db.query(AdContent).filter(AdContent.campaign_id == campaign_id).all()
+    return {"ad_contents": [
+        {
+            "id": a.id,
+            "platform_id": a.platform_id,
+            "platform_name": a.platform.name,
+            "headline": a.headline,
+            "description": a.description,
+            "image_url": a.image_url,
+            "cta_button": a.cta_button,
+            "target_audience": a.target_audience,
+            "target_age_min": a.target_age_min,
+            "target_age_max": a.target_age_max,
+        } for a in ads
+    ]}
+
+@router.put("/{campaign_id}/ad-content/{ad_id}")
+def update_ad_content(
+    campaign_id: int,
+    ad_id: int,
+    content: AdContentCreate,
+    db: Session = Depends(get_db)
+):
+    ad = db.query(AdContent).filter(
+        AdContent.id == ad_id,
+        AdContent.campaign_id == campaign_id
+    ).first()
+    if not ad:
+        raise HTTPException(status_code=404, detail="Ad content nahi mila!")
+
+    ad.headline = content.headline
+    ad.description = content.description
+    ad.image_url = content.image_url
+    ad.cta_button = content.cta_button
+    ad.target_age_min = content.target_age_min
+    ad.target_age_max = content.target_age_max
+    ad.target_audience = content.target_audience
+
+    db.commit()
+    db.refresh(ad)
+    return {"message": "Ad content update ho gaya!"}
+
+
+# ════════════════════════════════════════════════════
+# ROUTER 2 — AI endpoints
+# ════════════════════════════════════════════════════
+router = APIRouter()
+
+class AiGenerateRequest(BaseModel):
+    campaign_name: Optional[str] = "B2B Campaign"
+    business_niche: str
+    goal: Optional[str] = "Lead Gen"
+    budget: Optional[str] = ""
+    platforms: List[str]
+
+class AiGenerateResponse(BaseModel):
+    platforms: dict
+    image_url: Optional[str] = None   # ← NEW: image returned to frontend
+
+class LocationReachRequest(BaseModel):
+    platforms: List[str]
+    daily_budget: float
+    duration_days: int
+    business_niche: str
+    goal: Optional[str] = "Lead Gen"
+    cities: List[str]
+
+class LocationReachResponse(BaseModel):
+    cities: dict
+    total_summary: dict
+    best_city: str
+    strategy_tip: str
+
+
+# ── AI Ad Generate ──
+@router.post("/ai-generate", response_model=AiGenerateResponse)
+async def ai_generate_ad_content(request: AiGenerateRequest):
+    platform_names = ", ".join(request.platforms)
+
+    prompt = f"""You are an expert B2B ad copywriter for Indian businesses.
+Generate highly effective ad content for multiple platforms.
+Return ONLY a valid JSON object, no markdown, no explanation, no extra text.
+
+Format:
+{{
+  "platforms": {{
+    "Google Ads": {{
+      "headline": "...",
+      "description": "...",
+      "cta_button": "Apply Now",
+      "target_audience": "...",
+      "target_age_min": 28,
+      "target_age_max": 55
+    }},
+    "LinkedIn": {{
+      "headline": "...",
+      "description": "...",
+      "cta_button": "Learn More",
+      "target_audience": "...",
+      "target_age_min": 28,
+      "target_age_max": 55
+    }}
+  }}
+}}
+
+Rules:
+- headline: max 80 characters
+- description: max 250 characters
+- cta_button: must be exactly one of: Apply Now, Learn More, Contact Us, Get Started, Book a Call, Download Now
+- Make content platform-specific (Google Ads = search intent, LinkedIn = professional tone, Facebook/Instagram = engaging & visual)
+- Only generate for these platforms: {platform_names}
+- Use Indian context (₹, crore, lakh where relevant)
+
+Campaign: {request.campaign_name}
+Business / Product: {request.business_niche}
+Goal: {request.goal}
+Daily Budget: ₹{request.budget}/day
+Platforms: {platform_names}
+
+Generate compelling B2B ad copy for each platform. Make it action-oriented and specific.
+Return ONLY the JSON, nothing else."""
+
+    try:
+        # Run AI text generation and Unsplash image fetch in parallel
+        import asyncio
+
+        image_query = niche_to_image_query(request.business_niche, request.goal or "")
+
+        text_task  = call_gemini(prompt, max_tokens=1500)
+        image_task = get_unsplash_image(image_query)
+
+        text, image_url = await asyncio.gather(text_task, image_task)
+
+        parsed = json.loads(text)
+        return AiGenerateResponse(
+            platforms=parsed.get("platforms", {}),
+            image_url=image_url,   # ← sent back to frontend
+        )
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=500, detail=f"AI response parse nahi hua: {str(e)}")
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=504, detail="AI request timeout. Dobara try karo.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"AI generation failed: {str(e)}")
+
+
+# ── Location Reach Estimation ──
+@router.post("/location-reach", response_model=LocationReachResponse)
+async def estimate_location_reach(request: LocationReachRequest):
+    total_budget = request.daily_budget * request.duration_days
+    platform_names = ", ".join(request.platforms)
+    cities_list = ", ".join(request.cities)
+
+    prompt = f"""You are an expert digital advertising analyst specializing in Indian B2B markets.
+Given campaign details, estimate realistic audience reach for each Indian city.
+Return ONLY a valid JSON object, no markdown, no explanation, no extra text.
+
+Format:
+{{
+  "cities": {{
+    "Delhi NCR": {{
+      "city": "Delhi NCR",
+      "total_audience": "45L",
+      "estimated_impressions": "1.2L",
+      "estimated_reach": "38,000",
+      "estimated_leads": "180",
+      "cpm": "₹85",
+      "cpc": "₹12",
+      "competition_level": "High",
+      "recommendation": "Best for B2B finance leads due to large corporate density"
+    }}
+  }},
+  "total_summary": {{
+    "total_reach": "1.1L",
+    "total_impressions": "3.5L",
+    "total_leads": "420",
+    "avg_cpm": "₹78",
+    "total_budget": "₹45,000"
+  }},
+  "best_city": "Delhi NCR",
+  "strategy_tip": "Focus 60% budget on Delhi NCR + Mumbai for best B2B lead quality"
+}}
+
+Rules:
+- Use Indian number format (L = lakh, Cr = crore, K = thousand)
+- Base estimates on actual Indian digital ad market CPMs: Google ₹60-120, LinkedIn ₹150-300, Facebook ₹40-90
+- LinkedIn reach is smaller but higher B2B quality
+- City business density order: Mumbai > Delhi > Bangalore > Hyderabad > Chennai > Pune
+- competition_level must be one of: Low, Medium, High, Very High
+- Be realistic, not overly optimistic
+- Generate data for ONLY these cities: {cities_list}
+
+Campaign Details:
+Platforms: {platform_names}
+Business/Product: {request.business_niche}
+Goal: {request.goal}
+Daily Budget: ₹{request.daily_budget:,.0f}/day
+Duration: {request.duration_days} days
+Total Budget: ₹{total_budget:,.0f}
+Cities: {cities_list}
+
+Return ONLY the JSON object, nothing else."""
+
+    try:
+        text = await call_gemini(prompt, max_tokens=2000)
+        parsed = json.loads(text)
+        return LocationReachResponse(
+            cities=parsed.get("cities", {}),
+            total_summary=parsed.get("total_summary", {}),
+            best_city=parsed.get("best_city", ""),
+            strategy_tip=parsed.get("strategy_tip", ""),
+        )
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=500, detail=f"AI response parse nahi hua: {str(e)}")
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=504, detail="AI request timeout. Dobara try karo.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Location reach estimation failed: {str(e)}")

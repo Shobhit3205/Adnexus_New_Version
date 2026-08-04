@@ -1,0 +1,873 @@
+import React, { useState, useEffect, useRef } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { getAdContents, createAdContent } from '../services/api'
+
+const platforms = [
+  { id: 1, name: 'Google Ads', color: '#1A73E8', icon: 'G',  desc: 'Search & Display' },
+  { id: 2, name: 'LinkedIn',   color: '#0A66C2', icon: 'in', desc: 'B2B Professional'  },
+  { id: 3, name: 'Facebook',   color: '#1877F2', icon: 'f',  desc: 'Social Media'      },
+  { id: 4, name: 'Instagram',  color: '#E1306C', icon: '📷', desc: 'Visual Content'    },
+]
+
+const ctaOptions = ['Apply Now', 'Learn More', 'Contact Us', 'Get Started', 'Book a Call', 'Download Now']
+const CATEGORIES = ['Finance & Loans', 'B2B Growth', 'Brand Awareness']
+
+const PREBUILT_TEMPLATES = [
+  {
+    id: 't1', name: 'Working Capital Loan', category: 'Finance & Loans',
+    badge: 'POPULAR',
+    imageUrl: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=400&q=80',
+    overlay: 'linear-gradient(180deg,rgba(8,20,50,.2) 0%,rgba(8,20,50,.82) 100%)',
+    preview: { headline: 'Working Capital Loan', sub: 'Upto ₹50L · Instant Approval', cta: 'Apply Now' },
+    description: 'Get funds up to ₹50 Lakhs for your business needs.',
+    content: { headline: 'Working Capital Loan — Instant Approval', description: 'Get working capital loan upto ₹50 lakhs. Apply now and get approval in 24 hours! Minimal documentation.', cta_button: 'Apply Now', target_audience: 'Business Owners, CFOs, Finance Managers', target_age_min: 28, target_age_max: 55 },
+  },
+  {
+    id: 't2', name: 'Quick Digital Loan', category: 'Finance & Loans',
+    badge: 'HOT',
+    imageUrl: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=400&q=80',
+    overlay: 'linear-gradient(180deg,rgba(10,30,80,.2) 0%,rgba(10,30,80,.82) 100%)',
+    preview: { headline: 'Loan in 30 Minutes', sub: 'Instant KYC · Zero Paperwork', cta: 'Visit Us' },
+    description: 'Instant approval in 24 hours. Minimal documentation.',
+    content: { headline: 'Your Digital Loan Is Just 30 Minutes Away', description: 'Apply online in minutes. Instant KYC. Disbursement within 30 minutes. Zero paperwork hassle.', cta_button: 'Apply Now', target_audience: 'Salaried Professionals, Self-Employed, SME Owners', target_age_min: 24, target_age_max: 50 },
+  },
+  {
+    id: 't3', name: 'Fixed Deposits', category: 'Finance & Loans',
+    badge: 'TRENDING',
+    imageUrl: 'https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?w=400&q=80',
+    overlay: 'linear-gradient(180deg,rgba(15,15,40,.2) 0%,rgba(15,15,40,.82) 100%)',
+    preview: { headline: 'Smart Fixed Deposits', sub: 'Earn 7.15% Interest P.A', cta: 'Visit Us' },
+    description: 'Earn higher returns with secure fixed deposits.',
+    content: { headline: 'Smart Move — Fixed Deposits at 7.15% P.A.', description: 'Grow your savings safely. Lock in high interest rates on fixed deposits. 100% secure & RBI regulated.', cta_button: 'Learn More', target_audience: 'Investors, Retirees, Salaried Individuals', target_age_min: 30, target_age_max: 65 },
+  },
+  {
+    id: 't4', name: 'Invoice Discounting', category: 'Finance & Loans',
+    badge: 'NEW',
+    imageUrl: 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?w=400&q=80',
+    overlay: 'linear-gradient(180deg,rgba(8,40,100,.2) 0%,rgba(8,40,100,.82) 100%)',
+    preview: { headline: 'Turn Invoices Into Cash', sub: 'Same-day funds · Zero charges', cta: 'Apply Now' },
+    description: 'Unlock cash tied in invoices and grow your business.',
+    content: { headline: 'Turn Invoices Into Instant Cash', description: "Don't wait 60-90 days. Discount your invoices and get funds same day. Zero hidden charges.", cta_button: 'Apply Now', target_audience: 'B2B Business Owners, Export Companies, Traders', target_age_min: 28, target_age_max: 55 },
+  },
+  {
+    id: 't5', name: 'MSME Business Loan', category: 'Finance & Loans',
+    badge: null,
+    imageUrl: 'https://images.unsplash.com/photo-1521791136064-7986c2920216?w=400&q=80',
+    overlay: 'linear-gradient(180deg,rgba(10,50,20,.2) 0%,rgba(10,50,20,.82) 100%)',
+    preview: { headline: 'MSME Business Loan', sub: '₹5L to ₹5Cr · Fast Disbursal', cta: 'Apply Now' },
+    description: 'Fast approval for MSMEs. ₹5L to ₹5Cr available.',
+    content: { headline: 'MSME Business Loan — ₹5L to ₹5Cr', description: "India's most trusted MSME lender. Flexible repayment, minimal docs, fast approval.", cta_button: 'Apply Now', target_audience: 'MSME Owners, SME Directors, Business Heads', target_age_min: 28, target_age_max: 58 },
+  },
+  {
+    id: 't6', name: 'Grow With Us', category: 'B2B Growth',
+    badge: null,
+    imageUrl: 'https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=400&q=80',
+    overlay: 'linear-gradient(180deg,rgba(10,50,150,.2) 0%,rgba(10,50,150,.82) 100%)',
+    preview: { headline: 'Grow With Us!', sub: 'Payout 7% or 11%', cta: 'Visit Us' },
+    description: 'Partner with us. Earn payouts of 7% or 11%.',
+    content: { headline: 'Grow With Us — Payout Up To 11%', description: "Join our partner network. Earn payouts of 7% or 11%. 10,000+ businesses already growing with us.", cta_button: 'Learn More', target_audience: 'Business Owners, Investors, Partners', target_age_min: 28, target_age_max: 58 },
+  },
+  {
+    id: 't7', name: 'B2B Partnership', category: 'B2B Growth',
+    badge: null,
+    imageUrl: 'https://images.unsplash.com/photo-1559136555-9303baea8ebd?w=400&q=80',
+    overlay: 'linear-gradient(180deg,rgba(8,30,80,.2) 0%,rgba(8,30,80,.82) 100%)',
+    preview: { headline: 'Trusted by 500+ Businesses', sub: 'Partner with us today', cta: 'Contact Us' },
+    description: 'Join 500+ business partners. Exclusive benefits.',
+    content: { headline: 'Trusted by 500+ Businesses — Partner With Us', description: 'Join our network of 500+ business partners. Exclusive benefits, dedicated support, and growth opportunities.', cta_button: 'Contact Us', target_audience: 'Business Owners, Partnership Managers, Directors', target_age_min: 28, target_age_max: 55 },
+  },
+  {
+    id: 't8', name: 'SaaS Automation', category: 'B2B Growth',
+    badge: 'NEW',
+    imageUrl: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400&q=80',
+    overlay: 'linear-gradient(180deg,rgba(60,10,130,.2) 0%,rgba(20,5,60,.85) 100%)',
+    preview: { headline: 'Automate Your Business', sub: 'Free 14-Day Trial · No setup fee', cta: 'Get Started' },
+    description: 'Join 5,000+ companies. Free 14-day trial.',
+    content: { headline: 'Automate Your Business — Free 14-Day Trial', description: "Join 5,000+ companies using our platform. No setup fees. Cancel anytime.", cta_button: 'Get Started', target_audience: 'CTOs, Operations Heads, Business Owners', target_age_min: 25, target_age_max: 50 },
+  },
+  {
+    id: 't9', name: 'Machinery Finance', category: 'B2B Growth',
+    badge: null,
+    imageUrl: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=400&q=80',
+    overlay: 'linear-gradient(180deg,rgba(15,15,15,.2) 0%,rgba(15,15,15,.82) 100%)',
+    preview: { headline: 'Upgrade Your Machinery', sub: 'Easy EMI · Funds in 48hrs', cta: 'Get Started' },
+    description: 'Finance new or used machinery. Funds in 48 hours.',
+    content: { headline: 'Upgrade Your Machinery — Easy EMI Options', description: 'Finance new or used machinery with flexible repayment. Get funds in 48 hours. No collateral required.', cta_button: 'Get Started', target_audience: 'Manufacturers, Plant Owners, SME Businesses', target_age_min: 30, target_age_max: 58 },
+  },
+  {
+    id: 't10', name: 'Trusted MSME Lender', category: 'Brand Awareness',
+    badge: 'TOP',
+    imageUrl: 'https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=400&q=80',
+    overlay: 'linear-gradient(180deg,rgba(8,25,55,.2) 0%,rgba(8,25,55,.82) 100%)',
+    preview: { headline: "India's Most Trusted MSME Lender", sub: '10,000+ businesses funded', cta: 'Learn More' },
+    description: "We've funded 10,000+ businesses. Your growth partner.",
+    content: { headline: "India's Most Trusted MSME Lender", description: "We've funded 10,000+ businesses. ₹5L to ₹5Cr loans. Flexible repayment. Your growth partner.", cta_button: 'Learn More', target_audience: 'MSME Owners, SME Directors, Business Heads', target_age_min: 28, target_age_max: 58 },
+  },
+  {
+    id: 't11', name: 'Safe Investment', category: 'Brand Awareness',
+    badge: null,
+    imageUrl: 'https://images.unsplash.com/photo-1563986768609-322da13575f3?w=400&q=80',
+    overlay: 'linear-gradient(180deg,rgba(10,20,50,.2) 0%,rgba(10,20,50,.82) 100%)',
+    preview: { headline: 'Safe Investment', sub: 'Let money earn for you', cta: 'Visit Us' },
+    description: 'Trusted by thousands. Start investing today.',
+    content: { headline: 'Safe Investment — Let Money Earn For You', description: 'Invest safely and watch your money grow. Trusted by thousands of businesses.', cta_button: 'Visit Us', target_audience: 'Investors, Business Owners, HNIs', target_age_min: 28, target_age_max: 60 },
+  },
+  {
+    id: 't12', name: 'Smart Payout', category: 'Brand Awareness',
+    badge: null,
+    imageUrl: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=400&q=80',
+    overlay: 'linear-gradient(180deg,rgba(5,50,100,.2) 0%,rgba(5,50,100,.82) 100%)',
+    preview: { headline: 'Smart Move Fixed Deposits', sub: 'Payout 7% or 11% P.A', cta: 'Invest Now' },
+    description: 'Maximize returns. Flexible payout options.',
+    content: { headline: 'Smart Move — Payout 7% or 11% P.A.', description: 'Maximize your returns with our smart investment plans. Flexible payout options. 100% safe & secured.', cta_button: 'Learn More', target_audience: 'Investors, Retirees, Business Owners', target_age_min: 30, target_age_max: 62 },
+  },
+]
+
+const badgeColors = {
+  POPULAR:  '#7C3AED',
+  HOT:      '#DC2626',
+  TRENDING: '#0891B2',c
+  NEW:      '#059669',
+  TOP:      '#7B1FA2',
+}
+
+const API_BASE = 'http://127.0.0.1:8000/api'
+
+// ── Live Preview Card ──
+const LivePreviewPanel = ({ platform, content, previewImage }) => {
+  if (!platform) return null
+  const hasContent = content?.headline || content?.description || previewImage
+
+  return (
+    <div style={{
+      background: '#fff',
+      borderRadius: '14px',
+      border: '1px solid #E5E7EB',
+      overflow: 'hidden',
+      position: 'sticky',
+      top: '20px',
+    }}>
+      {/* Panel header */}
+      <div style={{
+        padding: '12px 16px',
+        borderBottom: '1px solid #F3F4F6',
+        background: '#F8FAFF',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+      }}>
+        <span style={{ fontSize: '12px', fontWeight: '700', color: '#374151', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          Live Preview
+        </span>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '5px',
+          fontSize: '11px', fontWeight: '600', color: platform.color,
+          background: platform.color + '12', padding: '3px 10px',
+          borderRadius: '20px', border: `1px solid ${platform.color}30`,
+        }}>
+          <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: platform.color }} />
+          {platform.name}
+        </div>
+      </div>
+
+      {/* Ad card preview */}
+      <div style={{ padding: '16px' }}>
+        {!hasContent ? (
+          <div style={{
+            border: '2px dashed #E5E7EB',
+            borderRadius: '12px',
+            padding: '40px 20px',
+            textAlign: 'center',
+            color: '#9CA3AF',
+          }}>
+            <div style={{ fontSize: '28px', marginBottom: '8px' }}>🖼️</div>
+            <div style={{ fontSize: '12px', fontWeight: '500' }}>Select a template or generate with AI to see a preview</div>
+          </div>
+        ) : (
+          <div style={{
+            borderRadius: '12px',
+            overflow: 'hidden',
+            border: '1px solid #E5E7EB',
+            boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+          }}>
+            {/* Ad image area */}
+            {previewImage ? (
+              <div style={{ position: 'relative', height: '160px', overflow: 'hidden' }}>
+                <img
+                  src={previewImage}
+                  alt="Ad creative"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                />
+                <div style={{
+                  position: 'absolute', inset: 0,
+                  background: 'linear-gradient(180deg, transparent 30%, rgba(0,0,0,0.65) 100%)',
+                }} />
+                {content?.headline && (
+                  <div style={{
+                    position: 'absolute', bottom: 0, left: 0, right: 0,
+                    padding: '16px 14px 12px',
+                  }}>
+                    <div style={{ fontSize: '13px', fontWeight: '700', color: '#fff', lineHeight: '1.3' }}>
+                      {content.headline}
+                    </div>
+                  </div>
+                )}
+                {/* Platform badge */}
+                <div style={{
+                  position: 'absolute', top: '10px', left: '10px',
+                  background: platform.color, color: '#fff',
+                  fontSize: '10px', fontWeight: '700',
+                  padding: '3px 9px', borderRadius: '5px',
+                }}>
+                  {platform.name}
+                </div>
+              </div>
+            ) : (
+              content?.headline && (
+                <div style={{
+                  padding: '14px', background: platform.color + '10',
+                  borderBottom: '1px solid ' + platform.color + '20',
+                }}>
+                  <div style={{ fontSize: '13px', fontWeight: '700', color: '#111827' }}>
+                    {content.headline}
+                  </div>
+                </div>
+              )
+            )}
+
+            {/* Ad body */}
+            <div style={{ padding: '12px 14px', background: '#fff' }}>
+              {content?.description && (
+                <p style={{
+                  fontSize: '12px', color: '#6B7280', margin: '0 0 12px 0',
+                  lineHeight: '1.5',
+                  display: '-webkit-box',
+                  WebkitLineClamp: 3,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
+                }}>
+                  {content.description}
+                </p>
+              )}
+              {content?.cta_button && (
+                <button style={{
+                  padding: '7px 16px', borderRadius: '6px', border: 'none',
+                  background: platform.color, color: '#fff',
+                  fontSize: '12px', fontWeight: '600', cursor: 'default',
+                  fontFamily: 'inherit',
+                }}>
+                  {content.cta_button}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Content status */}
+        <div style={{ marginTop: '14px' }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '10px 14px', background: '#F9FAFB',
+            borderRadius: '8px', border: '1px solid #F3F4F6',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{
+                width: '8px', height: '8px', borderRadius: '50%',
+                background: hasContent ? '#10B981' : '#D1D5DB',
+              }} />
+              <span style={{ fontSize: '12px', color: '#374151', fontWeight: '500' }}>
+                {platform.name}
+              </span>
+            </div>
+            <span style={{
+              fontSize: '11px', fontWeight: '600',
+              color: hasContent ? '#059669' : '#9CA3AF',
+            }}>
+              {hasContent ? '✓ Ready' : 'Pending'}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const AdContent = ({
+  embedded = false,
+  selectedPlatforms: embeddedPlatforms = [],
+  adContents: embeddedContents = {},
+  onAdContentsChange,
+  onNext,
+  onBack,
+  campaignId: embeddedCampaignId,
+  campaignData = {},
+}) => {
+  const params     = useParams()
+  const navigate   = useNavigate()
+  const campaignId = embedded ? embeddedCampaignId : params.campaignId
+
+  const platformList = embedded
+    ? platforms.filter(p => embeddedPlatforms.includes(p.id))
+    : platforms
+
+  const [mode, setMode]                         = useState('template')
+  const [activePlatform, setActivePlatform]     = useState(embedded ? (embeddedPlatforms[0] || 1) : 1)
+  const [loading, setLoading]                   = useState(false)
+  const [aiLoading, setAiLoading]               = useState(false)
+  const [success, setSuccess]                   = useState('')
+  const [error, setError]                       = useState('')
+  const [savedContents, setSavedContents]       = useState([])
+  const [localContents, setLocalContents]       = useState(embeddedContents)
+  const [aiPrompt, setAiPrompt]                 = useState('')
+  const [selectedTemplate, setSelectedTemplate] = useState(null)
+  const [hoveredCard, setHoveredCard]           = useState(null)
+  const [previewImage, setPreviewImage]         = useState(null)
+  const [activeTab, setActiveTab]               = useState('template')
+  const globalFileRef = useRef(null)
+
+  useEffect(() => { if (!embedded && campaignId) fetchAdContents() }, [campaignId])
+  useEffect(() => { setLocalContents(embeddedContents) }, [embeddedContents])
+  useEffect(() => {
+    if (campaignData?.business_niche) {
+      setAiPrompt(`${campaignData.business_niche}${campaignData.goal ? ` — Goal: ${campaignData.goal}` : ''}`)
+    }
+  }, [campaignData])
+
+  const fetchAdContents = async () => {
+    try {
+      const res = await getAdContents(campaignId)
+      setSavedContents(res.data.ad_contents || [])
+    } catch (err) { console.error('Fetch failed') }
+  }
+
+  const handleContentChange = (platformId, field, value) => {
+    const updated = { ...localContents, [platformId]: { ...localContents[platformId], [field]: value } }
+    setLocalContents(updated)
+    if (embedded && onAdContentsChange) onAdContentsChange(updated)
+  }
+
+  const applyTemplate = (template) => {
+    setSelectedTemplate(template.id)
+    setPreviewImage(template.imageUrl)
+    const updated = { ...localContents }
+    platformList.forEach(p => {
+      updated[p.id] = { ...template.content, image_url: template.imageUrl }
+    })
+    setLocalContents(updated)
+    if (embedded && onAdContentsChange) onAdContentsChange(updated)
+  }
+
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const imgData = ev.target.result
+      setPreviewImage(imgData)
+      const updated = { ...localContents }
+      platformList.forEach(p => {
+        updated[p.id] = {
+          ...updated[p.id],
+          image_url:   imgData,
+          headline:    updated[p.id]?.headline    || 'Your Custom Ad',
+          description: updated[p.id]?.description || 'Custom ad design uploaded.',
+          cta_button:  updated[p.id]?.cta_button  || 'Apply Now',
+        }
+      })
+      setLocalContents(updated)
+      if (embedded && onAdContentsChange) onAdContentsChange(updated)
+      setSelectedTemplate('upload_global')
+      setMode('form')
+    }
+    reader.readAsDataURL(file)
+  }
+
+  // FIX: Reset previewImage BEFORE the API call so stale image never shows
+  const handleAiGenerate = async () => {
+    if (!aiPrompt.trim()) { setError('Please enter a prompt first!'); return }
+    setAiLoading(true)
+    setError('')
+    setPreviewImage(null)  // ← FIXED: clear old image immediately before new call
+    const platformNames = platformList.map(p => p.name)
+    try {
+      const response = await fetch(`${API_BASE}/campaigns/ai-generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          campaign_name:  campaignData?.name   || 'B2B Campaign',
+          business_niche: aiPrompt,
+          goal:           campaignData?.goal   || 'Lead Gen',
+          budget:         campaignData?.budget ? String(campaignData.budget) : '',
+          platforms:      platformNames,
+        }),
+      })
+      if (!response.ok) { const e = await response.json(); throw new Error(e.detail || 'Server error') }
+      const data = await response.json()
+      const updated = { ...localContents }
+      const aiImageUrl = data.image_url || null
+      platformList.forEach(p => {
+        const ai = data.platforms?.[p.name]
+        if (ai) {
+          updated[p.id] = {
+            headline:        ai.headline        || '',
+            description:     ai.description     || '',
+            cta_button:      ai.cta_button      || 'Apply Now',
+            target_audience: ai.target_audience || '',
+            target_age_min:  ai.target_age_min  || 28,
+            target_age_max:  ai.target_age_max  || 55,
+            image_url:       aiImageUrl || '',  // ← FIXED: don't fall back to old localContents image
+          }
+        }
+      })
+      // FIX: always set the new image (even if null — null = no image)
+      setPreviewImage(aiImageUrl)
+      setLocalContents(updated)
+      if (embedded && onAdContentsChange) onAdContentsChange(updated)
+      setSelectedTemplate(null)
+      setMode('form')
+    } catch (err) {
+      setError('AI generation failed. Please try again!')
+    } finally { setAiLoading(false) }
+  }
+
+  const handleStandaloneSubmit = async (e) => {
+    e.preventDefault(); setLoading(true); setError(''); setSuccess('')
+    const content = localContents[activePlatform] || {}
+    try {
+      await createAdContent(campaignId, {
+        ...content,
+        platform_id:    activePlatform,
+        target_age_min: parseInt(content.target_age_min) || 25,
+        target_age_max: parseInt(content.target_age_max) || 55,
+      })
+      setSuccess(`${platforms.find(p => p.id === activePlatform).name} ad content saved!`)
+      fetchAdContents()
+    } catch (err) { setError('Ad content could not be saved!') }
+    finally { setLoading(false) }
+  }
+
+  const currentPlatform     = platforms.find(p => p.id === activePlatform) || platformList[0]
+  const content             = localContents[activePlatform] || {}
+  const selectedTemplateObj = PREBUILT_TEMPLATES.find(t => t.id === selectedTemplate)
+  const currentPreviewImage = previewImage || content.image_url || null
+
+  // ── Template Card ──
+  const TemplateCard = ({ template }) => {
+    const isSelected = selectedTemplate === template.id
+    const isHovered  = hoveredCard === template.id
+    const badgeBg    = template.badge ? badgeColors[template.badge] : null
+    return (
+      <div
+        onClick={() => applyTemplate(template)}
+        onMouseEnter={() => setHoveredCard(template.id)}
+        onMouseLeave={() => setHoveredCard(null)}
+        style={{
+          background: '#fff',
+          borderRadius: '12px',
+          border: isSelected ? '2px solid #1A73E8' : '1.5px solid #E5E7EB',
+          overflow: 'hidden',
+          cursor: 'pointer',
+          transition: 'transform 0.15s, box-shadow 0.15s',
+          boxShadow: isSelected
+            ? '0 0 0 3px rgba(26,115,232,0.12), 0 4px 16px rgba(26,115,232,0.18)'
+            : isHovered ? '0 6px 20px rgba(0,0,0,0.1)' : '0 1px 4px rgba(0,0,0,0.06)',
+          transform: isHovered && !isSelected ? 'translateY(-3px)' : 'none',
+        }}
+      >
+        <div style={{ position: 'relative', height: '148px', overflow: 'hidden' }}>
+          <img src={template.imageUrl} alt={template.name}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+          <div style={{ position: 'absolute', inset: 0, background: template.overlay }} />
+          {badgeBg && !isSelected && (
+            <div style={{
+              position: 'absolute', top: '10px', left: '10px',
+              background: badgeBg, color: '#fff',
+              fontSize: '9px', fontWeight: '700',
+              padding: '3px 8px', borderRadius: '4px', letterSpacing: '0.06em',
+            }}>{template.badge}</div>
+          )}
+          {isSelected && (
+            <div style={{
+              position: 'absolute', top: '10px', right: '10px',
+              width: '22px', height: '22px', background: '#1A73E8',
+              borderRadius: '50%', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', color: '#fff', fontSize: '12px', fontWeight: '700',
+            }}>✓</div>
+          )}
+          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '10px 12px' }}>
+            <div style={{ fontSize: '12px', fontWeight: '700', color: '#fff', lineHeight: '1.3', textShadow: '0 1px 4px rgba(0,0,0,0.6)' }}>
+              {template.preview.headline}
+            </div>
+            <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.88)', marginTop: '2px', textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
+              {template.preview.sub}
+            </div>
+          </div>
+        </div>
+        <div style={{ padding: '12px 14px' }}>
+          <div style={{ fontSize: '13px', fontWeight: '700', color: '#111827', marginBottom: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {template.name}
+          </div>
+          <div style={{ fontSize: '11px', color: '#6B7280', lineHeight: '1.45', marginBottom: '12px', height: '32px', overflow: 'hidden' }}>
+            {template.description}
+          </div>
+          <button
+            onClick={(e) => { e.stopPropagation(); applyTemplate(template); if (isSelected) setMode('form') }}
+            style={{
+              width: '100%', padding: '7px 0', borderRadius: '6px',
+              border: isSelected ? 'none' : '1px solid #E5E7EB',
+              background: isSelected ? '#1A73E8' : '#F9FAFB',
+              color: isSelected ? '#fff' : '#374151',
+              fontSize: '12px', fontWeight: '600',
+              cursor: 'pointer', fontFamily: 'inherit', transition: 'background 0.15s',
+            }}
+          >
+            {isSelected ? '✓ Selected — Edit' : 'Preview'}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Mode Tabs ──
+  const ModeTabs = () => (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '20px' }}>
+      {[
+        { key: 'template', icon: '⊞', label: 'Templates',   sub: 'Prebuilt ad designs' },
+        { key: 'ai',       icon: '✦', label: 'AI Generate', sub: 'Create with AI'      },
+      ].map(tab => (
+        <div key={tab.key} onClick={() => { setActiveTab(tab.key); setMode(tab.key) }}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '12px',
+            padding: '13px 16px', borderRadius: '10px', cursor: 'pointer',
+            border: activeTab === tab.key ? '1.5px solid #1A73E8' : '1.5px solid #E5E7EB',
+            background: activeTab === tab.key ? '#EFF6FF' : '#fff',
+            transition: 'border-color 0.15s, background 0.15s',
+          }}
+        >
+          <span style={{
+            fontSize: '20px', width: '36px', height: '36px', borderRadius: '8px',
+            background: activeTab === tab.key ? '#DBEAFE' : '#F3F4F6',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+          }}>{tab.icon}</span>
+          <div>
+            <div style={{ fontSize: '13px', fontWeight: '600', color: activeTab === tab.key ? '#1A73E8' : '#374151' }}>{tab.label}</div>
+            <div style={{ fontSize: '11px', color: '#9CA3AF', marginTop: '1px' }}>{tab.sub}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+
+  // ── Template Screen ──
+  const templateScreen = (
+    <div>
+      {error && <div style={s.errorBox}>{error}</div>}
+      {CATEGORIES.map(cat => {
+        const catTemplates = PREBUILT_TEMPLATES.filter(t => t.category === cat)
+        if (!catTemplates.length) return null
+        return (
+          <div key={cat} style={{ marginBottom: '28px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+              <div style={{ fontSize: '14px', fontWeight: '700', color: '#111827', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ width: '3px', height: '16px', background: '#1A73E8', borderRadius: '2px', display: 'inline-block' }} />
+                {cat}
+              </div>
+              <button style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '8px', border: '1px solid #E5E7EB', background: '#fff', color: '#374151', fontSize: '12px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit' }}
+                onClick={() => globalFileRef.current?.click()}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                Upload Creative
+              </button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
+              {catTemplates.map(t => <TemplateCard key={t.id} template={t} />)}
+            </div>
+          </div>
+        )
+      })}
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: '10px', padding: '12px 16px', marginBottom: '16px' }}>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#1A73E8" strokeWidth="2">
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+        </svg>
+        <span style={{ fontSize: '13px', color: '#1A73E8' }}>
+          Not finding what you need?{' '}
+          <span style={{ fontWeight: '600', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => { setActiveTab('ai'); setMode('ai') }}>
+            Generate custom ads with AI
+          </span>
+          {' '}or{' '}
+          <span style={{ fontWeight: '600', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => globalFileRef.current?.click()}>
+            upload your own creatives.
+          </span>
+        </span>
+      </div>
+
+      {selectedTemplate && (
+        <div style={{ background: '#EFF6FF', border: '1.5px solid #BFDBFE', borderRadius: '10px', padding: '14px 18px', marginTop: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ width: '36px', height: '36px', borderRadius: '8px', overflow: 'hidden', flexShrink: 0, border: '2px solid #1A73E8' }}>
+              {selectedTemplateObj?.imageUrl && (
+                <img src={selectedTemplateObj.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              )}
+            </div>
+            <div>
+              <div style={{ fontSize: '13px', fontWeight: '600', color: '#111827' }}>
+                {selectedTemplateObj?.name || 'Custom Ad Design'} selected
+              </div>
+              <div style={{ fontSize: '11px', color: '#6B7280', marginTop: '1px' }}>
+                Applied to all {platformList.length} platform{platformList.length > 1 ? 's' : ''} · ready to edit
+              </div>
+            </div>
+          </div>
+          <button style={s.useTemplateBtn} onClick={() => setMode('form')}>Next: Review & Edit →</button>
+        </div>
+      )}
+      <input ref={globalFileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageUpload} />
+    </div>
+  )
+
+  // ── AI Screen ──
+  const aiScreen = (
+    <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #E5E7EB', padding: '20px 22px' }}>
+      {(campaignData?.name || campaignData?.goal || campaignData?.budget) && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
+          <span style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: '500' }}>Campaign context:</span>
+          {campaignData.name   && <span style={s.ctxChip}>📋 {campaignData.name}</span>}
+          {campaignData.goal   && <span style={s.ctxChip}>🎯 {campaignData.goal}</span>}
+          {campaignData.budget && <span style={s.ctxChip}>💰 ₹{parseInt(campaignData.budget).toLocaleString()}/day</span>}
+        </div>
+      )}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '18px' }}>
+        <span style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: '500' }}>Generating for:</span>
+        {platformList.map(p => (
+          <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 10px', borderRadius: '20px', background: p.color + '15', border: `1.5px solid ${p.color}40` }}>
+            <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: p.color }} />
+            <span style={{ fontSize: '11px', fontWeight: '600', color: p.color }}>{p.name}</span>
+          </div>
+        ))}
+      </div>
+      <div style={{ marginBottom: '14px' }}>
+        <label style={s.label}>Describe your product / offer</label>
+        <textarea
+          style={{ width: '100%', padding: '11px 13px', borderRadius: '10px', border: '1.5px solid #E5E7EB', background: '#FAFAFA', fontSize: '13px', color: '#111827', outline: 'none', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box', lineHeight: '1.6', transition: 'border-color 0.15s' }}
+          rows={5}
+          placeholder="e.g. Working capital loan upto ₹50 lakhs for businesses with ₹10Cr+ turnover. Instant approval in 24 hours, minimal documentation."
+          value={aiPrompt}
+          onChange={e => setAiPrompt(e.target.value)}
+          onFocus={e => e.target.style.borderColor = '#1A73E8'}
+          onBlur={e => e.target.style.borderColor = '#E5E7EB'}
+        />
+        <span style={{ display: 'block', fontSize: '11px', color: '#9CA3AF', marginTop: '5px' }}>
+          More detail = better results. Mention your USP, target customer, and key benefits.
+        </span>
+      </div>
+      {error && <div style={s.errorBox}>{error}</div>}
+      <button style={aiLoading ? s.btnDisabled : s.aiGenerateBtn} disabled={aiLoading} onClick={handleAiGenerate}>
+        {aiLoading
+          ? <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
+              <span style={s.aiSpinner} />
+              Generating for {platformList.length} platform{platformList.length > 1 ? 's' : ''}...
+            </span>
+          : `✨ Generate Ads for ${platformList.length} Platform${platformList.length > 1 ? 's' : ''}`
+        }
+      </button>
+    </div>
+  )
+
+  // ── Form Section (left column in split layout) ──
+  const formSection = (
+    <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #E5E7EB', overflow: 'hidden' }}>
+      {/* Source badge bar */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderBottom: '1px solid #F3F4F6', background: '#F8FAFF', borderRadius: '12px 12px 0 0' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '12px', fontWeight: '600', color: '#1A73E8' }}>
+          <span style={{ fontSize: '14px' }}>
+            {selectedTemplate ? (selectedTemplate.startsWith('upload_') ? '🖼️' : '🗂️') : '✨'}
+          </span>
+          {selectedTemplate
+            ? selectedTemplate.startsWith('upload_') ? 'Custom Upload — review & edit' : 'Template Applied — review & edit'
+            : 'AI Generated — review & edit'}
+        </div>
+        <button
+          style={{ background: 'none', border: '1px solid #E5E7EB', color: '#6B7280', fontSize: '11px', cursor: 'pointer', padding: '5px 11px', borderRadius: '6px', fontFamily: 'inherit', fontWeight: '500' }}
+          onClick={() => { setMode('template'); setActiveTab('template'); setPreviewImage(null) }}
+        >
+          ↩ Change
+        </button>
+      </div>
+
+      {/* Platform tabs */}
+      <div style={{ display: 'flex', borderBottom: '1px solid #F3F4F6' }}>
+        {platformList.map(p => {
+          const isSaved = embedded ? !!(localContents[p.id]?.headline) : savedContents.find(c => c.platform_id === p.id)
+          return (
+            <button key={p.id} onClick={() => setActivePlatform(p.id)}
+              style={{ flex: 1, padding: '11px 8px', border: 'none', background: 'none', fontSize: '12px', fontWeight: '500', cursor: 'pointer', borderBottom: activePlatform === p.id ? `2.5px solid ${p.color}` : '2.5px solid transparent', color: activePlatform === p.id ? p.color : '#9CA3AF', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', fontFamily: 'inherit', transition: 'color 0.15s' }}>
+              <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: p.color }} />
+              {p.name}
+              {isSaved && <span style={{ background: '#D1FAE5', color: '#065F46', fontSize: '10px', padding: '1px 5px', borderRadius: '10px', fontWeight: '600' }}>✓</span>}
+            </button>
+          )
+        })}
+      </div>
+
+      <form onSubmit={embedded ? e => e.preventDefault() : handleStandaloneSubmit} style={{ padding: '18px 20px' }}>
+        {success && <div style={s.successBox}>{success}</div>}
+        {error   && <div style={s.errorBox}>{error}</div>}
+
+        <div style={{ marginBottom: '14px' }}>
+          <label style={s.label}>Headline</label>
+          <div style={{ position: 'relative' }}>
+            <input style={s.input} type="text" placeholder="Working Capital Loan — Instant Approval"
+              value={content.headline || ''} onChange={e => handleContentChange(activePlatform, 'headline', e.target.value)} maxLength={100} />
+            <span style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '10px', color: (content.headline || '').length > 85 ? '#DC2626' : '#9CA3AF' }}>
+              {(content.headline || '').length}/100
+            </span>
+          </div>
+        </div>
+
+        <div style={{ marginBottom: '14px' }}>
+          <label style={s.label}>Description</label>
+          <div style={{ position: 'relative' }}>
+            <textarea style={{ ...s.textarea, paddingBottom: '22px' }} placeholder="Describe your offer..." rows={3}
+              value={content.description || ''} onChange={e => handleContentChange(activePlatform, 'description', e.target.value)} maxLength={300} />
+            <span style={{ position: 'absolute', right: '10px', bottom: '8px', fontSize: '10px', color: (content.description || '').length > 260 ? '#DC2626' : '#9CA3AF' }}>
+              {(content.description || '').length}/300
+            </span>
+          </div>
+        </div>
+
+        <div style={{ marginBottom: '14px' }}>
+          <label style={s.label}>CTA Button</label>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '7px' }}>
+            {ctaOptions.map(cta => (
+              <button key={cta} type="button" onClick={() => handleContentChange(activePlatform, 'cta_button', cta)}
+                style={{ padding: '6px 13px', borderRadius: '20px', fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit', fontWeight: '500', border: content.cta_button === cta ? 'none' : '1px solid #E5E7EB', background: content.cta_button === cta ? currentPlatform.color : '#F9FAFB', color: content.cta_button === cta ? '#fff' : '#6B7280', transition: 'all 0.15s' }}>
+                {cta}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ marginBottom: '14px' }}>
+          <label style={s.label}>Target Audience</label>
+          <input style={s.input} type="text" placeholder="Business Owners, CEOs, CFOs"
+            value={content.target_audience || ''} onChange={e => handleContentChange(activePlatform, 'target_audience', e.target.value)} />
+        </div>
+
+        <div style={{ marginBottom: '16px' }}>
+          <label style={s.label}>Target Age Range</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <input style={{ ...s.input, flex: 1 }} type="number" placeholder="25"
+              value={content.target_age_min || 25} onChange={e => handleContentChange(activePlatform, 'target_age_min', e.target.value)} min={18} max={65} />
+            <span style={{ color: '#9CA3AF', fontSize: '12px', flexShrink: 0 }}>to</span>
+            <input style={{ ...s.input, flex: 1 }} type="number" placeholder="55"
+              value={content.target_age_max || 55} onChange={e => handleContentChange(activePlatform, 'target_age_max', e.target.value)} min={18} max={65} />
+          </div>
+        </div>
+
+        {!embedded && (
+          <button type="submit" style={loading ? s.btnDisabled : { ...s.nextStepBtn, background: currentPlatform.color }} disabled={loading}>
+            {loading ? 'Saving...' : `Save ${currentPlatform.name} Ad Content`}
+          </button>
+        )}
+      </form>
+    </div>
+  )
+
+  // ── Split layout: form on left, live preview on right ──
+  const splitLayout = (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '20px', alignItems: 'start' }}>
+      <div>{formSection}</div>
+      <LivePreviewPanel
+        platform={currentPlatform}
+        content={content}
+        previewImage={currentPreviewImage}
+      />
+    </div>
+  )
+
+  // ── Embedded Layout ──
+  if (embedded) {
+    return (
+      <div>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        <p style={{ fontSize: '13px', color: '#6B7280', marginBottom: '18px' }}>Create ad content for each selected platform</p>
+        <ModeTabs />
+
+        {mode === 'template' && templateScreen}
+        {mode === 'ai'       && aiScreen}
+        {mode === 'form'     && splitLayout}
+
+        {mode === 'form' ? (
+          <div style={s.btnRow}>
+            <button style={s.backStepBtn} onClick={() => { setMode('template'); setActiveTab('template') }}>← Back</button>
+            <button style={s.nextStepBtn} onClick={onNext}>Next: Review & Launch →</button>
+          </div>
+        ) : (
+          <div style={s.btnRow}>
+            <button style={s.backStepBtn} onClick={onBack}>← Back</button>
+            {selectedTemplate && mode === 'template' && (
+              <button style={s.nextStepBtn} onClick={() => setMode('form')}>Next: Review & Edit →</button>
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // ── Standalone Layout ──
+  return (
+    <div style={{ padding: '24px 32px', background: '#F9FAFB', minHeight: '100vh', fontFamily: 'DM Sans, sans-serif' }}>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
+        <button style={{ background: 'none', border: 'none', color: '#1A73E8', fontSize: '13px', cursor: 'pointer', marginBottom: '12px', padding: 0, fontFamily: 'inherit' }} onClick={() => navigate('/')}>← Back to Dashboard</button>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
+          <div>
+            <h2 style={{ fontSize: '22px', fontWeight: '700', color: '#111827', margin: '0 0 2px 0' }}>Ad Content</h2>
+            <p style={{ fontSize: '12px', color: '#9CA3AF', margin: 0 }}>Step 5 of 6</p>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ width: '120px', height: '6px', background: '#E5E7EB', borderRadius: '3px', overflow: 'hidden' }}>
+              <div style={{ width: '83%', height: '100%', background: '#1A73E8', borderRadius: '3px' }} />
+            </div>
+            <span style={{ fontSize: '13px', fontWeight: '700', color: '#1A73E8' }}>83%</span>
+          </div>
+        </div>
+        <p style={{ fontSize: '13px', color: '#6B7280', margin: '8px 0 18px' }}>Create ad content for each selected platform</p>
+        <ModeTabs />
+        {mode === 'template' && templateScreen}
+        {mode === 'ai'       && aiScreen}
+        {mode === 'form'     && splitLayout}
+        {mode !== 'form' ? (
+          <div style={s.btnRow}>
+            <button style={s.backStepBtn} onClick={() => navigate(-1)}>← Back</button>
+            {selectedTemplate && <button style={s.nextStepBtn} onClick={() => setMode('form')}>Next: Review & Edit →</button>}
+          </div>
+        ) : (
+          <div style={s.btnRow}>
+            <button style={s.backStepBtn} onClick={() => { setMode('template'); setActiveTab('template') }}>← Back</button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+const s = {
+  label:         { display: 'block', fontSize: '11px', fontWeight: '600', color: '#6B7280', marginBottom: '5px', textTransform: 'uppercase', letterSpacing: '0.05em' },
+  input:         { width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1.5px solid #E5E7EB', background: '#FAFAFA', fontSize: '13px', color: '#111827', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box', transition: 'border-color 0.15s' },
+  textarea:      { width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1.5px solid #E5E7EB', background: '#FAFAFA', fontSize: '13px', color: '#111827', outline: 'none', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box', transition: 'border-color 0.15s' },
+  successBox:    { background: '#D1FAE5', color: '#065F46', padding: '10px 14px', borderRadius: '8px', fontSize: '13px', marginBottom: '14px', border: '1px solid #6EE7B7' },
+  errorBox:      { background: '#FEE2E2', color: '#991B1B', padding: '10px 14px', borderRadius: '8px', fontSize: '13px', marginBottom: '14px', border: '1px solid #FECACA' },
+  ctxChip:       { fontSize: '11px', fontWeight: '500', color: '#374151', background: '#F3F4F6', border: '1px solid #E5E7EB', padding: '3px 10px', borderRadius: '20px' },
+  aiGenerateBtn: { width: '100%', padding: '13px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg, #1A73E8, #0A66C2)', color: '#fff', fontSize: '14px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit', transition: 'opacity 0.15s' },
+  aiSpinner:     { width: '14px', height: '14px', border: '2px solid rgba(255,255,255,0.3)', borderTop: '2px solid #fff', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.8s linear infinite' },
+  useTemplateBtn:{ padding: '9px 18px', borderRadius: '8px', border: 'none', background: '#1A73E8', color: '#fff', fontSize: '12px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 },
+  btnRow:        { display: 'flex', gap: '10px', marginTop: '20px' },
+  backStepBtn:   { padding: '12px 20px', borderRadius: '10px', border: '1.5px solid #E5E7EB', background: '#fff', color: '#6B7280', fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' },
+  nextStepBtn:   { flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: '#1A73E8', color: '#fff', fontSize: '13px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit' },
+  btnDisabled:   { width: '100%', padding: '13px', borderRadius: '10px', border: 'none', background: '#D1D5DB', color: '#fff', fontSize: '14px', fontWeight: '600', cursor: 'not-allowed', fontFamily: 'inherit' },
+}
+
+export default AdContent
