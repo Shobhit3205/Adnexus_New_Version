@@ -16,3 +16,8 @@ backend/.env
 # OS / Editor
 .vscode/
 .DS_Store
+
+client_secrets.json
+
+backend/venv_old/
+venv_old/
