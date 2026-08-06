@@ -3,9 +3,9 @@ import axios from 'axios'
 import { useNavigate } from 'react-router-dom'
 import AdContent from './AdContent'
 import FormPreview from './FormPreview'
-import { ALL_CITIES, POPULAR_CITIES } from '../data/cities'
+import { POPULAR_CITIES } from '../data/cities'
 
-const API_BASE = 'http://127.0.0.1:8000'
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://127.0.0.1:8000'
 
 const platforms = [
   {
@@ -36,8 +36,9 @@ const steps = [
   { num: 3, label: 'Budget & Dates'       },
   { num: 4, label: 'Location'             },
   { num: 5, label: 'Form / URL Setup'     },
-  { num: 6, label: 'Ad Content'           },
-  { num: 7, label: 'Review & Launch'      },
+  { num: 6, label: 'Targeting Details'    },
+  { num: 7, label: 'Ad Content'           },
+  { num: 8, label: 'Review & Launch'      },
 ]
 
 const INDUSTRY_MAP = {
@@ -175,14 +176,12 @@ const competitionColor = {
 // ════════════════════════════════════════════════════
 // MAP CANVAS
 // ════════════════════════════════════════════════════
-
-// ════════════════════════════════════════════════════
-// MAP CANVAS
-// ════════════════════════════════════════════════════
 const MapCanvas = ({ selectedCities, radiusKm }) => {
   const mapRef      = useRef(null)
   const leafletMap  = useRef(null)
-  const layersRef   = useRef([])   // holds {marker, circle} per city
+  const layersRef   = useRef([])
+  const resizeObs   = useRef(null)
+  const prevCitiesRef = useRef([])
   const [mapLoaded, setMapLoaded] = useState(false)
 
   useEffect(() => {
@@ -197,32 +196,47 @@ const MapCanvas = ({ selectedCities, radiusKm }) => {
     document.head.appendChild(js)
   }, [])
 
-  // init map once
   useEffect(() => {
     if (!mapLoaded || !mapRef.current || leafletMap.current) return
     const L = window.L
     const first = selectedCities.length > 0 ? selectedCities[0] : { lat: 28.6139, lng: 77.2090 }
     leafletMap.current = L.map(mapRef.current, { center: [first.lat, first.lng], zoom: 10, zoomControl: true, scrollWheelZoom: true })
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OSM', maxZoom: 18 }).addTo(leafletMap.current)
+
+    setTimeout(() => leafletMap.current?.invalidateSize(), 0)
+    setTimeout(() => leafletMap.current?.invalidateSize(), 250)
+
+    if (window.ResizeObserver && mapRef.current) {
+      resizeObs.current = new ResizeObserver(() => {
+        leafletMap.current?.invalidateSize()
+      })
+      resizeObs.current.observe(mapRef.current)
+    }
+
+    return () => resizeObs.current?.disconnect()
   }, [mapLoaded])
 
-  // redraw markers + circles whenever cities or radius change
   useEffect(() => {
     if (!leafletMap.current) return
     const L = window.L
 
-    // clear old layers
+    leafletMap.current.invalidateSize()
+
+    const prevCities = prevCitiesRef.current
+    const prevKeys = new Set(prevCities.map(c => c.place_id || c.name))
+    const validCities = selectedCities.filter(c => Number.isFinite(c.lat) && Number.isFinite(c.lng))
+    const newlyAdded = validCities.find(c => !prevKeys.has(c.place_id || c.name))
+    prevCitiesRef.current = selectedCities
+
     layersRef.current.forEach(({ marker, circle }) => {
       leafletMap.current.removeLayer(marker)
       leafletMap.current.removeLayer(circle)
     })
     layersRef.current = []
 
-    if (!selectedCities.length) return
+    if (!validCities.length) return
 
-    const bounds = []
-
-    selectedCities.forEach(city => {
+    validCities.forEach(city => {
       const icon = L.divIcon({
         className: '',
         html: `<div style="width:16px;height:16px;background:#0A66C2;border:3px solid #fff;border-radius:50%;box-shadow:0 2px 10px rgba(10,102,194,.6)"></div>`,
@@ -235,19 +249,26 @@ const MapCanvas = ({ selectedCities, radiusKm }) => {
         fillOpacity: 0.4, weight: 2, opacity: 0.8,
       }).addTo(leafletMap.current)
 
-      marker.bindTooltip(city.name, { permanent: false, direction: 'top', offset: [0, -10] })
+      marker.bindTooltip(city.name, {
+        permanent: true,
+        direction: 'top',
+        offset: [0, -12],
+        className: 'city-label-tooltip',
+      })
 
       layersRef.current.push({ marker, circle })
-      bounds.push(circle.getBounds())
     })
 
-    // fit map to show all selected cities' circles
-    if (bounds.length === 1) {
-      leafletMap.current.flyTo([selectedCities[0].lat, selectedCities[0].lng], radiusKm <= 5 ? 13 : radiusKm <= 15 ? 12 : radiusKm <= 35 ? 11 : radiusKm <= 70 ? 10 : 9, { duration: 1.0 })
-    } else if (bounds.length > 1) {
-      let combined = bounds[0]
-      bounds.slice(1).forEach(b => { combined = combined.extend(b) })
-      leafletMap.current.fitBounds(combined, { padding: [30, 30], duration: 1.0 })
+    const zoomForRadius = radiusKm <= 5 ? 13 : radiusKm <= 15 ? 12 : radiusKm <= 35 ? 11 : radiusKm <= 70 ? 10 : 9
+
+    if (newlyAdded) {
+      leafletMap.current.flyTo([newlyAdded.lat, newlyAdded.lng], zoomForRadius, { duration: 1.0 })
+    } else if (validCities.length === 1) {
+      leafletMap.current.flyTo([validCities[0].lat, validCities[0].lng], zoomForRadius, { duration: 1.0 })
+    } else if (validCities.length > 1) {
+      let combined = L.latLngBounds([validCities[0].lat, validCities[0].lng], [validCities[0].lat, validCities[0].lng])
+      validCities.slice(1).forEach(c => combined.extend([c.lat, c.lng]))
+      leafletMap.current.fitBounds(combined, { padding: [60, 60], duration: 1.0 })
     }
   }, [selectedCities, radiusKm])
 
@@ -659,9 +680,10 @@ const LaunchSuccess = ({ launchResult, formData, selectedPlatforms, selectedCiti
                 {Object.entries(launchResult.platformResults).map(([platform, result]) => (
                   <div key={platform} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'6px 0', borderBottom:'0.5px solid #e8eaf0', fontSize:'13px' }}>
                     <span style={{ textTransform:'capitalize', fontWeight:'500', color:'#374151' }}>{platform}</span>
-                    <span style={{ color: result.success ? '#16a34a' : '#dc2626', fontSize:'12px', fontWeight:'600' }}>
-                      {result.success ? '✅ Live' : `❌ ${result.error || 'Pending'}`}
-                    </span>
+               <span style={{ color: result.success ? '#16a34a' : '#dc2626', fontSize:'12px', fontWeight:'600' }}>
+               {launchResult.platformBudgets?.[platform] && `₹${launchResult.platformBudgets[platform]}/day · `}
+               {result.success ? '✅ Live' : `❌ ${result.error || 'Pending'}`}
+</span>
                   </div>
                 ))}
                 {launchResult.audienceProfile && (
@@ -733,15 +755,24 @@ const LaunchSuccess = ({ launchResult, formData, selectedPlatforms, selectedCiti
   )
 }
 
-// ════════════════════════════════════════════════════
-// MAIN COMPONENT
-// ════════════════════════════════════════════════════
 const globalStyles = `
 *::-webkit-scrollbar{display:none}
+.city-label-tooltip {
+  font-size: 15px !important;
+  font-weight: 800 !important;
+  color: #0A66C2 !important;
+  background: #fff !important;
+  border: 2px solid #0A66C2 !important;
+  border-radius: 6px !important;
+  padding: 4px 10px !important;
+  box-shadow: 0 2px 8px rgba(10,102,194,0.3) !important;
+}
+.city-label-tooltip::before {
+  border-top-color: #0A66C2 !important;
+}
 *{scrollbar-width:none;-ms-overflow-style:none}
 @keyframes spin{to{transform:rotate(360deg)}}
 
-/* ── Responsive layout ── */
 .mobile-step-info{ display:none; }
 
 @media (max-width: 1024px){
@@ -839,9 +870,64 @@ const CreateCampaign = () => {
   const [searchQuery, setSearchQuery]             = useState('')
   const [showDropdown, setShowDropdown]           = useState(false)
   const [dropdownResults, setDropdownResults]     = useState([])
+  const [searchLoading, setSearchLoading]         = useState(false)
+  const [addingCityId, setAddingCityId]           = useState(null)
   const searchRef                                 = useRef(null)
+  const searchDebounceRef                         = useRef(null)
+  const sessionTokenRef                           = useRef(null)
+
+  // ── NAYA: Step 6 "Targeting Details" ke liye state ──
+  const [targetingMode, setTargetingMode]         = useState('pdf') // 'pdf' | 'text'
+  const [targetingFile, setTargetingFile]         = useState(null)
+  const [targetingText, setTargetingText]         = useState('')
+  const [companyDetails, setCompanyDetails]       = useState({
+    company_name: '', company_email: '', company_phone: '', company_pincode: '',
+  })
+
+  // ── Field-level validation (required-field stars + jump-to-error) ──
+  const [fieldErrors, setFieldErrors] = useState({})
+  const fieldRefs = useRef({})
+  const registerRef = (name) => (el) => { fieldRefs.current[name] = el }
+  const clearFieldError = (name) => {
+    setFieldErrors(prev => {
+      if (!prev[name]) return prev
+      const next = { ...prev }
+      delete next[name]
+      return next
+    })
+  }
+  const scrollToField = (name) => {
+    const el = fieldRefs.current[name]
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      if (typeof el.focus === 'function') el.focus({ preventScroll: true })
+    }
+  }
+  const runValidation = (checks) => {
+    const errors = {}
+    checks.forEach(([name, isInvalid, message]) => {
+      if (isInvalid) errors[name] = message
+    })
+    setFieldErrors(errors)
+    const firstInvalid = checks.find(([name, isInvalid]) => isInvalid)
+    if (firstInvalid) {
+      scrollToField(firstInvalid[0])
+      return false
+    }
+    return true
+  }
+
+  const getSessionToken = () => {
+    if (!sessionTokenRef.current) {
+      sessionTokenRef.current = (crypto.randomUUID ? crypto.randomUUID() :
+        `${Date.now()}-${Math.random().toString(36).slice(2)}`)
+    }
+    return sessionTokenRef.current
+  }
   const [ageMin, setAgeMin]                       = useState(25)
   const [ageMax, setAgeMax]                       = useState(45)
+  const [splitMode, setSplitMode]                 = useState('equal')   // 'equal' | 'custom'
+  const [budgetSplit, setBudgetSplit]              = useState({})       // { meta: 60, google: 40 }
   const [formData, setFormData]                   = useState({
     name:'', goal:'Lead Generation', industry:'', sub_category:'',
     business_niche:'', budget:'', start_date:'', end_date:'', status:'active',
@@ -863,12 +949,13 @@ const CreateCampaign = () => {
     const {name, value } = e.target
     if (name === 'industry') setFormData(prev => ({ ...prev, industry:value, sub_category:'' }))
     else setFormData(prev => ({ ...prev, [name]:value }))
+    clearFieldError(name)
+  }
 
-   
-}
-
-  const togglePlatform = (id) =>
+  const togglePlatform = (id) => {
     setSelectedPlatforms(prev => prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id])
+    clearFieldError('platforms')
+  }
 
   const toggleCity = (cityObj) => {
     setSelectedCities(prev => {
@@ -876,38 +963,68 @@ const CreateCampaign = () => {
       return exists ? prev.filter(c => c.name !== cityObj.name) : [...prev, cityObj]
     })
     setLocationAnalyzed(false); setLocationData(null)
+    clearFieldError('cities')
   }
 
   const handleSearch = (val) => {
     setSearchQuery(val)
-    if (!val.trim()) { setShowDropdown(false); return }
-    const q = val.toLowerCase()
-    const results = ALL_CITIES
-      .map(c => {
-        const name  = c.name.toLowerCase()
-        const state = c.state.toLowerCase()
-        let score = 0
-        if (name === q) score = 100
-        else if (name.startsWith(q)) score = 80
-        else if (name.includes(q)) score = 60
-        else if (state.startsWith(q)) score = 40
-        else if (state.includes(q)) score = 20
-        return { c, score }
-      })
-      .filter(x => x.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 8)
-      .map(x => x.c)
-    setDropdownResults(results)
+
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
+
+    if (!val.trim() || val.trim().length < 2) {
+      setShowDropdown(false)
+      setDropdownResults([])
+      setSearchLoading(false)
+      return
+    }
+
     setShowDropdown(true)
+    setSearchLoading(true)
+
+    searchDebounceRef.current = setTimeout(async () => {
+      try {
+        const res = await axios.get(`${API_BASE}/api/places/autocomplete`, {
+          params: { input: val, session_token: getSessionToken() },
+          headers: { Authorization: `Bearer ${localStorage.getItem('adnexus_token')}` },
+        })
+        setDropdownResults(res.data?.results || [])
+      } catch (e) {
+        setDropdownResults([])
+      } finally {
+        setSearchLoading(false)
+      }
+    }, 350)
   }
 
-  const addCityFromDropdown = (cityObj) => {
-    if (!selectedCities.find(c => c.name === cityObj.name)) {
-      setSelectedCities(prev => [...prev, cityObj])
-      setLocationAnalyzed(false); setLocationData(null)
+  const addCityFromDropdown = async (place) => {
+    if (selectedCities.find(c => c.place_id === place.place_id || c.name === place.name)) {
+      setSearchQuery(''); setShowDropdown(false)
+      return
     }
-    setSearchQuery(''); setShowDropdown(false)
+    setAddingCityId(place.place_id)
+    try {
+      const res = await axios.get(`${API_BASE}/api/places/details`, {
+        params: { place_id: place.place_id, session_token: getSessionToken() },
+        headers: { Authorization: `Bearer ${localStorage.getItem('adnexus_token')}` },
+      })
+      const details = res.data
+      setSelectedCities(prev => [...prev, {
+        name:      details.name || place.name,
+        state:     details.state || place.secondary_text || '',
+        lat:       details.lat,
+        lng:       details.lng,
+        place_id:  place.place_id,
+        area_diagonal_km: details.area_diagonal_km || 50,
+      }])
+      setLocationAnalyzed(false); setLocationData(null)
+      clearFieldError('cities')
+      sessionTokenRef.current = null
+    } catch (e) {
+      setLocationError('Could not fetch location details. Please try again.')
+    } finally {
+      setAddingCityId(null)
+      setSearchQuery(''); setShowDropdown(false)
+    }
   }
 
   useEffect(() => {
@@ -958,8 +1075,18 @@ const connectPlatform = async (apiKey) => {
 }
 
   const getSliderValue     = () => radiusUnit === 'km' ? radiusKm : Math.round(radiusKm * 0.621)
+  const getDynamicMaxRadius = () => {
+  if (!selectedCities.length) return 100 // default when nothing selected yet
+  const lastCity = selectedCities[selectedCities.length - 1]
+  const diagonal = lastCity.area_diagonal_km || 50
+  const max = Math.round(diagonal * 1.2)
+  return Math.max(max, 20)
+}
   const handleRadiusChange = (val) => { const v = parseInt(val); setRadiusKm(radiusUnit==='km' ? v : Math.round(v/0.621)) }
-
+  useEffect(() => {
+  const max = getDynamicMaxRadius()
+  if (radiusKm > max) setRadiusKm(max)
+}, [selectedCities])
   const getReachEstimate = () => {
     const base = 4 + (radiusKm/100)*18
     const lo   = (base*(selectedCities.length||1)).toFixed(1)
@@ -1036,27 +1163,32 @@ const connectPlatform = async (apiKey) => {
         start_date:     formData.start_date,
         end_date:       formData.end_date,
         platforms:      getSelectedPlatformKeys(),
+        ...(splitMode === 'custom' ? { budget_split: budgetSplit } : {}),
         keywords:       formData.business_niche ? formData.business_niche.split(',').map(k => k.trim()) : ['business loan'],
-targeting: {
-  locations: selectedCities.length > 0 ? selectedCities.map(c => c.name) : ['Delhi', 'Mumbai'],
-  // ── NAYA: har city ka lat/lng bhi bhejo, taaki Meta/Google
-  //    exact city+radius targeting kar sakein, na ki poora India ──
-  location_details: selectedCities.length > 0
-    ? selectedCities.map(c => ({ name: c.name, lat: c.lat, lng: c.lng }))
-    : [
-        { name: 'Delhi',  lat: 28.6139, lng: 77.2090 },
-        { name: 'Mumbai', lat: 19.0760, lng: 72.8777 },
-      ],
-  radius_km: radiusKm,
-  age_min:   ageMin,
-  age_max:   ageMax,
-  genders:   [1, 2],
-},
+        // ── NAYA: Business Profile fields (Step 6) — pehle yeh backend ko
+        //    bheje hi nahi jaate the, isliye DB mein hamesha NULL save hote the ──
+        company_name:    companyDetails.company_name,
+        company_email:   companyDetails.company_email,
+        company_phone:   companyDetails.company_phone,
+        company_pincode: companyDetails.company_pincode,
+        targeting: {
+          locations: selectedCities.length > 0 ? selectedCities.map(c => c.name) : ['Delhi', 'Mumbai'],
+          // ── NAYA: har city ka lat/lng bhi bhejo, taaki Meta/Google
+          //    exact city+radius targeting kar sakein, na ki poora India ──
+          location_details: selectedCities.length > 0
+            ? selectedCities.map(c => ({ name: c.name, lat: c.lat, lng: c.lng }))
+            : [
+                { name: 'Delhi',  lat: 28.6139, lng: 77.2090 },
+                { name: 'Mumbai', lat: 19.0760, lng: 72.8777 },
+              ],
+          radius_km: radiusKm,
+          age_min:   ageMin,
+          age_max:   ageMax,
+          genders:   [1, 2],
+        },
         ad_content: {
           ...getGoogleAdContent(),
           // Step 5 ka website URL — sirf jab Lead Gen nahi hai, tabhi relevant hai.
-          // Agar user ne yahan URL bhara hai, toh yeh Step 6 ke kisi bhi
-          // (missing) link_url/final_url ko override kar dega.
           ...(websiteUrl ? { link_url: websiteUrl, final_url: websiteUrl } : {}),
         },
       }
@@ -1064,6 +1196,7 @@ targeting: {
       const res           = await axios.post(`${API_BASE}/api/campaigns/`, payload)
       const newCampaignId = res.data.campaign_id || res.data.id
       const platformResults = res.data.platforms || {}
+      const platformBudgets = res.data.platform_budgets || {}
       setCampaignId(newCampaignId)
 
      let generatedAudience = null
@@ -1111,12 +1244,16 @@ targeting: {
       setLaunchResult({
         campaignId: newCampaignId,
         platformResults,
+        platformBudgets,        
         adContentWarnings,
         audienceProfile: generatedAudience,
         success: true,
       })
     } catch (err) {
-      setError(`Error launching campaign: ${err.response?.data?.detail || err.message}`)
+      // FIX: backend ka asli error message dikhao, "Network Error" jaisa vague nahi
+      const backendMessage = err.response?.data?.detail || err.response?.data?.message
+      setError(`Error launching campaign: ${backendMessage || err.message}`)
+      console.error('Launch error:', err.response?.data || err.message)
     } finally { setLoading(false) }
   }
 
@@ -1185,15 +1322,20 @@ targeting: {
           {step === 1 && (
             <div>
               <div style={s.formGroup}>
-                <label style={s.label}>Campaign Name</label>
-                <input style={s.input} type="text" name="name" placeholder="e.g. Working Capital Finance Q1 2026" value={formData.name} onChange={handleChange} />
-                <span style={s.hint}>Give your campaign a clear, descriptive name</span>
+                <label style={s.label}>Campaign Name <span style={s.requiredStar}>*</span></label>
+                <input
+                  ref={registerRef('name')}
+                  style={{ ...s.input, ...(fieldErrors.name ? s.inputError : {}) }}
+                  type="text" name="name" placeholder="e.g. Working Capital Finance Q1 2026"
+                  value={formData.name} onChange={handleChange}
+                />
+                {fieldErrors.name ? <span style={s.fieldError}>⚠ {fieldErrors.name}</span> : <span style={s.hint}>Give your campaign a clear, descriptive name</span>}
               </div>
-              <div style={s.formGroup}>
-                <label style={s.label}>Goal <span style={s.labelSub}>(What do you want to achieve?)</span></label>
+              <div style={s.formGroup} ref={registerRef('goal')}>
+                <label style={s.label}>Goal <span style={s.requiredStar}>*</span> <span style={s.labelSub}>(What do you want to achieve?)</span></label>
                 <div className="goal-row" style={s.goalRow}>
                   {GOALS.map(g => (
-                    <div key={g.val} onClick={() => setFormData({...formData, goal:g.val})}
+                    <div key={g.val} onClick={() => { setFormData({...formData, goal:g.val}); clearFieldError('goal') }}
                       style={{ ...s.goalCard, ...(formData.goal===g.val ? s.goalCardActive:{}) }}>
                       {formData.goal===g.val && (
                         <div style={s.goalCheckmark}>
@@ -1206,17 +1348,23 @@ targeting: {
                     </div>
                   ))}
                 </div>
+                {fieldErrors.goal && <span style={s.fieldError}>⚠ {fieldErrors.goal}</span>}
               </div>
               <div style={s.formGroup}>
-                <label style={s.label}>Industry</label>
+                <label style={s.label}>Industry <span style={s.requiredStar}>*</span></label>
                 <div style={s.selectWrap}>
                   <span style={s.selectIcon}>{formData.industry ? INDUSTRY_MAP[formData.industry]?.icon : '🏢'}</span>
-                  <select style={s.select} name="industry" value={formData.industry} onChange={handleChange}>
+                  <select
+                    ref={registerRef('industry')}
+                    style={{ ...s.select, ...(fieldErrors.industry ? s.inputError : {}) }}
+                    name="industry" value={formData.industry} onChange={handleChange}
+                  >
                     <option value="">Select your industry...</option>
                     {industryList.map(ind => <option key={ind} value={ind}>{INDUSTRY_MAP[ind].icon} {ind}</option>)}
                   </select>
                   <span style={s.selectChevron}>▾</span>
                 </div>
+                {fieldErrors.industry && <span style={s.fieldError}>⚠ {fieldErrors.industry}</span>}
               </div>
               {formData.industry && (
                 <div style={s.formGroup}>
@@ -1232,9 +1380,14 @@ targeting: {
                 </div>
               )}
               <div style={s.formGroup}>
-                <label style={s.label}>Business Niche / Keywords</label>
-                <input style={s.input} type="text" name="business_niche" placeholder="e.g. Working Capital, Machinery Loan" value={formData.business_niche} onChange={handleChange} />
-                <span style={s.hint}>Keywords that describe your business offering</span>
+                <label style={s.label}>Business Niche / Keywords <span style={s.requiredStar}>*</span></label>
+                <input
+                  ref={registerRef('business_niche')}
+                  style={{ ...s.input, ...(fieldErrors.business_niche ? s.inputError : {}) }}
+                  type="text" name="business_niche" placeholder="e.g. Working Capital, Machinery Loan"
+                  value={formData.business_niche} onChange={handleChange}
+                />
+                {fieldErrors.business_niche ? <span style={s.fieldError}>⚠ {fieldErrors.business_niche}</span> : <span style={s.hint}>Keywords that describe your business offering</span>}
               </div>
             </div>
           )}
@@ -1242,8 +1395,8 @@ targeting: {
           {/* ══ Step 2 ══ */}
        {step === 2 && (
   <div>
-    <div style={s.formGroup}>
-      <label style={s.label}>Select Platforms</label>
+    <div style={s.formGroup} ref={registerRef('platforms')}>
+      <label style={s.label}>Select Platforms <span style={s.requiredStar}>*</span></label>
       <p style={s.hint}>Choose where your ads will run</p>
       <div style={s.platformGrid}>
         {platforms.map(p => {
@@ -1279,6 +1432,7 @@ const isConnected = connections[connectionKey]?.connected
         })}
       </div>
       {selectedPlatforms.length > 0 && <div style={s.selectedInfo}>✅ {selectedPlatforms.length} platform{selectedPlatforms.length>1?'s':''} selected</div>}
+      {fieldErrors.platforms && <span style={s.fieldError}>⚠ {fieldErrors.platforms}</span>}
     </div>
   </div>
 )}
@@ -1287,28 +1441,83 @@ const isConnected = connections[connectionKey]?.connected
           {step === 3 && (
             <div>
               <div style={s.formGroup}>
-                <label style={s.label}>Daily Budget (₹)</label>
-                <div style={s.budgetInputWrap}>
+                <label style={s.label}>Daily Budget (₹) <span style={s.requiredStar}>*</span></label>
+                <div style={{ ...s.budgetInputWrap, ...(fieldErrors.budget ? s.inputError : {}) }}>
                   <span style={s.budgetSymbol}>₹</span>
-                  <input style={s.budgetInput} type="number" name="budget" placeholder="150000" value={formData.budget} onChange={handleChange} />
+                  <input ref={registerRef('budget')} style={s.budgetInput} type="number" name="budget" placeholder="150000" value={formData.budget} onChange={handleChange} />
                   <span style={s.budgetUnit}>/day</span>
                 </div>
+                {fieldErrors.budget && <span style={s.fieldError}>⚠ {fieldErrors.budget}</span>}
               </div>
+                  {selectedPlatforms.length > 1 && (
+      <div style={s.formGroup}>
+        <label style={s.label}>Budget Split Across Platforms</label>
+        <div style={{ display:'flex', gap:'8px', marginBottom:'12px' }}>
+          <button type="button"
+            onClick={() => setSplitMode('equal')}
+            style={{ ...s.toggleBtn, flex:1, ...(splitMode==='equal'?s.toggleBtnActive:{}) }}>
+            Equal Split
+          </button>
+          <button type="button"
+            onClick={() => setSplitMode('custom')}
+            style={{ ...s.toggleBtn, flex:1, ...(splitMode==='custom'?s.toggleBtnActive:{}) }}>
+            Custom Split
+          </button>
+        </div>
+
+        {splitMode === 'equal' ? (
+          <div style={s.selectedInfo}>
+            {selectedPlatforms.map(id => {
+              const p = platforms.find(pl => pl.id === id)
+              const pct = (100 / selectedPlatforms.length).toFixed(0)
+              const amt = ((parseFloat(formData.budget) || 0) / selectedPlatforms.length).toFixed(0)
+              return `${p.name}: ${pct}% (₹${amt}/day)`
+            }).join(' · ')}
+          </div>
+        ) : (
+          <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
+            {selectedPlatforms.map(id => {
+              const p = platforms.find(pl => pl.id === id)
+              const key = p.apiKey
+              const pct = budgetSplit[key] ?? 0
+              const amt = (((parseFloat(formData.budget) || 0) * pct) / 100).toFixed(0)
+              return (
+                <div key={id} style={{ display:'flex', alignItems:'center', gap:'12px' }}>
+                  <span style={{ width:'90px', fontSize:'12px', fontWeight:'600', color:'#1a1a2e' }}>{p.name}</span>
+                  <input
+                    type="range" min={0} max={100} value={pct}
+                    onChange={e => setBudgetSplit(prev => ({ ...prev, [key]: parseInt(e.target.value) }))}
+                    style={{ flex:1, accentColor:'#1A73E8' }}
+                  />
+                  <span style={{ width:'70px', fontSize:'12px', color:'#8892b0', textAlign:'right' }}>{pct}% (₹{amt})</span>
+                </div>
+              )
+            })}
+            <span style={{ fontSize:'11px', color:'#8892b0' }}>
+              Total: {selectedPlatforms.reduce((sum, id) => sum + (budgetSplit[platforms.find(p=>p.id===id)?.apiKey] || 0), 0)}%
+              {' '}(auto-normalized agar 100 se match na ho)
+            </span>
+          </div>
+        )}
+      </div>
+    )}
               <div className="date-row" style={s.dateRow}>
                 <div style={{ flex:1 }}>
-                  <label style={s.label}>Start Date</label>
-                  <div style={s.dateInputWrap}>
+                  <label style={s.label}>Start Date <span style={s.requiredStar}>*</span></label>
+                  <div style={{ ...s.dateInputWrap, ...(fieldErrors.start_date ? s.inputError : {}) }}>
                     <svg style={s.dateIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8892b0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                    <input style={s.dateInput} type="date" name="start_date" value={formData.start_date} onChange={handleChange} />
+                    <input ref={registerRef('start_date')} style={s.dateInput} type="date" name="start_date" value={formData.start_date} onChange={handleChange} />
                   </div>
+                  {fieldErrors.start_date && <span style={s.fieldError}>⚠ {fieldErrors.start_date}</span>}
                 </div>
                 <div style={s.dateSeparator}>→</div>
                 <div style={{ flex:1 }}>
-                  <label style={s.label}>End Date</label>
-                  <div style={s.dateInputWrap}>
+                  <label style={s.label}>End Date <span style={s.requiredStar}>*</span></label>
+                  <div style={{ ...s.dateInputWrap, ...(fieldErrors.end_date ? s.inputError : {}) }}>
                     <svg style={s.dateIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8892b0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                    <input style={s.dateInput} type="date" name="end_date" value={formData.end_date} onChange={handleChange} />
+                    <input ref={registerRef('end_date')} style={s.dateInput} type="date" name="end_date" value={formData.end_date} onChange={handleChange} />
                   </div>
+                  {fieldErrors.end_date && <span style={s.fieldError}>⚠ {fieldErrors.end_date}</span>}
                 </div>
               </div>
               <div style={s.ageSection}>
@@ -1355,31 +1564,40 @@ const isConnected = connections[connectionKey]?.connected
                 <span style={s.contextChip}>{getDuration()} days</span>
                 <span style={s.contextChip}>₹{getTotalWithGST().toLocaleString('en-IN', {maximumFractionDigits:0})} total (incl. GST)</span>
               </div>
-              <div style={s.formGroup}>
-                <label style={s.label}>Select Target Cities</label>
+              <div style={s.formGroup} ref={registerRef('cities')}>
+                <label style={s.label}>Select Target Cities <span style={s.requiredStar}>*</span></label>
                 <p style={s.hint}>Search or pick from popular cities below</p>
                 <div ref={searchRef} style={{ position:'relative', marginBottom:'12px' }}>
                   <span style={s.searchIcon}>🔍</span>
-                  <input style={s.searchInput} type="text" placeholder="Search any city in India..." value={searchQuery}
+                  <input style={s.searchInput} type="text" placeholder="Search any city, pincode, sector or building in India..." value={searchQuery}
                     onChange={e => handleSearch(e.target.value)} onFocus={() => searchQuery && setShowDropdown(true)} autoComplete="off" />
                   {searchQuery && <button style={s.searchClear} onClick={() => { setSearchQuery(''); setShowDropdown(false) }}>✕</button>}
-                  {showDropdown && dropdownResults.length > 0 && (
+                  {showDropdown && (searchLoading || dropdownResults.length > 0) && (
                     <div style={s.dropdown}>
-                      {dropdownResults.map(city => {
-                        const isSel = selectedCities.find(c => c.name===city.name)
+                      {searchLoading && (
+                        <div style={{ ...s.dropItem, cursor:'default', justifyContent:'flex-start', gap:'8px', color:'#8892b0' }}>
+                          <span style={s.spinner} /> Searching...
+                        </div>
+                      )}
+                      {!searchLoading && dropdownResults.map(place => {
+                        const isSel = selectedCities.find(c => c.place_id===place.place_id || c.name===place.name)
+                        const isAdding = addingCityId === place.place_id
                         return (
-                          <div key={city.name} style={{ ...s.dropItem, ...(isSel?s.dropItemSelected:{}) }} onClick={() => addCityFromDropdown(city)}>
+                          <div key={place.place_id} style={{ ...s.dropItem, ...(isSel?s.dropItemSelected:{}), ...(isAdding?{opacity:0.6, cursor:'wait'}:{}) }} onClick={() => !isAdding && addCityFromDropdown(place)}>
                             <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
                               <span style={{ color:'#8892b0', fontSize:'13px' }}>📍</span>
                               <div>
-                                <div style={{ fontSize:'13px', color: isSel?'#1A73E8':'#1a1a2e' }}>{city.name}</div>
-                                <div style={{ fontSize:'11px', color:'#8892b0' }}>{city.state}</div>
+                                <div style={{ fontSize:'13px', color: isSel?'#1A73E8':'#1a1a2e' }}>{place.name}</div>
+                                <div style={{ fontSize:'11px', color:'#8892b0' }}>{place.secondary_text}</div>
                               </div>
                             </div>
-                            {isSel && <span style={{ color:'#1A73E8', fontSize:'14px' }}>✓</span>}
+                            {isAdding ? <span style={s.spinner} /> : isSel && <span style={{ color:'#1A73E8', fontSize:'14px' }}>✓</span>}
                           </div>
                         )
                       })}
+                      {!searchLoading && dropdownResults.length === 0 && (
+                        <div style={{ ...s.dropItem, cursor:'default', color:'#8892b0' }}>No results found</div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1395,9 +1613,22 @@ const isConnected = connections[connectionKey]?.connected
                   })}
                 </div>
                 {selectedCities.length > 0
-                  ? <div style={s.selectedInfo}>📍 {selectedCities.length} cit{selectedCities.length>1?'ies':'y'} selected: {selectedCities.map(c=>c.name).join(', ')}</div>
+                  ? (
+                    <div style={{ display:'flex', flexWrap:'wrap', gap:'8px', marginTop:'12px' }}>
+                      {selectedCities.map(city => (
+                        <span key={city.place_id || city.name} style={{ display:'inline-flex', alignItems:'center', gap:'6px', fontSize:'12px', fontWeight:'600', color:'#1A73E8', background:'#e8f0fe', border:'1px solid #c7d9fb', padding:'5px 8px 5px 12px', borderRadius:'20px' }}>
+                        📍 {city.name}
+                          <span
+                            onClick={() => { setSelectedCities(prev => prev.filter(c => (c.place_id||c.name) !== (city.place_id||city.name))); setLocationAnalyzed(false); setLocationData(null) }}
+                            style={{ cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', width:'16px', height:'16px', borderRadius:'50%', background:'rgba(26,115,232,0.15)', fontSize:'10px' }}
+                          >✕</span>
+                        </span>
+                      ))}
+                    </div>
+                  )
                   : <div style={{ ...s.selectedInfo, background:'#fff5f5', color:'#c62828' }}>No city selected — pick at least one</div>
                 }
+                {fieldErrors.cities && <span style={s.fieldError}>⚠ {fieldErrors.cities}</span>}
               </div>
               <div style={s.divider} />
               <div style={{ fontSize:'11px', fontWeight:'600', color:'#8892b0', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:'6px' }}>Set targeting radius</div>
@@ -1405,6 +1636,11 @@ const isConnected = connections[connectionKey]?.connected
               <div className="radius-section" style={s.radiusSection}>
                 <div style={s.mapWrap}><MapCanvas selectedCities={selectedCities} radiusKm={radiusKm} /></div>
                 <div style={s.radiusControls}>
+                    <div style={s.reachCard}>
+    <div style={{ fontSize:'11px', color:'#8892b0', marginBottom:'3px' }}>Estimated reach</div>
+    <div style={{ fontSize:'15px', fontWeight:'600', color:'#1a1a2e' }}>{reach.lo}L – {reach.hi}L businesses</div>
+    <div style={{ fontSize:'11px', color:'#8892b0', marginTop:'2px' }}>within {radiusKm} km of {reach.cityName}</div>
+  </div>
                   <div style={s.toggleRow}>
                     {['km','mi'].map(u => (
                       <button key={u} style={{ ...s.toggleBtn, ...(radiusUnit===u?s.toggleBtnActive:{}) }} onClick={() => setRadiusUnit(u)}>
@@ -1420,17 +1656,14 @@ const isConnected = connections[connectionKey]?.connected
                     <p style={{ fontSize:'11px', color:'#8892b0', marginTop:'2px' }}>radius around city center</p>
                   </div>
                   <div>
-                    <div style={{ display:'flex', justifyContent:'space-between', fontSize:'12px', color:'#8892b0', marginBottom:'4px' }}>
-                      <span>{radiusUnit==='km'?'5 km':'3 mi'}</span><span>{radiusUnit==='km'?'100 km':'62 mi'}</span>
-                    </div>
-                    <input type="range" min={radiusUnit==='km'?5:3} max={radiusUnit==='km'?100:62} step="1"
-                      value={getSliderValue()} onChange={e => handleRadiusChange(e.target.value)}
-                      style={{ width:'100%', accentColor:'#1A73E8' }} />
-                  </div>
-                  <div style={s.reachCard}>
-                    <div style={{ fontSize:'11px', color:'#8892b0', marginBottom:'3px' }}>Estimated reach</div>
-                    <div style={{ fontSize:'15px', fontWeight:'600', color:'#1a1a2e' }}>{reach.lo}L – {reach.hi}L businesses</div>
-                    <div style={{ fontSize:'11px', color:'#8892b0', marginTop:'2px' }}>within {radiusKm} km of {reach.cityName}</div>
+<div style={{ display:'flex', justifyContent:'space-between', fontSize:'12px', color:'#8892b0', marginBottom:'4px' }}>
+  <span>{radiusUnit==='km'?'5 km':'3 mi'}</span>
+  <span>{radiusUnit==='km'?`${getDynamicMaxRadius()} km`:`${Math.round(getDynamicMaxRadius()*0.621)} mi`}</span>
+</div>
+
+                    <input type="range" min={radiusUnit==='km'?5:3} max={radiusUnit==='km'?getDynamicMaxRadius():Math.round(getDynamicMaxRadius()*0.621)} step="1"
+                    value={getSliderValue()} onChange={e => handleRadiusChange(e.target.value)}
+                    style={{ width:'100%', accentColor:'#1A73E8' }} />
                   </div>
                 </div>
               </div>
@@ -1502,18 +1735,19 @@ const isConnected = connections[connectionKey]?.connected
 
           {step === 5 && !isLeadGen && (
             <div>
-              <div style={s.formGroup}>
+              <div style={s.formGroup} ref={registerRef('websiteUrl')}>
                 <label style={s.label}>
-                  {formData.goal === 'Brand Awareness' ? '🎯 Brand Awareness' : '🌐 Website Traffic'} — Enter Your Website URL
+                  {formData.goal === 'Brand Awareness' ? '🎯 Brand Awareness' : '🌐 Website Traffic'} — Enter Your Website URL <span style={s.requiredStar}>*</span>
                 </label>
                 <p style={s.hint}>When someone clicks your ad they will be redirected to this URL</p>
                 <input
-                  style={s.input}
+                  style={{ ...s.input, ...(fieldErrors.websiteUrl ? s.inputError : {}) }}
                   type="url"
                   placeholder="https://yourwebsite.com"
                   value={websiteUrl}
-                  onChange={e => setWebsiteUrl(e.target.value)}
+                  onChange={e => { setWebsiteUrl(e.target.value); clearFieldError('websiteUrl') }}
                 />
+                {fieldErrors.websiteUrl && <span style={s.fieldError}>⚠ {fieldErrors.websiteUrl}</span>}
               </div>
               <div style={{ background:'#f0f4ff', border:'1px solid #c7d2fe', borderRadius:'12px', padding:'16px', marginTop:'8px' }}>
                 <div style={{ fontSize:'13px', fontWeight:'700', color:'#1a1a2e', marginBottom:'8px' }}>
@@ -1534,21 +1768,120 @@ const isConnected = connections[connectionKey]?.connected
             </div>
           )}
 
-          {/* ══ Step 6: Ad Content ══ */}
+          {/* ══ Step 6: Targeting Details (NAYA STEP) ══ */}
           {step === 6 && (
+            <div>
+              <div style={{ background:'#f0f4ff', border:'1px solid #c7d2fe', borderRadius:'12px', padding:'14px 16px', marginBottom:'20px' }}>
+                <div style={{ fontSize:'13px', fontWeight:'700', color:'#1a1a2e', marginBottom:'4px' }}>🎯 Kyu chahiye ye details?</div>
+                <div style={{ fontSize:'12px', color:'#4b5563', lineHeight:'1.6' }}>
+                  Ye company details aur targeting suggestion platforms (Google, Meta) ko wahi log dhundhne mein madad karte hain jo pehle se aapke contact ke sath match karte hain — jitni sahi details, utni behtar targeting.
+                </div>
+              </div>
+
+              <div style={s.formGroup}>
+                <label style={s.label}>Company Name</label>
+                <input
+                  ref={registerRef('company_name')}
+                  style={{ ...s.input, ...(fieldErrors.company_name ? s.inputError : {}) }}
+                  type="text" placeholder="e.g. Sharma Finance Pvt Ltd"
+                  value={companyDetails.company_name}
+                  onChange={e => { setCompanyDetails({ ...companyDetails, company_name: e.target.value }); clearFieldError('company_name') }}
+                />
+                {fieldErrors.company_name && <span style={s.fieldError}>⚠ {fieldErrors.company_name}</span>}
+              </div>
+
+              <div style={s.formGroup}>
+                <label style={s.label}>Company Email</label>
+                <input
+                  ref={registerRef('company_email')}
+                  style={{ ...s.input, ...(fieldErrors.company_email ? s.inputError : {}) }}
+                  type="email" placeholder="contact@company.com"
+                  value={companyDetails.company_email}
+                  onChange={e => { setCompanyDetails({ ...companyDetails, company_email: e.target.value }); clearFieldError('company_email') }}
+                />
+                {fieldErrors.company_email && <span style={s.fieldError}>⚠ {fieldErrors.company_email}</span>}
+              </div>
+
+              <div style={s.formGroup}>
+                <label style={s.label}>Company Phone</label>
+                <input
+                  ref={registerRef('company_phone')}
+                  style={{ ...s.input, ...(fieldErrors.company_phone ? s.inputError : {}) }}
+                  type="tel" placeholder="e.g. 9876543210"
+                  value={companyDetails.company_phone}
+                  onChange={e => { setCompanyDetails({ ...companyDetails, company_phone: e.target.value }); clearFieldError('company_phone') }}
+                />
+                {fieldErrors.company_phone && <span style={s.fieldError}>⚠ {fieldErrors.company_phone}</span>}
+              </div>
+
+              <div style={s.formGroup}>
+                <label style={s.label}>Company Pincode</label>
+                <input
+                  ref={registerRef('company_pincode')}
+                  style={{ ...s.input, ...(fieldErrors.company_pincode ? s.inputError : {}) }}
+                  type="text" placeholder="e.g. 110001"
+                  value={companyDetails.company_pincode}
+                  onChange={e => { setCompanyDetails({ ...companyDetails, company_pincode: e.target.value }); clearFieldError('company_pincode') }}
+                />
+                {fieldErrors.company_pincode && <span style={s.fieldError}>⚠ {fieldErrors.company_pincode}</span>}
+              </div>
+
+              <div style={s.divider} />
+
+              <div style={s.formGroup}>
+                <label style={s.label}>Targeting Suggestion <span style={s.labelSub}>(optional)</span></label>
+                <p style={s.hint}>PDF upload karein ya seedha text likhein — jismein bhi contact details (naam/email/phone/pincode) hon, campaign filter usko use karega</p>
+
+                <div style={{ ...s.toggleRow, maxWidth:'280px', marginBottom:'14px' }}>
+                  <button type="button" style={{ ...s.toggleBtn, ...(targetingMode==='pdf' ? s.toggleBtnActive : {}) }} onClick={() => setTargetingMode('pdf')}>
+                    📄 PDF Upload
+                  </button>
+                  <button type="button" style={{ ...s.toggleBtn, ...(targetingMode==='text' ? s.toggleBtnActive : {}) }} onClick={() => setTargetingMode('text')}>
+                    ✍️ Text
+                  </button>
+                </div>
+
+                {targetingMode === 'pdf' ? (
+                  <div>
+                    <input
+                      type="file"
+                      accept="application/pdf"
+                      style={s.input}
+                      onChange={e => setTargetingFile(e.target.files?.[0] || null)}
+                    />
+                    {targetingFile && (
+                      <div style={{ marginTop:'8px', fontSize:'12px', color:'#1b7a4a', fontWeight:'500' }}>
+                        📎 {targetingFile.name} selected
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <textarea
+                    style={{ ...s.input, minHeight:'110px', resize:'vertical' }}
+                    placeholder="e.g. name, email, phone, pincode ya targeting details yahan paste karein"
+                    value={targetingText}
+                    onChange={e => setTargetingText(e.target.value)}
+                  />
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ══ Step 7: Ad Content ══ */}
+          {step === 7 && (
             <AdContent
               embedded={true}
               selectedPlatforms={selectedPlatforms}
               adContents={adContents}
               onAdContentsChange={setAdContents}
-              onBack={() => setStep(5)}
-              onNext={() => { setError(''); setStep(7) }}
+              onBack={() => setStep(6)}
+              onNext={() => { setError(''); setStep(8) }}
               campaignData={formData}
             />
           )}
 
-          {/* ══ Step 7: Review & Launch ══ */}
-          {step === 7 && (
+          {/* ══ Step 8: Review & Launch ══ */}
+          {step === 8 && (
             <div>
               <div style={s.reviewSection}>
                 <div style={s.reviewTitle}>📋 Campaign Details</div>
@@ -1564,6 +1897,21 @@ const isConnected = connections[connectionKey]?.connected
                   {label:'Subtotal',      val:`₹${(parseFloat(formData.budget||0)*getDuration()).toLocaleString('en-IN')}`},
                  {label:'GST (18%)',     val:`₹${(parseFloat(formData.budget||0)*getDuration()*0.18).toLocaleString('en-IN', {maximumFractionDigits:0})}`},
                  {label:'Total Payable', val:`₹${getTotalWithGST().toLocaleString('en-IN', {maximumFractionDigits:0})}`},
+                ].map((item,i) => (
+                  <div key={i} style={s.reviewRow}>
+                    <span style={s.reviewLabel}>{item.label}</span>
+                    <span style={s.reviewVal}>{item.val}</span>
+                  </div>
+                ))}
+              </div>
+              <div style={s.reviewSection}>
+                <div style={s.reviewTitle}>🏢 Targeting Details</div>
+                {[
+                  {label:'Company Name',    val:companyDetails.company_name||'—'},
+                  {label:'Company Email',   val:companyDetails.company_email||'—'},
+                  {label:'Company Phone',   val:companyDetails.company_phone||'—'},
+                  {label:'Company Pincode', val:companyDetails.company_pincode||'—'},
+                  {label:'Targeting Suggestion', val: targetingMode==='pdf' ? (targetingFile ? `📎 ${targetingFile.name}` : 'No PDF uploaded') : (targetingText ? `✍️ ${targetingText.slice(0,60)}${targetingText.length>60?'…':''}` : 'No text added')},
                 ].map((item,i) => (
                   <div key={i} style={s.reviewRow}>
                     <span style={s.reviewLabel}>{item.label}</span>
@@ -1608,54 +1956,77 @@ const isConnected = connections[connectionKey]?.connected
 
         {/* ── Bottom navigation ── */}
         <div className="bottom-bar" style={s.bottomBar}>
-          {step > 1 && step !== 5 && step !== 6 && (
+          {step > 1 && step !== 5 && step !== 7 && (
             <button type="button" style={s.backStepBtn} onClick={() => setStep(step-1)}>← Back</button>
           )}
           {step === 1 && (
             <button type="button" style={s.nextBtnFull} onClick={() => {
-              if (!formData.name||!formData.business_niche) { setError('Please fill all required fields!'); return }
+              const ok = runValidation([
+                ['name', !formData.name.trim(), 'Campaign name is required'],
+                ['goal', !formData.goal, 'Please select a goal'],
+                ['industry', !formData.industry, 'Please select an industry'],
+                ['business_niche', !formData.business_niche.trim(), 'Please enter business niche / keywords'],
+              ])
+              if (!ok) return
               setError(''); setStep(2)
             }}>Next: Select Platforms →</button>
           )}
           {step === 2 && (
   <button type="button" style={s.nextBtnFull} onClick={() => {
-    if (!selectedPlatforms.length) { setError('Please select at least one platform!'); return }
+    const okSelected = runValidation([
+      ['platforms', selectedPlatforms.length === 0, 'Please select at least one platform'],
+    ])
+    if (!okSelected) return
 const unconnected = selectedPlatforms
-/*
-  .map(id => platforms.find(p => p.id === id))
-  .filter(p => {
-    if (!['google','meta','instagram'].includes(p.apiKey)) return false
-    const key = p.apiKey === 'instagram' ? 'meta' : p.apiKey
-    return !connections[key]?.connected
-  })
-   if (unconnected.length) {
-   setError(`Please connect your ${unconnected.map(p=>p.name).join(', ')} account first!`)
-   return
-
-    }
-   */
+  // .map(id => platforms.find(p => p.id === id))
+  // .filter(p => {
+  //   if (!['google','meta','instagram'].includes(p.apiKey)) return false
+  //   const key = p.apiKey === 'instagram' ? 'meta' : p.apiKey
+  //   return !connections[key]?.connected
+  // })
+  //  if (unconnected.length) {
+  //  setFieldErrors({ platforms: `Please connect your ${unconnected.map(p=>p.name).join(', ')} account first!` })
+  //  scrollToField('platforms')
+  //  return
+  //   }
     setError(''); setStep(3)
   }}>Next: Budget & Dates →</button>
 )}
           {step === 3 && (
             <button type="button" style={s.nextBtnFull} onClick={() => {
-              if (!formData.budget||!formData.start_date||!formData.end_date) { setError('Please fill all required fields!'); return }
+              const ok = runValidation([
+                ['budget', !formData.budget, 'Please enter a daily budget'],
+                ['start_date', !formData.start_date, 'Please pick a start date'],
+                ['end_date', !formData.end_date, 'Please pick an end date'],
+              ])
+              if (!ok) return
               setError(''); setStep(4)
             }}>Next: Location Targeting →</button>
           )}
           {step === 4 && (
             <button type="button" style={s.nextBtnFull} onClick={() => {
-              if (!selectedCities.length) { setLocationError('Please select at least one city!'); return }
+              const ok = runValidation([
+                ['cities', selectedCities.length === 0, 'Please select at least one city'],
+              ])
+              if (!ok) return
               setLocationError(''); setError(''); setStep(5)
             }}>Next: {isLeadGen ? 'Form Setup' : 'Website URL'} →</button>
           )}
           {step === 5 && !isLeadGen && (
             <button type="button" style={s.nextBtnFull} onClick={() => {
-              if (!websiteUrl) { setError('Please enter your website URL!'); return }
+              const ok = runValidation([
+                ['websiteUrl', !websiteUrl.trim(), 'Please enter your website URL'],
+              ])
+              if (!ok) return
               setError(''); setStep(6)
+            }}>Next: Targeting Details →</button>
+          )}
+          {step === 6 && (
+            <button type="button" style={s.nextBtnFull} onClick={() => {
+              setError(''); setStep(7)
             }}>Next: Ad Content →</button>
           )}
-          {step === 7 && (
+          {step === 8 && (
             <button type="button" style={loading ? s.submitBtnDisabled : s.nextBtnFull} disabled={loading} onClick={handleSubmit}>
               {loading ? '⏳ Launching...' : '🚀 Launch Campaign'}
             </button>
@@ -1675,9 +2046,7 @@ const unconnected = selectedPlatforms
 }
 
 const s = {
-  // ── Layout ──
   page:        { display:'flex', minHeight:'100vh', fontFamily:'DM Sans, sans-serif', background:'#f0f2f8', overflow:'hidden' },
-  // Left panel unchanged
   leftPanel:   { width:'260px', background:'linear-gradient(160deg,#0f1535 0%,#1a3a8f 100%)', padding:'28px 20px', display:'flex', flexDirection:'column', flexShrink:0, position:'sticky', top:0, height:'100vh', overflowY:'auto' },
   logoMark:    { width:'36px', height:'36px', borderRadius:'10px', background:'rgba(255,255,255,0.15)', border:'1.5px solid rgba(255,255,255,0.3)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'18px', fontWeight:'800', color:'#fff', fontFamily:'Georgia,serif', flexShrink:0 },
   leftLogo:    { display:'flex', alignItems:'center', gap:'10px', marginBottom:'32px' },
@@ -1694,17 +2063,18 @@ const s = {
   stepLabelActive:{ color:'#fff', fontWeight:'600' },
   needHelp:   { background:'rgba(255,255,255,0.07)', borderRadius:'12px', padding:'14px', border:'1px solid rgba(255,255,255,0.12)', marginTop:'8px' },
   bookNowBtn: { width:'100%', padding:'9px', borderRadius:'8px', border:'1.5px solid rgba(255,255,255,0.4)', background:'transparent', color:'#fff', fontSize:'13px', fontWeight:'600', cursor:'pointer', fontFamily:'inherit' },
-  // Main content — now fills all space (no right panel)
- mainContent: { flex:1, padding:'28px 24px', overflowY:'auto', minWidth:0, height:'100vh', display:'flex', flexDirection:'column' },
+  mainContent: { flex:1, padding:'28px 24px', overflowY:'auto', minWidth:0, height:'100vh', display:'flex', flexDirection:'column' },
   backBtn:      { background:'none', border:'none', color:'#1A73E8', fontSize:'13px', cursor:'pointer', padding:'0 0 16px 0', fontFamily:'inherit', display:'flex', alignItems:'center', gap:'4px', alignSelf:'flex-start' },
   formCard: { background:'#fff', borderRadius:'16px', border:'0.5px solid #e0e4ef', padding:'32px 36px', width:'100%', maxWidth:'100%', boxSizing:'border-box' },
   formTitle:    { fontSize:'26px', fontWeight:'700', color:'#1a1a2e', margin:'0 0 4px 0' },
   formSubtitle: { fontSize:'13px', color:'#8892b0', margin:0 },
-  // Form elements
   formGroup:  { marginBottom:'22px' },
   label:      { display:'block', fontSize:'13px', fontWeight:'600', color:'#1a1a2e', marginBottom:'8px' },
   labelSub:   { fontWeight:'400', color:'#8892b0', fontSize:'12px' },
+  requiredStar: { color:'#dc2626', fontWeight:'700' },
   hint:       { display:'block', fontSize:'11px', color:'#8892b0', marginTop:'5px' },
+  fieldError: { display:'block', fontSize:'12px', color:'#dc2626', marginTop:'6px', fontWeight:'600' },
+  inputError: { border:'1.5px solid #dc2626', boxShadow:'0 0 0 3px rgba(220,38,38,0.08)' },
   input:      { width:'100%', padding:'12px 16px', borderRadius:'10px', border:'1.5px solid #e0e4ef', background:'#fff', fontSize:'13px', color:'#1a1a2e', outline:'none', fontFamily:'inherit', boxSizing:'border-box' },
   selectWrap:    { position:'relative', display:'flex', alignItems:'center' },
   selectIcon:    { position:'absolute', left:'12px', fontSize:'16px', zIndex:1, pointerEvents:'none' },
@@ -1717,12 +2087,10 @@ const s = {
   goalIconWrap:   { display:'flex', alignItems:'center', justifyContent:'center', height:'44px' },
   goalName:       { fontSize:'13px', fontWeight:'700', color:'#1a1a2e', lineHeight:'1.3' },
   goalDesc:       { fontSize:'11px', color:'#8892b0', lineHeight:'1.4' },
-  // Navigation
  bottomBar: { display:'flex', gap:'12px', marginTop:'20px', width:'100%' },
   nextBtnFull:       { flex:1, padding:'15px 24px', borderRadius:'12px', border:'none', background:'#1A73E8', color:'#fff', fontSize:'15px', fontWeight:'600', cursor:'pointer', fontFamily:'inherit', textAlign:'center' },
   backStepBtn:       { padding:'15px 24px', borderRadius:'12px', border:'1.5px solid #e0e4ef', background:'#fff', color:'#8892b0', fontSize:'15px', cursor:'pointer', fontFamily:'inherit' },
   submitBtnDisabled: { flex:1, padding:'15px 24px', borderRadius:'12px', border:'none', background:'#93b8f4', color:'#fff', fontSize:'15px', fontWeight:'600', cursor:'not-allowed', fontFamily:'inherit' },
-  // Step 3
   budgetInputWrap: { display:'flex', alignItems:'center', border:'1.5px solid #e0e4ef', borderRadius:'10px', background:'#fff', overflow:'hidden' },
   budgetSymbol:    { padding:'12px 14px', background:'#f4f6fb', color:'#8892b0', fontSize:'14px', fontWeight:'600', borderRight:'1.5px solid #e0e4ef' },
   budgetInput:     { flex:1, padding:'12px 14px', border:'none', fontSize:'13px', color:'#1a1a2e', outline:'none', fontFamily:'inherit', minWidth:0 },
@@ -1739,7 +2107,6 @@ const s = {
   budgetSummaryBar:     { display:'flex', alignItems:'center', border:'1.5px solid #e0e4ef', borderRadius:'10px', overflow:'hidden', background:'#fff', flexWrap:'wrap' },
   budgetSummaryItem:    { display:'flex', alignItems:'center', gap:'8px', flex:1, padding:'14px 18px' },
   budgetSummaryDivider: { width:'1px', height:'40px', background:'#e0e4ef', flexShrink:0 },
-  // Step 2
   platformGrid:     { display:'flex', flexDirection:'column', gap:'10px' },
   platformCard:     { padding:'14px', borderRadius:'10px', border:'1.5px solid #e0e4ef', background:'#fff', cursor:'pointer', display:'flex', alignItems:'center', gap:'14px' },
   platformCardActive:{ background:'#f8fbff' },
@@ -1747,7 +2114,6 @@ const s = {
   platInfo:  { flex:1, minWidth:0 }, platName: { fontSize:'13px', fontWeight:'600', color:'#1a1a2e' }, platDesc: { fontSize:'11px', color:'#8892b0' },
   platCheck: { width:'22px', height:'22px', borderRadius:'50%', border:'2px solid #d0d5e8', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', color:'#fff', fontWeight:'700', flexShrink:0 },
   selectedInfo: { marginTop:'10px', fontSize:'12px', color:'#1b7a4a', fontWeight:'500', background:'#e6f9f0', padding:'8px 12px', borderRadius:'8px' },
-  // Step 4
   contextBar:  { display:'flex', gap:'8px', flexWrap:'wrap', marginBottom:'20px', padding:'10px 14px', background:'#f4f6fb', borderRadius:'10px', border:'0.5px solid #e0e4ef' },
   contextChip: { fontSize:'11px', fontWeight:'600', color:'#1A73E8', background:'#e8f0fe', padding:'3px 10px', borderRadius:'20px' },
   searchInput:  { width:'100%', padding:'10px 36px', borderRadius:'10px', border:'1.5px solid #e0e4ef', background:'#fff', fontSize:'13px', color:'#1a1a2e', fontFamily:'inherit', outline:'none', boxSizing:'border-box' },
@@ -1789,7 +2155,6 @@ const s = {
   metricLabel:   { fontSize:'10px', color:'#8892b0', marginTop:'2px' },
   cityRecommendation: { fontSize:'11px', color:'#8892b0', lineHeight:'1.5', background:'#fff', borderRadius:'8px', padding:'8px 10px', border:'0.5px solid #e0e4ef' },
   reanalyzeBtn:  { background:'none', border:'1.5px solid #e0e4ef', color:'#8892b0', padding:'8px 16px', borderRadius:'8px', fontSize:'12px', cursor:'pointer', fontFamily:'inherit' },
-  // Step 7
   reviewSection:    { background:'#f4f6fb', borderRadius:'10px', padding:'16px', marginBottom:'16px', border:'0.5px solid #e0e4ef' },
   reviewTitle:      { fontSize:'13px', fontWeight:'700', color:'#1a1a2e', marginBottom:'12px' },
   reviewRow:        { display:'flex', justifyContent:'space-between', padding:'7px 0', borderBottom:'0.5px solid #e0e4ef', gap:'12px', flexWrap:'wrap' },

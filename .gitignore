@@ -1,7 +1,6 @@
 # Frontend
 frontend/node_modules/
 frontend/.env
-node_modules/
 
 # Backend
 backend/venv/
@@ -21,3 +20,9 @@ client_secrets.json
 
 backend/venv_old/
 venv_old/
+
+# Sensitive credentials
+backend/google-ads.yaml
+google-ads.yaml
+
+node_modules/

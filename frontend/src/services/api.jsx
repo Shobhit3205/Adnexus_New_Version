@@ -1,9 +1,8 @@
 import axios from 'axios'
 
 const API = axios.create({
-  baseURL: 'http://127.0.0.1:8000'
+  baseURL: import.meta.env.VITE_API_BASE || 'http://127.0.0.1:8000'
 })
-
 // ── Auto-attach token to every request ──
 // Har request jaane se pehle localStorage se token nikaal ke
 // Authorization header mein daal deta hai. Isse har API function
@@ -58,12 +57,18 @@ export const getMe = (token) =>
     headers: { Authorization: `Bearer ${token}` }
   })
 
+// NEW: forgot / reset password
+export const forgotPassword = (data) => API.post('/api/auth/forgot-password', data)
 
-export const uploadPhoto = (formData) => {
-  return api.post('/users/me/photo', formData, {
+export const verifyResetOtp = (data) => API.post('/api/auth/verify-reset-otp', data)
+
+export const resetPassword = (data) => API.post('/api/auth/reset-password', data)
+
+// FIXED: was using lowercase `api.post` (undefined) — now uses the `API` instance
+export const uploadPhoto = (formData) =>
+  API.post('/api/auth/me/photo', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
-}
 
 export const syncPlatformStats = (campaignId) =>
   API.post(`/api/campaigns/${campaignId}/sync-stats`)

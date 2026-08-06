@@ -231,7 +231,7 @@ const AboutUs = () => {
         <h2 style={s.ctaTitle} className="cta-title">Ready to grow your business?</h2>
         <p style={s.ctaSub}>Join businesses across India already using AdNexus to launch smarter ad campaigns.</p>
         <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
-          <button style={s.btnCta}>🚀 Start Free Trial</button>
+        <button style={s.btnCta} onClick={() => navigate('/signup')}>🚀 Start Free Trial</button>
           <a href="/#pricing" style={s.btnCtaGhost}>View Pricing →</a>
         </div>
       </section>

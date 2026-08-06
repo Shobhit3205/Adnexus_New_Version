@@ -7,7 +7,9 @@ from typing import Optional
 class SignupRequest(BaseModel):
     name: str
     email: EmailStr
+    phone: str                 # naya field
     password: str
+    otp_channel: str           # "email" ya "phone" — user ne jo choose kiya
 
 
 # ── Login ──
@@ -27,12 +29,27 @@ class ResendOtpRequest(BaseModel):
     email: EmailStr
 
 
+# ── Forgot Password ──
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+# ── Reset Password ──
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    otp_code: str
+    new_password: str
+
+
 # ── User Response (password kabhi frontend ko nahi jayega) ──
 class UserResponse(BaseModel):
     id: int
     name: str
     email: EmailStr
+    phone: Optional[str] = None
     is_verified: bool
+    is_email_verified: bool
+    is_phone_verified: bool
     auth_provider: str
     created_at: datetime
 
@@ -51,13 +68,16 @@ class TokenResponse(BaseModel):
 class MessageResponse(BaseModel):
     message: str
 
-    # ── Google Login ──
+
+# ── Google Login ──
 class GoogleLoginRequest(BaseModel):
     id_token: str
+
 
 class UpdateProfileRequest(BaseModel):
     name: str | None = None
     email: EmailStr | None = None
+    phone: str | None = None
 
 
 # ── Change Password ──

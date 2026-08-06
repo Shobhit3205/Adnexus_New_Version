@@ -4,7 +4,8 @@ import { signup } from '../services/api'
 
 const Signup = () => {
   const navigate = useNavigate()
-  const [form, setForm] = useState({ name: '', email: '', password: '' })
+  const [form, setForm] = useState({ name: '', phone: '', email: '', password: '' })
+  const [otpChannel, setOtpChannel] = useState('email') // 'email' ya 'phone'
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
@@ -12,6 +13,11 @@ const Signup = () => {
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value })
+  }
+
+  const handlePhoneChange = (e) => {
+    const digitsOnly = e.target.value.replace(/\D/g, '').slice(0, 10)
+    setForm({ ...form, phone: digitsOnly })
   }
 
   // Password rules
@@ -23,10 +29,16 @@ const Signup = () => {
   ]
 
   const isPasswordValid = passwordRules.every((rule) => rule.test(form.password))
+  const isPhoneValid = /^[6-9]\d{9}$/.test(form.phone)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+
+    if (!isPhoneValid) {
+      setError('Please enter a valid 10-digit phone number.')
+      return
+    }
 
     if (!isPasswordValid) {
       setError('Please meet all password requirements.')
@@ -35,11 +47,26 @@ const Signup = () => {
 
     setLoading(true)
     try {
-      await signup(form)
-      // Signup success — OTP verify page pe bhejo, email saath le jao
-      navigate('/verify-otp', { state: { email: form.email } })
+      await signup({ ...form, otp_channel: otpChannel })
+      // Signup success — OTP verify page pe bhejo, email/phone/channel saath le jao
+      navigate('/verify-otp', {
+        state: { email: form.email, phone: form.phone, otpChannel },
+      })
     } catch (err) {
-      setError(err.response?.data?.detail || 'Something went wrong. Please try again.')
+      const detail = err.response?.data?.detail || 'Something went wrong. Please try again.'
+      setError(detail)
+
+      // Signup ho chuka hai DB mein but OTP send fail hua (500 + "Resend OTP" wala message)
+      // — user ko verify-otp page pe bhej do taaki wo Resend OTP use kar sake,
+      // signup form pe stuck na rahe.
+      const otpSendFailed =
+        err.response?.status === 500 && /resend otp/i.test(detail)
+
+      if (otpSendFailed) {
+        navigate('/verify-otp', {
+          state: { email: form.email, phone: form.phone, otpChannel },
+        })
+      }
     } finally {
       setLoading(false)
     }
@@ -63,6 +90,21 @@ const Signup = () => {
             onChange={handleChange}
             required
           />
+
+          <label style={styles.label}>Phone Number</label>
+          <div style={styles.phoneWrap}>
+            <span style={styles.phonePrefix}>+91</span>
+            <input
+              style={styles.phoneInput}
+              type="tel"
+              name="phone"
+              placeholder="10-digit mobile number"
+              value={form.phone}
+              onChange={handlePhoneChange}
+              maxLength={10}
+              required
+            />
+          </div>
 
           <label style={styles.label}>Email</label>
           <input
@@ -113,6 +155,25 @@ const Signup = () => {
             </div>
           )}
 
+          {/* OTP channel choice */}
+          <label style={styles.label}>Send verification code via</label>
+          <div style={styles.channelWrap}>
+            <button
+              type="button"
+              style={{ ...styles.channelBtn, ...(otpChannel === 'email' ? styles.channelBtnActive : {}) }}
+              onClick={() => setOtpChannel('email')}
+            >
+              Email
+            </button>
+            <button
+              type="button"
+              style={{ ...styles.channelBtn, ...(otpChannel === 'phone' ? styles.channelBtnActive : {}) }}
+              onClick={() => setOtpChannel('phone')}
+            >
+              Phone
+            </button>
+          </div>
+
           <button style={styles.button} type="submit" disabled={loading}>
             {loading ? 'Creating account...' : 'Sign Up'}
           </button>
@@ -120,6 +181,11 @@ const Signup = () => {
 
         <p style={styles.footerText}>
           Already have an account? <Link to="/login" style={styles.link}>Log in</Link>
+        </p>
+
+        <p style={styles.supportText}>
+          For any help contact us at{' '}
+          <a href="mailto:support@adnexus.co.in" style={styles.link}>support@adnexus.co.in</a>
         </p>
       </div>
     </div>
@@ -148,6 +214,9 @@ const styles = {
   subtitle: { fontSize: '13px', color: '#64748b', marginBottom: '20px' },
   label: { display: 'block', fontSize: '12px', fontWeight: '600', color: '#334155', marginBottom: '5px', marginTop: '14px' },
   input: { width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', outline: 'none', boxSizing: 'border-box' },
+  phoneWrap: { display: 'flex', alignItems: 'center', border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' },
+  phonePrefix: { padding: '10px 10px', fontSize: '14px', color: '#64748b', background: '#f8fafc', borderRight: '1px solid #e2e8f0' },
+  phoneInput: { flex: 1, padding: '10px 12px', border: 'none', fontSize: '14px', outline: 'none', boxSizing: 'border-box' },
   passwordWrap: { position: 'relative', width: '100%' },
   passwordInput: { width: '100%', padding: '10px 40px 10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', outline: 'none', boxSizing: 'border-box' },
   eyeIcon: { position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', display: 'flex', alignItems: 'center' },
@@ -155,9 +224,13 @@ const styles = {
   ruleRow: { display: 'flex', alignItems: 'center', gap: '8px', padding: '2px 0' },
   ruleIcon: { fontSize: '13px', fontWeight: '700', width: '14px', textAlign: 'center' },
   ruleText: { fontSize: '12.5px' },
+  channelWrap: { display: 'flex', gap: '8px' },
+  channelBtn: { flex: 1, padding: '9px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff', color: '#64748b', fontWeight: '600', fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' },
+  channelBtnActive: { background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe' },
   button: { width: '100%', marginTop: '22px', padding: '11px', borderRadius: '8px', border: 'none', background: '#2563eb', color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' },
   error: { background: '#fef2f2', color: '#dc2626', padding: '10px 12px', borderRadius: '8px', fontSize: '13px', marginBottom: '10px' },
   footerText: { textAlign: 'center', fontSize: '13px', color: '#64748b', marginTop: '18px' },
+  supportText: { textAlign: 'center', fontSize: '12px', color: '#94a3b8', marginTop: '10px' },
   link: { color: '#2563eb', fontWeight: '600', textDecoration: 'none' },
 }
 

@@ -5,6 +5,28 @@ import axios from 'axios'
 const API_BASE = 'http://127.0.0.1:8000'
 
 // ════════════════════════════════════════════════════
+// COLOR HELPERS — derive the whole chrome from one brand color
+// ════════════════════════════════════════════════════
+const hexToRgba = (hex, alpha) => {
+  let h = (hex || '#1A73E8').replace('#', '')
+  if (h.length === 3) h = h.split('').map(c => c + c).join('')
+  const num = parseInt(h, 16)
+  const r = (num >> 16) & 255, g = (num >> 8) & 255, b = num & 255
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
+const shadeColor = (hex, percent) => {
+  let h = (hex || '#1A73E8').replace('#', '')
+  if (h.length === 3) h = h.split('').map(c => c + c).join('')
+  const num = parseInt(h, 16)
+  let r = (num >> 16), g = (num >> 8 & 0x00FF), b = (num & 0x0000FF)
+  r = Math.min(255, Math.max(0, r + Math.round(2.55 * percent)))
+  g = Math.min(255, Math.max(0, g + Math.round(2.55 * percent)))
+  b = Math.min(255, Math.max(0, b + Math.round(2.55 * percent)))
+  return `#${(0x1000000 + r * 0x10000 + g * 0x100 + b).toString(16).slice(1)}`
+}
+
+// ════════════════════════════════════════════════════
 // FORM FIELDS CONFIG
 // Each form type has its own fields
 // Adding new form type = just add here, nothing else
@@ -240,31 +262,51 @@ const PublicLeadForm = () => {
     }
   }
 
+  const brandColor  = config?.brand_color || '#1A73E8'
+
   // ── Loading ──
   if (loading) return (
     <div style={s.centered}>
-      <div style={s.spinner} />
-      <p style={{ color: '#8892b0', marginTop: '12px' }}>Loading form...</p>
+      <style>{GLOBAL_CSS}</style>
+      <div className="adnx-spinner" />
+      <p style={{ color: '#8892b0', marginTop: '14px', fontSize: '13px', letterSpacing: '0.02em' }}>Loading form...</p>
     </div>
   )
 
   // ── Error ──
   if (error && !config) return (
     <div style={s.centered}>
-      <div style={{ fontSize: '48px', marginBottom: '16px' }}>❌</div>
-      <p style={{ color: '#c62828' }}>{error}</p>
+      <div style={{ fontSize: '44px', marginBottom: '14px' }}>❌</div>
+      <p style={{ color: '#c62828', fontSize: '14px' }}>{error}</p>
     </div>
   )
 
   const formConfig  = FORM_CONFIGS[config?.form_type] || FORM_CONFIGS.services
-  const brandColor  = config?.brand_color || '#1A73E8'
   const companyName = config?.company_name || config?.campaign_name || 'AdNexus'
+  const brandDark    = shadeColor(brandColor, -22)
+  const brandSoft     = hexToRgba(brandColor, 0.08)
+  const brandGlow      = hexToRgba(brandColor, 0.16)
+  const brandShadow     = hexToRgba(brandColor, 0.35)
 
   return (
-    <div style={s.page}>
+    <div
+      style={{
+        ...s.page,
+        background: `radial-gradient(60% 50% at 12% 0%, ${brandSoft}, transparent 60%),
+                      radial-gradient(50% 40% at 100% 10%, ${hexToRgba(brandColor, 0.05)}, transparent 55%),
+                      #f3f5fa`,
+      }}
+    >
+      <style>{GLOBAL_CSS}</style>
 
       {/* ── Header: Company Branding ── */}
-      <div style={{ ...s.header, background: brandColor }}>
+      <div
+        style={{
+          ...s.header,
+          background: `radial-gradient(120% 160% at 100% 0%, rgba(255,255,255,0.16), transparent 55%),
+                        linear-gradient(135deg, ${brandColor} 0%, ${brandDark} 100%)`,
+        }}
+      >
         {config?.company_logo
           ? <img src={config.company_logo} alt="logo" style={s.logo} />
           : <div style={s.logoPlaceholder}>{companyName[0]}</div>
@@ -276,9 +318,11 @@ const PublicLeadForm = () => {
       </div>
 
       {/* ── Form Card ── */}
-      <div style={s.card}>
+      <div className="adnx-card" style={s.card}>
         <div style={s.formHeader}>
-          <span style={s.formIcon}>{formConfig.icon}</span>
+          <span style={{ ...s.formIconWrap, background: brandSoft }}>
+            <span style={s.formIcon}>{formConfig.icon}</span>
+          </span>
           <h1 style={s.formTitle}>{formConfig.title}</h1>
           <p style={s.formSubtitle}>Fill in your details and we'll get back to you shortly.</p>
         </div>
@@ -290,7 +334,7 @@ const PublicLeadForm = () => {
             <div key={field.name} style={s.fieldGroup}>
               <label style={s.label}>
                 {field.label}
-                {field.required && <span style={{ color: '#c62828' }}> *</span>}
+                {field.required && <span style={{ color: '#e0464f' }}> *</span>}
               </label>
 
               {field.type === 'select' ? (
@@ -298,7 +342,8 @@ const PublicLeadForm = () => {
                   name={field.name}
                   value={formData[field.name] || ''}
                   onChange={handleChange}
-                  style={s.input}
+                  className="adnx-input adnx-select"
+                  style={{ ...s.input, '--brand-ring': brandGlow, '--brand-border': brandColor }}
                 >
                   <option value="">Select...</option>
                   {field.options.map(opt => (
@@ -311,7 +356,8 @@ const PublicLeadForm = () => {
                   value={formData[field.name] || ''}
                   onChange={handleChange}
                   placeholder={`Enter ${field.label.toLowerCase()}...`}
-                  style={{ ...s.input, height: '80px', resize: 'vertical' }}
+                  className="adnx-input"
+                  style={{ ...s.input, '--brand-ring': brandGlow, '--brand-border': brandColor, height: '86px', resize: 'vertical' }}
                 />
               ) : (
                 <input
@@ -320,7 +366,8 @@ const PublicLeadForm = () => {
                   value={formData[field.name] || ''}
                   onChange={handleChange}
                   placeholder={`Enter ${field.label.toLowerCase()}...`}
-                  style={s.input}
+                  className="adnx-input"
+                  style={{ ...s.input, '--brand-ring': brandGlow, '--brand-border': brandColor }}
                 />
               )}
             </div>
@@ -330,40 +377,80 @@ const PublicLeadForm = () => {
         <button
           onClick={handleSubmit}
           disabled={submitting}
-          style={{ ...s.submitBtn, background: submitting ? '#93b8f4' : brandColor }}
+          className="adnx-submit-btn"
+          style={{
+            ...s.submitBtn,
+            background: submitting ? '#a9c3ef' : `linear-gradient(135deg, ${brandColor} 0%, ${brandDark} 100%)`,
+            boxShadow: submitting ? 'none' : `0 12px 24px -10px ${brandShadow}`,
+            cursor: submitting ? 'default' : 'pointer',
+          }}
         >
           {submitting ? '⏳ Submitting...' : 'Submit Enquiry →'}
         </button>
 
         <div style={s.poweredBy}>
-          Powered by <strong>AdNexus</strong> ✓
+          Powered by <strong style={{ color: '#5b6480' }}>AdNexus</strong> ✓
         </div>
       </div>
     </div>
   )
 }
 
+// Hover / focus / animation rules that plain inline styles can't express.
+// Brand-dependent colors are passed in as CSS custom properties (--brand-ring / --brand-border).
+const GLOBAL_CSS = `
+  @keyframes adnx-spin { to { transform: rotate(360deg); } }
+  .adnx-spinner {
+    width: 34px; height: 34px; border-radius: 50%;
+    border: 3px solid #e4e7f0; border-top-color: #1A73E8;
+    animation: adnx-spin 0.7s linear infinite;
+  }
+  .adnx-card { transition: box-shadow 0.25s ease; }
+  .adnx-input {
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+  }
+  .adnx-input:hover { border-color: #c7cce0; }
+  .adnx-input:focus {
+    outline: none;
+    background: #fff;
+    border-color: var(--brand-border, #1A73E8);
+    box-shadow: 0 0 0 4px var(--brand-ring, rgba(26,115,232,0.16));
+  }
+  .adnx-select {
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%238892b0' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    padding-right: 40px !important;
+    cursor: pointer;
+  }
+  .adnx-submit-btn { transition: transform 0.16s ease, box-shadow 0.16s ease, filter 0.16s ease; }
+  .adnx-submit-btn:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.03); }
+  .adnx-submit-btn:active:not(:disabled) { transform: translateY(0); }
+`
+
 const s = {
-  page:       { minHeight: '100vh', background: '#f0f2f8', fontFamily: 'DM Sans, sans-serif', paddingBottom: '40px' },
-  centered:   { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' },
-  spinner:    { width: '32px', height: '32px', border: '3px solid #e0e4ef', borderTop: '3px solid #1A73E8', borderRadius: '50%', animation: 'spin 0.8s linear infinite' },
-  header:     { padding: '24px 32px', display: 'flex', alignItems: 'center', gap: '16px', color: '#fff' },
-  logo:       { width: '48px', height: '48px', borderRadius: '10px', objectFit: 'cover' },
-  logoPlaceholder: { width: '48px', height: '48px', borderRadius: '10px', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', fontWeight: '800', color: '#fff' },
-  companyName:{ fontSize: '20px', fontWeight: '700' },
+  page:       { minHeight: '100vh', fontFamily: '"DM Sans", sans-serif', paddingBottom: '48px' },
+  centered:   { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#f3f5fa' },
+  header:     { padding: '28px 32px', display: 'flex', alignItems: 'center', gap: '16px', color: '#fff' },
+  logo:       { width: '48px', height: '48px', borderRadius: '12px', objectFit: 'cover', border: '1px solid rgba(255,255,255,0.35)' },
+  logoPlaceholder: { width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(255,255,255,0.18)', border: '1px solid rgba(255,255,255,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', fontWeight: '800', color: '#fff' },
+  companyName:{ fontSize: '20px', fontWeight: '700', letterSpacing: '-0.01em' },
   tagline:    { fontSize: '13px', opacity: 0.85, marginTop: '2px' },
-  card:       { maxWidth: '560px', margin: '32px auto', background: '#fff', borderRadius: '16px', border: '1px solid #e8eaf0', padding: '32px', boxShadow: '0 4px 24px rgba(0,0,0,0.06)' },
+  card:       { maxWidth: '560px', margin: '36px auto', background: '#fff', borderRadius: '20px', border: '1px solid rgba(15,23,42,0.06)', padding: '36px', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 24px 48px -20px rgba(15,23,42,0.18)' },
   formHeader: { textAlign: 'center', marginBottom: '28px' },
-  formIcon:   { fontSize: '40px' },
-  formTitle:  { fontSize: '22px', fontWeight: '700', color: '#1a1a2e', margin: '8px 0 4px' },
+  formIconWrap:{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '56px', height: '56px', borderRadius: '16px' },
+  formIcon:   { fontSize: '28px' },
+  formTitle:  { fontSize: '22px', fontWeight: '700', color: '#1a1a2e', margin: '14px 0 4px', letterSpacing: '-0.01em' },
   formSubtitle:{ fontSize: '13px', color: '#8892b0' },
-  fields:     { display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' },
-  fieldGroup: { display: 'flex', flexDirection: 'column', gap: '6px' },
+  fields:     { display: 'flex', flexDirection: 'column', gap: '18px', marginBottom: '26px' },
+  fieldGroup: { display: 'flex', flexDirection: 'column', gap: '7px' },
   label:      { fontSize: '13px', fontWeight: '600', color: '#1a1a2e' },
-  input:      { padding: '11px 14px', borderRadius: '10px', border: '1.5px solid #e0e4ef', fontSize: '13px', color: '#1a1a2e', fontFamily: 'inherit', outline: 'none', width: '100%', boxSizing: 'border-box' },
-  submitBtn:  { width: '100%', padding: '14px', borderRadius: '12px', border: 'none', color: '#fff', fontSize: '15px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit' },
-  poweredBy:  { textAlign: 'center', fontSize: '12px', color: '#9ca3af', marginTop: '16px' },
-  error:      { background: '#fff5f5', color: '#c62828', padding: '10px 14px', borderRadius: '8px', fontSize: '13px', marginBottom: '16px', border: '0.5px solid #ffcdd2' },
+  input:      { padding: '12px 16px', borderRadius: '12px', border: '1.5px solid #e4e7f0', background: '#fbfbfe', fontSize: '13.5px', color: '#1a1a2e', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' },
+  submitBtn:  { width: '100%', padding: '15px', borderRadius: '14px', border: 'none', color: '#fff', fontSize: '15px', fontWeight: '700', letterSpacing: '0.01em', fontFamily: 'inherit' },
+  poweredBy:  { textAlign: 'center', fontSize: '12px', color: '#9ca3af', marginTop: '18px', paddingTop: '18px', borderTop: '1px solid #eef0f6' },
+  error:      { background: '#fff5f5', color: '#c62828', padding: '11px 16px', borderRadius: '10px', fontSize: '13px', marginBottom: '18px', border: '1px solid #ffd4d6', borderLeft: '3px solid #e0464f' },
 }
 
 export default PublicLeadForm

@@ -39,7 +39,7 @@ const LandingPage = () => {
 
         .an-nav-links { display: flex; align-items: center; gap: 24px; }
         .an-nav-right { display: flex; align-items: center; gap: 10px; }
-        .an-burger { display: none; }
+        .an-burger { display: none !important; }
         .an-mobile-panel { display: none; }
 
         .an-features-grid,
@@ -197,8 +197,8 @@ const LandingPage = () => {
           and Instagram — all from one powerful dashboard.
         </p>
         <div className="an-hero-btns" style={s.heroBtns}>
-          <button style={s.btnHeroPrimary}>🚀 Start Free Trial</button>
-          <button style={s.btnHeroGhost}>▶ Watch Demo</button>
+      <button style={s.btnHeroPrimary} onClick={() => navigate('/signup')}>🚀 Start Free Trial</button>
+<button style={s.btnHeroGhost} onClick={() => navigate('/signup')}>▶ Watch Demo</button>
         </div>
         <div className="an-hero-stats" style={s.heroStats}>
           {[
@@ -321,7 +321,7 @@ const LandingPage = () => {
       <section style={s.cta}>
         <h2 className="an-cta-title" style={s.ctaTitle}>Ready to launch smarter ads?</h2>
         <p style={s.ctaSub}>Join hundreds of businesses already using AdNexus to grow faster.</p>
-        <button style={s.btnCta}>Start Free Trial Today →</button>
+        <button style={s.btnCta} onClick={() => navigate('/signup')}>Start Free Trial Today →</button>
       </section>
 
       {/* ── Footer ── */}

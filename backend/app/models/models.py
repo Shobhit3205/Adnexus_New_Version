@@ -16,6 +16,8 @@ class User(Base):
 
     # Email/password users ke liye set hoga (hashed), Google-only users ke liye None
     password   = Column(String(255), nullable=True)
+    email      = Column(String(100), unique=True, nullable=False)
+    phone      = Column(String(15), unique=True, nullable=True)
 
     # Google login ke liye
     google_id     = Column(String(255), unique=True, nullable=True)
@@ -23,9 +25,11 @@ class User(Base):
 
     # OTP verification ke liye
     is_verified     = Column(Boolean, default=False)
+    is_email_verified = Column(Boolean, default=False)
+    is_phone_verified  = Column(Boolean, default=False)
     otp_code        = Column(String(10), nullable=True)
     otp_expires_at  = Column(DateTime, nullable=True)
-
+    otp_channel     = Column(String(10),nullable=True)
     created_at = Column(DateTime, default=func.now())
 
     # Relationship
@@ -64,7 +68,6 @@ class Campaign(Base):
     form_submissions = relationship("FormSubmission", back_populates="campaign")
     click_tracking   = relationship("ClickTracking", back_populates="campaign")
     audience_profiles = relationship("AudienceProfile", back_populates="campaign")
-    
 
     # ── Meta platform IDs — sync ke liye zaroori (jab tak Meta pe live nahi hota, yeh null rahenge) ──
     meta_campaign_id = Column(String(100), nullable=True)
@@ -72,7 +75,16 @@ class Campaign(Base):
     meta_ad_id       = Column(String(100), nullable=True)
     website_url = Column(String(500), nullable=True)   # Website Traffic/Brand Awareness ka destination URL
 
+    # ── Google Ads platform IDs — sync ke liye zaroori (jab tak Google pe live nahi hota, yeh null rahenge) ──
+    google_campaign_id = Column(String(100), nullable=True)
+    google_ad_group_id = Column(String(100), nullable=True)
+    google_ad_id       = Column(String(100), nullable=True)
 
+        # ── Business Profile fields (Step 6 targeting) ──
+    company_name    = Column(String(200), nullable=True)
+    company_email   = Column(String(200), nullable=True)
+    company_phone   = Column(String(20),  nullable=True)
+    company_pincode = Column(String(10),  nullable=True)
 # ════════════════════════════════════════════════════
 # Platforms Table
 # ════════════════════════════════════════════════════
@@ -103,6 +115,7 @@ class PlatformStat(Base):
     budget_spent  = Column(Float, default=0)
     leads         = Column(Integer, default=0)
     cpl           = Column(Float, default=0)
+    reach         = Column(Integer, default=0)
     recorded_at   = Column(DateTime, default=func.now())
 
     # Relationships
@@ -297,16 +310,6 @@ class PlatformConnection(Base):
 
 
     # ════════════════════════════════════════════════════
-# ADD THESE TO YOUR EXISTING app/models.py
-# (paste below the existing classes; imports already covered
-#  by your existing `from sqlalchemy import ...` line — just
-#  add JSON if you don't have it imported)
-# ════════════════════════════════════════════════════
-
-# from sqlalchemy import JSON   # <-- add this import if you want native JSON instead of Text
-
-
-# ════════════════════════════════════════════════════
 # Audience Profiles Table
 # AI-generated (or manual) generic audience profile for a campaign.
 # One campaign can technically have multiple profiles over time
@@ -368,10 +371,24 @@ class PlatformTargeting(Base):
     # Relationships
     audience_profile     = relationship("AudienceProfile", back_populates="platform_targets")
 
+    # ════════════════════════════════════════════════════
+# Custom Audience Uploads Table
+# Har campaign ke liye jo PDF/text se contacts nikale gaye
+# aur Meta/Google ko bheje gaye, uska record yahan store hota hai.
+# ════════════════════════════════════════════════════
+class CustomAudienceUpload(Base):
+    __tablename__ = "custom_audience_uploads"
 
-# ════════════════════════════════════════════════════
-# ALSO ADD this relationship line inside your existing Campaign class,
-# next to the other relationships (targeting, ad_contents, etc.):
-#
-#   audience_profiles = relationship("AudienceProfile", back_populates="campaign")
-# ════════════════════════════════════════════════════
+    id                = Column(Integer, primary_key=True, index=True)
+    campaign_id       = Column(Integer, ForeignKey("campaigns.id"))
+
+    source_type       = Column(String(20))     # "pdf" | "text"
+    valid_count       = Column(Integer, default=0)   # kitne valid contacts mile
+
+    meta_audience_id  = Column(String(100), nullable=True)  # Meta Custom Audience ID
+    google_user_list_id = Column(String(100), nullable=True) # future ke liye
+
+    status            = Column(String(50), default="pending")  # pending | uploaded | failed
+    error_message     = Column(Text, nullable=True)
+
+    created_at        = Column(DateTime, default=func.now())

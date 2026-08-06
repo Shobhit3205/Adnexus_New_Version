@@ -5,6 +5,8 @@ import { useAuth } from '../context/AuthContext'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://127.0.0.1:8000'
+
 const fmt = n => {
   if (!n && n !== 0) return '—'
   if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M'
@@ -14,7 +16,6 @@ const fmt = n => {
 
 /* ── Theme tokens ── */
 const LIGHT = {
-  // backgrounds
   pageBg:       '#f0f4ff',
   sidebarBg:    '#ffffff',
   topbarBg:     '#ffffff',
@@ -24,29 +25,23 @@ const LIGHT = {
   tableHeadBg:  '#f8faff',
   rowHover:     '#f0f4ff',
   inputBg:      '#f0f4ff',
-  // borders
   border:       '1px solid #e4e9f5',
   borderColor:  '#e4e9f5',
-  // text
   textPrimary:  '#0f172a',
   textSecondary:'#64748b',
   textMuted:    '#94a3b8',
-  // accent
   accent:       '#2563eb',
   accentHover:  '#1d4ed8',
   accentLight:  '#eff6ff',
   accentBorder: '#bfdbfe',
-  // nav active
   navActiveBg:  '#eff6ff',
   navActiveColor:'#2563eb',
   navColor:     '#64748b',
-  // badges
   badgeBlue:    { bg:'#eff6ff',   color:'#1d4ed8', border:'#bfdbfe' },
   badgeGreen:   { bg:'#f0fdf4',   color:'#15803d', border:'#bbf7d0' },
   badgeAmber:   { bg:'#fffbeb',   color:'#b45309', border:'#fde68a' },
   badgePurple:  { bg:'#faf5ff',   color:'#7c3aed', border:'#ddd6fe' },
   badgeRed:     { bg:'#fef2f2',   color:'#dc2626', border:'#fecaca' },
-  // misc
   chipBg:       '#eff6ff',
   chipColor:    '#2563eb',
   avatarBg:     'linear-gradient(135deg,#2563eb,#7c3aed)',
@@ -298,6 +293,55 @@ const DashboardStyles = () => (
         padding: 14px 16px !important;
       }
     }
+
+    /* ── Topbar right-side icons: hamesha visible rahein, kabhi cut/overlap na ho ── */
+    .dashboard-topbar-actions {
+      flex-shrink: 0;
+    }
+
+    .dashboard-topbar-actions button {
+      flex-shrink: 0;
+    }
+
+    @media (max-width: 640px) {
+      .dashboard-topbar-actions {
+        gap: 6px !important;
+      }
+      .dashboard-topbar-actions button span {
+        display: none;
+      }
+    }
+
+    /* ── Custom themed tooltip (replaces native browser title tooltip) ── */
+    .icon-tooltip {
+      position: relative;
+    }
+    .icon-tooltip::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      background: var(--tt-bg);
+      color: var(--tt-color);
+      border: 1px solid var(--tt-border);
+      padding: 5px 10px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 500;
+      white-space: nowrap;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-4px);
+      transition: opacity 0.15s ease, transform 0.15s ease;
+      pointer-events: none;
+      z-index: 50;
+    }
+    .icon-tooltip:hover::after {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
   `}</style>
 )
 
@@ -308,7 +352,7 @@ const Dashboard = () => {
   const [platformStats, setPlatformStats] = useState([])
   const [leads, setLeads]               = useState([])
   const [loading, setLoading]           = useState(true)
-    const [statsLoading, setStatsLoading] = useState(false)
+  const [statsLoading, setStatsLoading] = useState(false)
   const [syncing, setSyncing]           = useState(false)
   const [syncError, setSyncError]       = useState('')
   const [activeNav, setActiveNav]       = useState('dashboard')
@@ -349,7 +393,7 @@ const Dashboard = () => {
       let formLeads = []
       try {
         for (const camp of list) {
-          const res  = await fetch(`http://127.0.0.1:8000/public/submissions/${camp.id}`)
+          const res  = await fetch(`${API_BASE}/public/submissions/${camp.id}`)
           const data = await res.json()
           formLeads  = [...formLeads, ...(data.submissions || []).map(s => ({ ...s, name: s.full_name, campaign_id: camp.id }))]
         }
@@ -360,7 +404,7 @@ const Dashboard = () => {
     finally { setLoading(false) }
   }
 
-const fetchStats = async (id) => {
+  const fetchStats = async (id) => {
     setStatsLoading(true)
     try {
       const res = await getCampaignStats(id)
@@ -538,6 +582,13 @@ const fetchStats = async (id) => {
     fontFamily:'inherit',
   }
 
+  /* Themed tooltip CSS vars — dark mode: dark card bg + white text, light mode: white bg + accent border */
+  const tooltipVars = {
+    '--tt-bg':     t.cardBg,
+    '--tt-color':  t.textPrimary,
+    '--tt-border': t.borderColor,
+  }
+
   return (
     <div className="dashboard-page" style={wrap}>
       <DashboardStyles />
@@ -596,17 +647,26 @@ const fetchStats = async (id) => {
         {/* Topbar */}
         <header className="dashboard-topbar" style={topbar}>
           <div style={topbarTitle}>{navItems.find(n => n.id === activeNav)?.label || 'Dashboard'}</div>
-          <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
+          <div className="dashboard-topbar-actions" style={{ display:'flex', alignItems:'center', gap:'8px' }}>
             {/* Dark mode toggle */}
             <button style={toggleBtn} onClick={() => setDarkMode(v => !v)}>
               {darkMode ? <SunIcon /> : <MoonIcon />}
-              {darkMode ? 'Light' : 'Dark'}
+              <span>{darkMode ? 'Light' : 'Dark'}</span>
             </button>
-            <button style={iconBtn} title="Notifications">
+            <button
+              className="icon-tooltip"
+              style={{ ...iconBtn, ...tooltipVars }}
+              data-tooltip="Notifications"
+            >
               <svg width="17" height="17" fill="none" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/><path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
             </button>
-            <button style={iconBtn} title="Help">
-              <svg width="17" height="17" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.8"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><line x1="12" y1="17" x2="12.01" y2="17" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+            <button
+              className="icon-tooltip"
+              style={{ ...iconBtn, ...tooltipVars }}
+              data-tooltip="Help & Support"
+              onClick={() => window.dispatchEvent(new Event('adnexus:toggle-chat'))}
+            >
+              <svg width="17" height="17" fill="none" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
             </button>
           </div>
         </header>
@@ -657,7 +717,6 @@ const fetchStats = async (id) => {
             <div className="dashboard-left-col">
 
               {/* Platform performance */}
-           
               <div style={card}>
                 <div style={cardHeader}>
                   <span style={cardTitle}>Platform Performance</span>

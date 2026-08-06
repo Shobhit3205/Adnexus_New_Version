@@ -13,7 +13,12 @@ import os
 
 # Google + Meta imports
 try:
-    from app.services.google_ads_service import submit_campaign_to_google, get_campaign_status as get_google_status
+    from app.services.google_ads_service import (
+        submit_campaign_to_google,
+        get_campaign_status as get_google_status,
+        get_google_campaign_insights,
+        get_google_campaign_status,
+    )
     GOOGLE_AVAILABLE = True
 except Exception:
     GOOGLE_AVAILABLE = False
@@ -23,7 +28,6 @@ try:
     META_AVAILABLE = True
 except Exception:
     META_AVAILABLE = False
-
 try:
     from app.services.audience_ai_service import generate_audience_profile
     from app.services.platform_mapping.meta_mapper import map_to_meta
@@ -82,6 +86,13 @@ class CampaignCreateRequest(BaseModel):
     keywords:       List[str]       = []
     targeting:      Optional[TargetingData]  = None
     ad_content:     Optional[AdContentData] = None
+
+    # ── NAYA: Business Profile / Targeting Suggestion fields (Step 6) ──
+    company_name:    Optional[str] = ""
+    company_email:   Optional[str] = ""
+    company_phone:   Optional[str] = ""
+    company_pincode: Optional[str] = ""
+    budget_split:    Optional[dict]  = None   # ← {"meta": 60, "google": 40} — agar manual chahiye
 
 class CampaignUpdateRequest(BaseModel):
     name:           Optional[str]   = None
@@ -203,6 +214,11 @@ def create_campaign(req: CampaignCreateRequest, db: Session = Depends(get_db), c
         start_date     = req.start_date,
         end_date       = req.end_date,
         status         = req.status or "active",
+        # ── NAYA: Business Profile fields ──
+        company_name    = req.company_name    or "",
+        company_email   = req.company_email   or "",
+        company_phone   = req.company_phone   or "",
+        company_pincode = req.company_pincode or "",
     )
     db.add(db_campaign)
     db.commit()
@@ -225,6 +241,10 @@ def create_campaign(req: CampaignCreateRequest, db: Session = Depends(get_db), c
         )
         db.add(targeting_rule)
         db.commit()
+        
+        # ── Platform data ──
+    platform_keys = req.platforms or []
+    platform_budgets = calculate_platform_budgets(daily_budget, platform_keys, req.budget_split)
 
     results = {
         "campaign_id": campaign_id,
@@ -233,11 +253,11 @@ def create_campaign(req: CampaignCreateRequest, db: Session = Depends(get_db), c
         "name":        req.name,
         "budget":      daily_budget,
         "total_budget":total_budget,
+        "platform_budgets": platform_budgets,
         "platforms":   {},
     }
 
-    # ── Platform data ──
-    platform_keys = req.platforms or []
+
     campaign_data = {
         "name":          req.name,
         "goal":          req.goal,
@@ -254,13 +274,33 @@ def create_campaign(req: CampaignCreateRequest, db: Session = Depends(get_db), c
     }
     ad_content_data = req.ad_content.dict() if req.ad_content else {}
 
-    # ── Google Ads ──
-    if "google" in platform_keys:
+ # ── Google Ads ──
+    if "google" in platform_keys and GOOGLE_AVAILABLE:
+        google_budget = platform_budgets.get("google", daily_budget)
+        campaign_data["budget_amount"] = google_budget
+
+        try:
+            google_result = submit_campaign_to_google(campaign_data, ad_content_data)
+            print("========== GOOGLE RESULT ==========")
+            print(google_result)
+            print("===================================")
+        except Exception as e:
+            google_result = {"success": False, "error": str(e), "platform": "google"}
+        results["platforms"]["google"] = google_result
+
+        # ── Google IDs DB mein save karo, taaki baad mein stats/status sync ke liye use ho sakein ──
+        if google_result.get("success"):
+            db_campaign.google_campaign_id = google_result.get("google_campaign_id")
+            db_campaign.google_ad_group_id  = google_result.get("google_ad_group_id")
+            db_campaign.google_ad_id        = google_result.get("google_ad_id")
+            db.commit()
+    elif "google" in platform_keys:
         results["platforms"]["google"] = {
             "success":  False,
-            "error":    "Google Ads Standard access pending",
+            "error":    "Google Ads integration not configured",
             "platform": "google"
         }
+
 
     # ── Age targeting + Location targeting bhi campaign_data mein
     #    daalo (Meta/Google service tak pahunchane ke liye, top-level
@@ -278,6 +318,11 @@ def create_campaign(req: CampaignCreateRequest, db: Session = Depends(get_db), c
         campaign_data["age_max"]          = 55
         campaign_data["radius_km"]        = 25
         campaign_data["location_details"] = []
+
+        # ── NAYA: user ne Step 2 mein Instagram select kiya tha ya nahi —
+    #    isi se Meta service decide karega ki ad set mein Instagram
+    #    placement include karni hai ya sirf Facebook pe rehna hai. ──
+    campaign_data["instagram_selected"] = "instagram" in platform_keys    
 
     # ── Meta Ads (Instagram bhi isi Meta Ad Account se chalta hai) ──
     if ("meta" in platform_keys or "instagram" in platform_keys) and META_AVAILABLE:
@@ -319,7 +364,17 @@ def create_campaign(req: CampaignCreateRequest, db: Session = Depends(get_db), c
             db_campaign.meta_adset_id    = meta_result.get("meta_adset_id")
             db_campaign.meta_ad_id       = meta_result.get("meta_ad_id")
             db.commit()
-
+    # ── NAYA: Agar koi bhi platform pe launch successful nahi hua,
+    #    to status "active" na rahe — asli situation reflect ho ──
+    any_platform_live = any(
+        p.get("success") for p in results["platforms"].values()
+    )
+    if not any_platform_live:
+        db_campaign.status = "not_connected"
+        db.commit()
+    else:
+        db_campaign.status = "active"
+        db.commit()
     return results
 
 
@@ -411,6 +466,7 @@ def get_campaign_detail(campaign_id: int, db: Session = Depends(get_db), current
             "leads":         s.leads         or 0,
             "cpl":           s.cpl           or 0,
             "budget_spent":  s.budget_spent  or 0,
+            "reach":         s.reach         or 0,  
         } for s in stats]
     except Exception:
         stats_data = []
@@ -465,6 +521,13 @@ def get_campaign_detail(campaign_id: int, db: Session = Depends(get_db), current
         "status":         campaign.status          or "active",
         "created_at":     str(campaign.created_at) if campaign.created_at else "",
 
+        # ── NAYA: Business Profile fields bhi detail response mein ──
+        "company_name":     campaign.company_name    or "",
+        "company_email":    campaign.company_email   or "",
+        "company_phone":    campaign.company_phone   or "",
+        "company_pincode":  campaign.company_pincode or "",
+        "website_url":      campaign.website_url     or "",
+
         # Related Data
         "platform_stats": stats_data,
         "targeting":      targeting_data,
@@ -498,6 +561,8 @@ def get_campaign_stats(campaign_id: int, db: Session = Depends(get_db), current_
             "cpl":           s.cpl           or 0,
             "spend":         s.budget_spent  or 0,   # frontend "spend" expect karta hai
             "budget_spent":  s.budget_spent  or 0,   # backward-compat
+            "reach":         s.reach         or 0,   # 🆕
+
         } for s in stats]
         return {"campaign_id": campaign_id, "stats": stats_data}
     except Exception as e:
@@ -557,17 +622,48 @@ def submit_to_platforms(campaign_id: int, db: Session = Depends(get_db), current
 # 11. POST SYNC PLATFORM STATS (only if campaign owned by current_user)
 # Generic, platform-agnostic sync — works for any connected platform.
 # Jab naya platform add ho (Google, LinkedIn), bas PLATFORM_INSIGHT_FETCHERS
-# dict mein ek line add karni hogi — baaki sab code same rahega.
+# aur PLATFORM_STATUS_FETCHERS dict mein ek line add karni hogi — baaki
+# sab code same rahega.
 # ════════════════════════════════════════════════════
 
 PLATFORM_INSIGHT_FETCHERS = {}
+PLATFORM_STATUS_FETCHERS  = {}
 
 if META_AVAILABLE:
     PLATFORM_INSIGHT_FETCHERS["meta"] = lambda campaign: get_meta_campaign_insights(campaign.meta_campaign_id)
+    PLATFORM_STATUS_FETCHERS["meta"]  = lambda campaign: get_meta_campaign_status(campaign.meta_campaign_id)
 
-# Kal jab Google/LinkedIn ready ho, bas yeh jaisi line add karni hogi:
-# if GOOGLE_AVAILABLE:
-#     PLATFORM_INSIGHT_FETCHERS["google"] = lambda campaign: get_google_campaign_insights(campaign.google_campaign_id)
+if GOOGLE_AVAILABLE:
+    PLATFORM_INSIGHT_FETCHERS["google"] = lambda campaign: get_google_campaign_insights(campaign.google_campaign_id)
+    PLATFORM_STATUS_FETCHERS["google"]  = lambda campaign: get_google_campaign_status(campaign.google_campaign_id)
+
+
+# ── Har platform ka apna status vocabulary hota hai — inko apne
+#    unified status (active | paused | ended | error) mein map karo.
+META_STATUS_MAP = {
+    "ACTIVE":          "active",
+    "PAUSED":          "paused",
+    "CAMPAIGN_PAUSED": "paused",
+    "ARCHIVED":        "ended",
+    "DELETED":         "ended",
+    "WITH_ISSUES":     "error",
+    "IN_PROCESS":      "paused",
+}
+
+GOOGLE_STATUS_MAP = {
+    "ENABLED": "active",
+    "PAUSED":  "paused",
+    "REMOVED": "ended",
+}
+
+PLATFORM_STATUS_MAPS = {
+    "meta":   META_STATUS_MAP,
+    "google": GOOGLE_STATUS_MAP,
+}
+
+# Agar campaign multiple platforms pe live hai, priority order decide karo
+# ki final unified status kisko maana jaye (sabse "healthy" status jeetega)
+STATUS_PRIORITY = ["active", "paused", "error", "ended"]
 
 
 @router.post("/{campaign_id}/sync-stats")
@@ -576,13 +672,14 @@ def sync_platform_stats(campaign_id: int, db: Session = Depends(get_db), current
 
     synced = {}
     errors = {}
+    resolved_statuses = []  # unified statuses collected across all platforms this campaign runs on
 
     for platform_key, fetch_fn in PLATFORM_INSIGHT_FETCHERS.items():
-        try:
-            id_field = f"{platform_key}_campaign_id"
-            if not getattr(campaign, id_field, None):
-                continue  # yeh campaign is platform pe launch hi nahi hua
+        id_field = f"{platform_key}_campaign_id"
+        if not getattr(campaign, id_field, None):
+            continue  # yeh campaign is platform pe launch hi nahi hua
 
+        try:
             insights = fetch_fn(campaign)
 
             platform_row = db.query(Platform).filter(Platform.name.ilike(platform_key)).first()
@@ -601,6 +698,7 @@ def sync_platform_stats(campaign_id: int, db: Session = Depends(get_db), current
                 stat.impressions  = insights.get("impressions", 0)
                 stat.clicks       = insights.get("clicks", 0)
                 stat.budget_spent = insights.get("spend", 0)
+                stat.reach        = insights.get("reach", 0)
             else:
                 stat = PlatformStat(
                     campaign_id  = campaign_id,
@@ -608,6 +706,7 @@ def sync_platform_stats(campaign_id: int, db: Session = Depends(get_db), current
                     impressions  = insights.get("impressions", 0),
                     clicks       = insights.get("clicks", 0),
                     budget_spent = insights.get("spend", 0),
+                    reach        = insights.get("reach", 0),
                 )
                 db.add(stat)
 
@@ -617,7 +716,51 @@ def sync_platform_stats(campaign_id: int, db: Session = Depends(get_db), current
         except Exception as e:
             errors[platform_key] = str(e)
 
+        # ── Platform se actual campaign status bhi fetch karo ──
+        if platform_key in PLATFORM_STATUS_FETCHERS:
+            try:
+                status_result = PLATFORM_STATUS_FETCHERS[platform_key](campaign)
+                raw_status = (status_result.get("status") or "").upper()
+                status_map = PLATFORM_STATUS_MAPS.get(platform_key, {})
+                mapped_status = status_map.get(raw_status)
+
+                if mapped_status:
+                    resolved_statuses.append(mapped_status)
+                    synced.setdefault(platform_key, {})["platform_status"] = mapped_status
+                else:
+                    errors[f"{platform_key}_status"] = f"Unrecognized status: {raw_status}"
+
+            except Exception as e:
+                errors[f"{platform_key}_status"] = str(e)
+
+    # ── Unified status decide karo aur DB mein save karo ──
+    if resolved_statuses:
+        for candidate in STATUS_PRIORITY:
+            if candidate in resolved_statuses:
+                campaign.status = candidate
+                break
+        db.commit()
+
     if not synced and not errors:
         raise HTTPException(status_code=400, detail="Yeh campaign kisi bhi platform pe launch nahi hua hai")
 
-    return {"message": "Sync complete", "synced": synced, "errors": errors}
+    return {
+        "message":         "Sync complete",
+        "synced":          synced,
+        "errors":          errors,
+        "campaign_status": campaign.status,
+    }
+def calculate_platform_budgets(daily_budget: float, platform_keys: List[str], budget_split: Optional[dict] = None) -> dict:
+    if not platform_keys:
+        return {}
+
+    if budget_split:
+        total_pct = sum(budget_split.get(p, 0) for p in platform_keys)
+        if total_pct > 0:
+            return {
+                p: round(daily_budget * (budget_split.get(p, 0) / total_pct), 2)
+                for p in platform_keys
+            }
+
+    per_platform = round(daily_budget / len(platform_keys), 2)
+    return {p: per_platform for p in platform_keys}

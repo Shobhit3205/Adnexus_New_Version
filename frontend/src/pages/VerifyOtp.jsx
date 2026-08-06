@@ -8,14 +8,18 @@ const VerifyOtp = () => {
   const location = useLocation()
   const { loginUser } = useAuth()
 
-  // Signup page se email yahan aata hai
+  // Signup page se yahan aata hai
   const email = location.state?.email || ''
+  const phone = location.state?.phone || ''
+  const otpChannel = location.state?.otpChannel || 'email' // 'email' ya 'phone'
 
   const [otp, setOtp] = useState('')
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
   const [resending, setResending] = useState(false)
+
+  const destination = otpChannel === 'phone' ? phone : email
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -39,7 +43,7 @@ const VerifyOtp = () => {
     setResending(true)
     try {
       await resendOtp({ email })
-      setMessage('A new OTP has been sent to your email.')
+      setMessage(`A new OTP has been sent to your ${otpChannel === 'phone' ? 'phone' : 'email'}.`)
     } catch (err) {
       setError(err.response?.data?.detail || 'Could not resend OTP.')
     } finally {
@@ -60,8 +64,8 @@ const VerifyOtp = () => {
   return (
     <div style={styles.wrap}>
       <div style={styles.card}>
-        <h2 style={styles.title}>Verify your email</h2>
-        <p style={styles.subtitle}>We sent a 6-digit code to <strong>{email}</strong></p>
+        <h2 style={styles.title}>Verify your {otpChannel === 'phone' ? 'phone number' : 'email'}</h2>
+        <p style={styles.subtitle}>We sent a 6-digit code to <strong>{destination}</strong></p>
 
         {error && <div style={styles.error}>{error}</div>}
         {message && <div style={styles.success}>{message}</div>}

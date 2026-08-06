@@ -1,3 +1,4 @@
+import re
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from datetime import datetime
@@ -11,15 +12,27 @@ from app.models.models import User
 from app.schemas.auth import (
     SignupRequest, LoginRequest, VerifyOtpRequest,
     ResendOtpRequest, UserResponse, TokenResponse, MessageResponse,
-    GoogleLoginRequest, UpdateProfileRequest, ChangePasswordRequest
+    GoogleLoginRequest, UpdateProfileRequest, ChangePasswordRequest,
+    ForgotPasswordRequest, ResetPasswordRequest
 )
 from app.core.security import (
     hash_password, verify_password,
     create_access_token, get_current_user
 )
-from app.services.otp_service import generate_otp, get_otp_expiry, send_otp_email
+from app.services.otp_service import (
+    generate_otp, get_otp_expiry, send_otp_email, send_otp_sms
+)
 
 router = APIRouter()
+
+PHONE_REGEX = re.compile(r"^[6-9]\d{9}$")  # India: 10 digit, starts 6-9
+
+
+def _send_otp(channel: str, email: str, phone: str, otp_code: str, name: str):
+    """Chosen channel par OTP bhejta hai."""
+    if channel == "phone":
+        return send_otp_sms(phone=phone, otp_code=otp_code)
+    return send_otp_email(to_email=email, otp_code=otp_code, name=name)
 
 
 # ════════════════════════════════════════════════════
@@ -27,12 +40,42 @@ router = APIRouter()
 # ════════════════════════════════════════════════════
 @router.post("/signup", response_model=MessageResponse)
 def signup(data: SignupRequest, db: Session = Depends(get_db)):
-    # Check karo email already exist to nahi karta
-    existing_user = db.query(User).filter(User.email == data.email).first()
-    if existing_user:
-        raise HTTPException(status_code=400, detail="Email already registered")
+    if data.otp_channel not in ("email", "phone"):
+        raise HTTPException(status_code=400, detail="otp_channel must be 'email' or 'phone'")
 
-    # OTP generate karo
+    if not PHONE_REGEX.match(data.phone):
+        raise HTTPException(status_code=400, detail="Please enter a valid 10-digit phone number")
+
+    # Check karo email already exist to nahi karta
+    # Check karo email/phone already exist to nahi karta
+    existing_email = db.query(User).filter(User.email == data.email).first()
+    existing_phone = db.query(User).filter(User.phone == data.phone).first()
+    existing_user = existing_email or existing_phone
+
+    if existing_user:
+        if existing_user.is_verified:
+            # Verified user already hai — genuine duplicate, error do
+            raise HTTPException(status_code=400, detail="Email or phone already registered")
+        else:
+            # User pehle try kar chuka tha but verify nahi hua (OTP fail hua tha shayad)
+            # — naya OTP generate karke resend kar do, duplicate error mat do
+            otp_code = generate_otp()
+            existing_user.otp_code = otp_code
+            existing_user.otp_expires_at = get_otp_expiry()
+            existing_user.otp_channel = data.otp_channel
+            db.commit()
+
+            sent = _send_otp(data.otp_channel, existing_user.email, existing_user.phone, otp_code, existing_user.name)
+            if not sent:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to send OTP via {data.otp_channel}. Please use Resend OTP."
+                )
+
+            channel_label = "phone" if data.otp_channel == "phone" else "email"
+            return {"message": f"OTP resent to your {channel_label}."}
+
+    # OTP generate karo (naya user ke liye)
     otp_code = generate_otp()
     otp_expiry = get_otp_expiry()
 
@@ -40,20 +83,30 @@ def signup(data: SignupRequest, db: Session = Depends(get_db)):
     new_user = User(
         name=data.name,
         email=data.email,
+        phone=data.phone,
         password=hash_password(data.password),
         auth_provider="email",
         is_verified=False,
+        is_email_verified=False,
+        is_phone_verified=False,
         otp_code=otp_code,
         otp_expires_at=otp_expiry,
+        otp_channel=data.otp_channel,
     )
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
 
-    # OTP email bhejo
-    send_otp_email(to_email=data.email, otp_code=otp_code, name=data.name)
+    # Chosen channel par OTP bhejo
+    sent = _send_otp(data.otp_channel, data.email, data.phone, otp_code, data.name)
+    if not sent:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Signup successful but failed to send OTP via {data.otp_channel}. Please use Resend OTP."
+        )
 
-    return {"message": "Signup successful. Please check your email for the OTP."}
+    channel_label = "phone" if data.otp_channel == "phone" else "email"
+    return {"message": f"Signup successful. Please check your {channel_label} for the OTP."}
 
 
 # ════════════════════════════════════════════════════
@@ -75,10 +128,17 @@ def verify_otp(data: VerifyOtpRequest, db: Session = Depends(get_db)):
     if user.otp_expires_at < datetime.utcnow():
         raise HTTPException(status_code=400, detail="OTP expired, please request a new one")
 
-    # Verify kar do
+    # Jis channel par OTP gaya tha, wahi verified maano
+    if user.otp_channel == "phone":
+        user.is_phone_verified = True
+    else:
+        user.is_email_verified = True
+
+    # Overall verified — login isi flag ko check karta hai
     user.is_verified = True
     user.otp_code = None
     user.otp_expires_at = None
+    user.otp_channel = None
     db.commit()
     db.refresh(user)
 
@@ -101,15 +161,19 @@ def resend_otp(data: ResendOtpRequest, db: Session = Depends(get_db)):
     if user.is_verified:
         raise HTTPException(status_code=400, detail="User already verified")
 
-    # Naya OTP generate karo
+    # Naya OTP generate karo — usi channel par jo signup ke waqt chuna tha
     otp_code = generate_otp()
     user.otp_code = otp_code
     user.otp_expires_at = get_otp_expiry()
     db.commit()
 
-    send_otp_email(to_email=data.email, otp_code=otp_code, name=user.name)
+    channel = user.otp_channel or "email"
+    sent = _send_otp(channel, user.email, user.phone, otp_code, user.name)
+    if not sent:
+        raise HTTPException(status_code=500, detail=f"Failed to resend OTP via {channel}")
 
-    return {"message": "A new OTP has been sent to your email."}
+    channel_label = "phone" if channel == "phone" else "email"
+    return {"message": f"A new OTP has been sent to your {channel_label}."}
 
 
 # ════════════════════════════════════════════════════
@@ -123,7 +187,7 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     if not user.is_verified:
-        raise HTTPException(status_code=403, detail="Please verify your email first")
+        raise HTTPException(status_code=403, detail="Please verify your account first")
 
     token = create_access_token({"sub": str(user.id)})
 
@@ -177,6 +241,7 @@ def google_login(data: GoogleLoginRequest, db: Session = Depends(get_db)):
             google_id=google_id,
             auth_provider="google",
             is_verified=True,  # Google already verify kar chuka hai
+            is_email_verified=True,
         )
         db.add(user)
         db.commit()
@@ -200,6 +265,16 @@ def update_me(
         if existing:
             raise HTTPException(status_code=400, detail="Email already in use")
         current_user.email = data.email
+        current_user.is_email_verified = False  # naya email dobara verify karna hoga
+
+    if data.phone and data.phone != current_user.phone:
+        if not PHONE_REGEX.match(data.phone):
+            raise HTTPException(status_code=400, detail="Please enter a valid 10-digit phone number")
+        existing = db.query(User).filter(User.phone == data.phone).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Phone number already in use")
+        current_user.phone = data.phone
+        current_user.is_phone_verified = False  # naya phone dobara verify karna hoga
 
     if data.name:
         current_user.name = data.name
@@ -237,3 +312,77 @@ def change_password(
     db.commit()
 
     return {"message": "Password updated successfully."}
+
+
+# ════════════════════════════════════════════════════
+# VERIFY RESET OTP — checks the code only, doesn't reset yet
+# (used by the frontend's 2-step reset flow: verify code, then set new password)
+# ════════════════════════════════════════════════════
+@router.post("/verify-reset-otp", response_model=MessageResponse)
+def verify_reset_otp(data: VerifyOtpRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == data.email).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if not user.otp_code or user.otp_code != data.otp_code:
+        raise HTTPException(status_code=400, detail="Invalid code")
+
+    if not user.otp_expires_at or user.otp_expires_at < datetime.utcnow():
+        raise HTTPException(status_code=400, detail="Code expired, please request a new one")
+
+    return {"message": "Code verified."}
+
+
+# ════════════════════════════════════════════════════
+# FORGOT PASSWORD — sends OTP to email
+# ════════════════════════════════════════════════════
+@router.post("/forgot-password", response_model=MessageResponse)
+def forgot_password(data: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == data.email).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="No account found with this email")
+
+    if not user.password:
+        raise HTTPException(
+            status_code=400,
+            detail="This account uses Google sign-in and has no password to reset."
+        )
+
+    # Reuse the same OTP fields used for signup verification
+    otp_code = generate_otp()
+    user.otp_code = otp_code
+    user.otp_expires_at = get_otp_expiry()
+    db.commit()
+
+    send_otp_email(to_email=data.email, otp_code=otp_code, name=user.name)
+
+    return {"message": "A password reset code has been sent to your email."}
+
+
+# ════════════════════════════════════════════════════
+# RESET PASSWORD — verifies OTP, sets new password
+# ════════════════════════════════════════════════════
+@router.post("/reset-password", response_model=MessageResponse)
+def reset_password(data: ResetPasswordRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == data.email).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if not user.otp_code or user.otp_code != data.otp_code:
+        raise HTTPException(status_code=400, detail="Invalid OTP")
+
+    if not user.otp_expires_at or user.otp_expires_at < datetime.utcnow():
+        raise HTTPException(status_code=400, detail="OTP expired, please request a new one")
+
+    if len(data.new_password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+
+    user.password = hash_password(data.new_password)
+    user.otp_code = None
+    user.otp_expires_at = None
+    db.commit()
+
+    return {"message": "Password reset successfully. You can now log in."}

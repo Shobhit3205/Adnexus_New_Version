@@ -9,6 +9,8 @@ from app.models import models
 from app.routes import campaigns, leads, analytics, ad_content, public_forms, auth, admin
 from app.routes import oauth
 from app.routes import campaigns, leads, analytics, ad_content, public_forms, auth, admin, audience_targeting
+from app.routes import places
+from app.routes import chat_router
 
 
 # Database mein saari tables banao
@@ -66,9 +68,13 @@ app.include_router(oauth.router, prefix="/api/oauth")
 
 app.include_router(audience_targeting.router)
 
+app.include_router(places.router, prefix="/api/places")
+
+app.include_router(chat_router.router, prefix="/api")
+
+app.include_router(chat_router.admin_router, prefix="/api/admin")
 
 # Test route
 @app.get("/")
 def root():
     return {"message": "AdNexus API is running! 🚀"}
-

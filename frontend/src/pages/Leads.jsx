@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getLeads, getCampaigns, updateLeadStatus, deleteLead } from '../services/api'
 
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://127.0.0.1:8000'
+
 const platforms = [
   { id: 1, name: 'Google Ads',  color: '#1A73E8', icon: 'G'  },
   { id: 2, name: 'LinkedIn',    color: '#0A66C2', icon: 'in' },
@@ -144,7 +146,7 @@ const Leads = () => {
       let formLeads = []
       try {
         for (const camp of campaignList) {
-          const res = await fetch(`http://127.0.0.1:8000/public/submissions/${camp.id}`)
+          const res = await fetch(`${API_BASE}/public/submissions/${camp.id}`)
           const data = await res.json()
           formLeads = [
             ...formLeads,
@@ -214,7 +216,7 @@ const Leads = () => {
       }
     } else {
       try {
-        await fetch(`http://127.0.0.1:8000/public/submissions/${lead.id}/status`, {
+        await fetch(`${API_BASE}/public/submissions/${lead.id}/status`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status: newStatus }),

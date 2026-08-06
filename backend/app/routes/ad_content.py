@@ -517,9 +517,9 @@ IMPORTANT CHARACTER LIMITS — strictly follow these or the ad will be rejected:
 Format:
 {{
   "platforms": {{
-    "Google Ads": {{
-      "headline": "...",
-      "description": "...",
+"Google Ads": {{
+      "headlines": ["...", "...", "..."],
+      "descriptions": ["...", "..."],
       "cta_button": "Apply Now",
       "target_audience": "...",
       "target_age_min": 28,
@@ -542,6 +542,8 @@ Rules:
 - Only generate for these platforms: {platform_names}
 - Use Indian context (₹, crore, lakh where relevant)
 - STRICTLY respect character limits above
+- For "Google Ads" ONLY: provide EXACTLY 3 distinct headlines and EXACTLY 2 distinct descriptions in the arrays shown above — all must be different from each other and business-relevant, since Google requires multiple assets. Do NOT use a single "headline"/"description" string for Google Ads.
+- All other platforms keep the single "headline"/"description" string format
 
 Campaign: {request.campaign_name}
 Business / Product: {request.business_niche}
@@ -564,13 +566,23 @@ Return ONLY the JSON, nothing else."""
         platforms_data = parsed.get("platforms", {})
         for pname, pdata in platforms_data.items():
             rules = PLATFORM_RULES.get(pname, {})
-            headline    = pdata.get("headline", "")
-            description = pdata.get("description", "")
-            # Auto-truncate if AI exceeded limits (safety net)
-            if rules.get("headline_max") and len(headline) > rules["headline_max"]:
-                pdata["headline"] = headline[:rules["headline_max"]]
-            if rules.get("description_max") and len(description) > rules["description_max"]:
-                pdata["description"] = description[:rules["description_max"]]
+            h_max = rules.get("headline_max")
+            d_max = rules.get("description_max")
+
+            # Google Ads = array format ("headlines"/"descriptions")
+            if "headlines" in pdata:
+                if h_max:
+                    pdata["headlines"] = [h[:h_max] for h in pdata["headlines"]]
+                if d_max:
+                    pdata["descriptions"] = [d[:d_max] for d in pdata["descriptions"]]
+            # Other platforms = single string format ("headline"/"description")
+            else:
+                headline    = pdata.get("headline", "")
+                description = pdata.get("description", "")
+                if h_max and len(headline) > h_max:
+                    pdata["headline"] = headline[:h_max]
+                if d_max and len(description) > d_max:
+                    pdata["description"] = description[:d_max]
 
         return {
             "platforms": platforms_data,

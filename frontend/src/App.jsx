@@ -16,6 +16,8 @@ import Terms from './components/landing/Terms.jsx'
 import Login from './pages/Login.jsx'
 import Signup from './pages/Signup.jsx'
 import VerifyOtp from './pages/VerifyOtp.jsx'
+import ForgotPassword from './pages/ForgotPassword.jsx'
+import ResetPassword from './pages/ResetPassword.jsx'
 
 // Dashboard pages
 import Dashboard from './pages/Dashboard.jsx'
@@ -28,6 +30,9 @@ import Settings from './pages/Settings'
 import AdminDashboard from './pages/AdminDashboard.jsx'
 
 import OAuthSuccess from './pages/OAuthSuccess.jsx'
+import ChatWidget from './pages/ChatWidget.jsx'
+
+
 
 const CampaignDetail = lazy(() => import('./pages/CampaignDetail.jsx'))
 const AdContent = lazy(() => import('./pages/AdContent.jsx'))
@@ -51,6 +56,8 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/verify-otp" element={<VerifyOtp />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} /> 
 
             {/* ── Public: Lead Form (customers fill this from ads) ── */}
             <Route path="/lead/:campaignId" element={<PublicLeadForm />} />
@@ -92,6 +99,9 @@ function App() {
             } />
 
           </Routes>
+
+          <ChatWidget />
+
         </BrowserRouter>
       </AuthProvider>
     </GoogleOAuthProvider>

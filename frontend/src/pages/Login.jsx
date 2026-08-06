@@ -115,10 +115,19 @@ const Login = () => {
           <button style={styles.button} type="submit" disabled={loading}>
             {loading ? 'Logging in...' : 'Log In'}
           </button>
+
+          <p style={styles.forgotText}>
+            <Link to="/forgot-password" state={{ email: form.email }} style={styles.link}>Forgot password?</Link>
+          </p>
         </form>
 
         <p style={styles.footerText}>
           Don't have an account? <Link to="/signup" style={styles.link}>Sign up</Link>
+        </p>
+
+        <p style={styles.supportText}>
+          For any help contact us at{' '}
+          <a href="mailto:support@adnexus.co.in" style={styles.link}>support@adnexus.co.in</a>
         </p>
       </div>
     </div>
@@ -137,6 +146,8 @@ const styles = {
   button: { width: '100%', marginTop: '22px', padding: '11px', borderRadius: '8px', border: 'none', background: '#2563eb', color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' },
   error: { background: '#fef2f2', color: '#dc2626', padding: '10px 12px', borderRadius: '8px', fontSize: '13px', marginBottom: '10px' },
   footerText: { textAlign: 'center', fontSize: '13px', color: '#64748b', marginTop: '18px' },
+  supportText: { textAlign: 'center', fontSize: '12px', color: '#94a3b8', marginTop: '10px' },
+  forgotText: { textAlign: 'center', fontSize: '13px', color: '#64748b', marginTop: '12px' },
   link: { color: '#2563eb', fontWeight: '600', textDecoration: 'none' },
   divider: { display: 'flex', alignItems: 'center', textAlign: 'center', margin: '4px 0 14px' },
   dividerText: { flex: 1, fontSize: '12px', color: '#94a3b8', position: 'relative' },

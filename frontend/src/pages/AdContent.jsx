@@ -312,7 +312,7 @@ const hiQualityUrl = (url) => {
   return url.replace('/upload/', '/upload/f_auto,q_auto:best,dpr_2,c_limit,w_800,e_sharpen:60/')
 }
 
-const API_BASE = 'http://127.0.0.1:8000/api'
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://127.0.0.1:8000/api'
 
 // ══════════════════════════════════════════════════════════════
 // RESPONSIVE STYLES — injected once via <style> in both render paths

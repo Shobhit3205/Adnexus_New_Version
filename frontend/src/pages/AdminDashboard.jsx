@@ -8,7 +8,7 @@ import { useAuth } from '../context/AuthContext'
 // globally by AuthContext after login, but we also read the raw
 // token here for the plain fetch() calls below.
 // ══════════════════════════════════════════════════════════════
-const API_BASE = 'http://127.0.0.1:8000/api'
+const API_BASE = (import.meta.env.VITE_API_BASE || 'http://127.0.0.1:8000') + '/api'
 
 const authHeaders = () => {
   const token = localStorage.getItem('adnexus_token')

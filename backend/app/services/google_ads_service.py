@@ -8,7 +8,9 @@ from google.ads.googleads.client import GoogleAdsClient
 from google.ads.googleads.errors import GoogleAdsException
 from datetime import datetime, timedelta
 import os
+from datetime import datetime
 from dotenv import load_dotenv
+import requests
 
 load_dotenv()
 
@@ -53,7 +55,7 @@ def create_google_campaign(campaign_data: dict) -> dict:
     budget_operation   = client.get_type("CampaignBudgetOperation")
     budget             = budget_operation.create
 
-    budget.name                    = f"{campaign_data['name']} Budget"
+    budget.name = f"{campaign_data['name']} Budget {datetime.now().strftime('%Y%m%d%H%M%S')}"
     budget.delivery_method         = client.enums.BudgetDeliveryMethodEnum.STANDARD
     budget_amount = max(float(campaign_data.get("budget_amount", 1000)), 1.0)
     budget.amount_micros = int(budget_amount * 1_000_000)
@@ -65,36 +67,43 @@ def create_google_campaign(campaign_data: dict) -> dict:
         )
         budget_resource_name = budget_response.results[0].resource_name
     except GoogleAdsException as ex:
-        raise Exception(f"Budget create error: {ex.error.code().name}")
+        print("========== GOOGLE ADS ERROR ==========")
+        print(ex)
+        print("======================================")
+        raise Exception(str(ex))
 
     # ─── Step 2: Campaign banao ───────────────────────────────
     campaign_service   = client.get_service("CampaignService")
     campaign_operation = client.get_type("CampaignOperation")
     campaign           = campaign_operation.create
 
+    print(type(campaign))
+    print(campaign)
     campaign.name                  = campaign_data["name"]
     campaign.status                = client.enums.CampaignStatusEnum.PAUSED  # TEST mein PAUSED
     campaign.campaign_budget       = budget_resource_name
 
+    campaign.contains_eu_political_advertising = (
+    client.enums.EuPoliticalAdvertisingStatusEnum.DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING
+    )
+
     # Bidding strategy — goal ke hisaab se
-    if campaign_data.get("goal") == "LEAD_GEN":
-        campaign.target_cpa.target_cpa_micros = 500_000_000  # ₹500 target CPA
-    else:
-        campaign.maximize_conversions.target_cpa_micros = 0
+    campaign.manual_cpc.enhanced_cpc_enabled = False
 
     # Search campaign
     campaign.advertising_channel_type = client.enums.AdvertisingChannelTypeEnum.SEARCH
 
     # Dates
     start = datetime.strptime(campaign_data["start_date"], "%Y-%m-%d")
-    end   = datetime.strptime(campaign_data["end_date"],   "%Y-%m-%d")
-    campaign.start_date = start.strftime("%Y%m%d")
-    campaign.end_date   = end.strftime("%Y%m%d")
+    end   = datetime.strptime(campaign_data["end_date"], "%Y-%m-%d")
+    campaign.start_date_time = start.strftime("%Y-%m-%d 00:00:00")
+    campaign.end_date_time   = end.strftime("%Y-%m-%d 23:59:59")
 
     # Network settings
     campaign.network_settings.target_google_search   = True
     campaign.network_settings.target_search_network  = True
     campaign.network_settings.target_content_network = False
+    campaign.manual_cpc = client.get_type("ManualCpc")
 
     try:
         campaign_response = campaign_service.mutate_campaigns(
@@ -102,18 +111,27 @@ def create_google_campaign(campaign_data: dict) -> dict:
             operations=[campaign_operation]
         )
         campaign_resource = campaign_response.results[0].resource_name
-        campaign_id       = campaign_resource.split("/")[-1]
+        campaign_id = campaign_resource.split("/")[-1]
+
     except GoogleAdsException as ex:
-        raise Exception(f"Campaign create error: {ex.error.code().name}")
+        print("======== GOOGLE ADS ERROR ========")
+        print(f"Request ID: {ex.request_id}")
+        print(f"Status Code: {ex.error.code().name}")
+
+        for error in ex.failure.errors:
+            print("Message :", error.message)
+            print("Location:", error.location)
+
+        print("==================================")
+        raise
 
     return {
-        "campaign_id":       campaign_id,
+        "campaign_id": campaign_id,
         "campaign_resource": campaign_resource,
-        "budget_resource":   budget_resource_name,
-        "status":            "PAUSED",
-        "platform":          "google"
+        "budget_resource": budget_resource_name,
+        "status": "PAUSED",
+        "platform": "google"
     }
-
 
 # ════════════════════════════════════════════════════════════
 # 2. AD GROUP BANAO
@@ -192,6 +210,10 @@ def create_responsive_search_ad(ag_resource: str, ad_content: dict) -> dict:
     }
     Returns: { "ad_id": "..." }
     """
+
+    print(f"DEBUG Headlines: {len(ad_content.get('headlines', []))}, Descriptions: {len(ad_content.get('descriptions', []))}")
+    print(f"DEBUG Content: {ad_content}")
+
     client       = get_google_ads_client()
     ad_service   = client.get_service("AdGroupAdService")
     ad_operation = client.get_type("AdGroupAdOperation")
@@ -201,22 +223,67 @@ def create_responsive_search_ad(ag_resource: str, ad_content: dict) -> dict:
     ad_group_ad.status   = client.enums.AdGroupAdStatusEnum.PAUSED
 
     # Responsive Search Ad
+    # Responsive Search Ad
     rsa = ad_group_ad.ad.responsive_search_ad
 
-    # Headlines — min 3, max 15
-    for i, headline_text in enumerate(ad_content["headlines"][:15]):
+    # ── Safety net: Google ko min 3 headlines, min 2 descriptions chahiye ──
+    headlines_list = list(ad_content.get("headlines", []))
+    descriptions_list = list(ad_content.get("descriptions", []))
+
+    base_headline = ad_content.get("headline") or (headlines_list[0] if headlines_list else "Apply Now")
+    base_desc = ad_content.get("description") or ad_content.get("primary_text") or "Apply now for quick approval."
+    cta_text = ad_content.get("cta", "Apply Now")
+
+    # Extra headlines/descriptions isi ad ke apne text se banao — koi bahar ka text nahi
+    desc_first_part = base_desc.split(".")[0].strip()[:30] or base_headline[:30]
+    fallback_headlines = [
+        base_headline,
+        desc_first_part,
+        cta_text,
+    ]
+    for fh in fallback_headlines:
+        if len(headlines_list) >= 3:
+            break
+        if fh and fh not in headlines_list:
+            headlines_list.append(fh)
+
+    combined_desc = f"{base_headline}. {cta_text}."[:90]
+    fallback_descriptions = [
+        base_desc,
+        combined_desc,
+    ]
+    for fd in fallback_descriptions:
+        if len(descriptions_list) >= 2:
+            break
+        if fd and fd not in descriptions_list:
+            descriptions_list.append(fd)
+
+    ad_content["headlines"] = headlines_list
+    ad_content["descriptions"] = descriptions_list
+    print(f"DEBUG AFTER FALLBACK — Headlines: {len(headlines_list)}, Descriptions: {len(descriptions_list)}")
+    print(f"DEBUG Headlines list: {headlines_list}")
+    print(f"DEBUG Descriptions list: {descriptions_list}")
+
+    pinned_headline_fields = [
+        client.enums.ServedAssetFieldTypeEnum.HEADLINE_1,
+        client.enums.ServedAssetFieldTypeEnum.HEADLINE_2,
+        client.enums.ServedAssetFieldTypeEnum.HEADLINE_3,
+    ]
+    for i, headline_text in enumerate(ad_content["headlines"][:3]):
         headline      = client.get_type("AdTextAsset")
         headline.text = headline_text
-        if i < 3:
-            headline.pinned_field = client.enums.ServedAssetFieldTypeEnum.HEADLINE_1 if i == 0 else \
-                                    client.enums.ServedAssetFieldTypeEnum.HEADLINE_2 if i == 1 else \
-                                    client.enums.ServedAssetFieldTypeEnum.HEADLINE_3
+        headline.pinned_field = pinned_headline_fields[i]
         rsa.headlines.append(headline)
 
-    # Descriptions — min 2, max 4
-    for desc_text in ad_content["descriptions"][:4]:
+    # Descriptions — sabko pin karo taaki fixed order mein hi dikhein
+    pinned_desc_fields = [
+        client.enums.ServedAssetFieldTypeEnum.DESCRIPTION_1,
+        client.enums.ServedAssetFieldTypeEnum.DESCRIPTION_2,
+    ]
+    for i, desc_text in enumerate(ad_content["descriptions"][:2]):
         desc      = client.get_type("AdTextAsset")
         desc.text = desc_text
+        desc.pinned_field = pinned_desc_fields[i]
         rsa.descriptions.append(desc)
 
     # URLs
@@ -284,44 +351,45 @@ def get_campaign_status(campaign_id: str) -> dict:
 # ════════════════════════════════════════════════════════════
 # 5. AGE TARGETING SET KARO
 # ════════════════════════════════════════════════════════════
-def set_age_targeting(campaign_resource: str, age_min: int, age_max: int):
-    """
-    Google Ads mein age range targeting CampaignCriterion se set hoti hai.
-    Google ke fixed age brackets: 18-24, 25-34, 35-44, 45-54, 55-64, 65+
-    """
-    client = get_google_ads_client()
-    criterion_service = client.get_service("CampaignCriterionService")
+def set_age_targeting(ad_group_resource: str, age_min: int, age_max: int):
 
-    # Age range ko Google ke AgeRangeTypeEnum brackets mein map karo
+    client = get_google_ads_client()
+    criterion_service = client.get_service("AdGroupCriterionService")
+
     age_ranges = []
+
     if age_min <= 24:
         age_ranges.append(client.enums.AgeRangeTypeEnum.AGE_RANGE_18_24)
+
     if age_min <= 34 and age_max >= 25:
         age_ranges.append(client.enums.AgeRangeTypeEnum.AGE_RANGE_25_34)
+
     if age_min <= 44 and age_max >= 35:
         age_ranges.append(client.enums.AgeRangeTypeEnum.AGE_RANGE_35_44)
+
     if age_min <= 54 and age_max >= 45:
         age_ranges.append(client.enums.AgeRangeTypeEnum.AGE_RANGE_45_54)
+
     if age_min <= 64 and age_max >= 55:
         age_ranges.append(client.enums.AgeRangeTypeEnum.AGE_RANGE_55_64)
+
     if age_max >= 65:
         age_ranges.append(client.enums.AgeRangeTypeEnum.AGE_RANGE_65_UP)
 
+
     operations = []
     for age_range in age_ranges:
-        op = client.get_type("CampaignCriterionOperation")
-        crit = op.create
-        crit.campaign = campaign_resource
-        crit.age_range.type_ = age_range
-        operations.append(op)
+           op = client.get_type("AdGroupCriterionOperation")
+           crit = op.create
+           crit.ad_group = ad_group_resource
+           crit.age_range.type_ = age_range
+           operations.append(op)
 
     if operations:
-        criterion_service.mutate_campaign_criteria(
+        criterion_service.mutate_ad_group_criteria(
             customer_id=CUSTOMER_ID,
             operations=operations
         )
-
-
 # ════════════════════════════════════════════════════════════
 # 6. LOCATION TARGETING SET KARO (NAYA)
 # ════════════════════════════════════════════════════════════
@@ -383,20 +451,10 @@ def submit_campaign_to_google(campaign_data: dict, ad_content_data: dict) -> dic
     }
     """
     try:
-        # Step 1: Campaign banao
+# Step 1: Campaign banao
         campaign_result = create_google_campaign(campaign_data)
 
-        # ── Age targeting set karo (yahan andar, try ke andar hi) ──
-        try:
-            set_age_targeting(
-                campaign_result["campaign_resource"],
-                campaign_data.get("age_min", 18),
-                campaign_data.get("age_max", 65)
-            )
-        except Exception as e:
-            print(f"Age targeting warning: {e}")  # non-fatal, campaign phir bhi chalega
-
-        # ── NAYA: Location (city + radius) targeting set karo, same pattern ──
+        # ── Location (city + radius) targeting — campaign level pe hi sahi hai ──
         try:
             set_location_targeting(
                 campaign_result["campaign_resource"],
@@ -407,6 +465,7 @@ def submit_campaign_to_google(campaign_data: dict, ad_content_data: dict) -> dic
             print(f"Location targeting warning: {e}")  # non-fatal, campaign phir bhi chalega
 
         # Step 2: Ad group banao
+
         ag_result = create_ad_group(
             campaign_result["campaign_resource"],
             {
@@ -416,11 +475,33 @@ def submit_campaign_to_google(campaign_data: dict, ad_content_data: dict) -> dic
             }
         )
 
+        # ── Age targeting ab Ad Group level pe (ad group banne ke baad) ──
+        try:
+            set_age_targeting(
+                ag_result["ad_group_resource"],
+                campaign_data.get("age_min", 18),
+                campaign_data.get("age_max", 65)
+            )
+        except Exception as e:
+            print(f"Age targeting warning: {e}")  # non-fatal, campaign phir bhi chalega
+
         # Step 3: Ad banao
+# Step 3: Ad banao
         ad_result = create_responsive_search_ad(
             ag_result["ad_group_resource"],
             ad_content_data
         )
+
+        # ── Image Extension add karo (agar image_url diya gaya hai) ──
+        if ad_content_data.get("image_url"):
+            try:
+                asset_resource = upload_image_asset(
+                    ad_content_data["image_url"],
+                    f"{campaign_data['name']} Image {datetime.now().strftime('%Y%m%d%H%M%S')}"
+                )
+                add_image_extension(campaign_result["campaign_resource"], asset_resource)
+            except Exception as e:
+                print(f"Image extension warning: {e}")  # non-fatal, campaign phir bhi chalega
 
         return {
             "success":             True,
@@ -437,3 +518,77 @@ def submit_campaign_to_google(campaign_data: dict, ad_content_data: dict) -> dic
             "error":   str(e),
             "platform": "google"
         }
+
+# ════════════════════════════════════════════════════════════
+# 8. INSIGHTS + STATUS — Meta ke saath consistent shape mein wrap
+#    (sync_platform_stats router mein generic dicts ke liye use hote hain)
+# ════════════════════════════════════════════════════════════
+def get_google_campaign_insights(campaign_id: str) -> dict:
+    """
+    get_campaign_status() already ek hi query mein status + metrics
+    laata hai — bas yahan sirf metrics wala hissa Meta jaisi shape
+    (impressions, clicks, spend, reach) mein return karo.
+    """
+    data = get_campaign_status(campaign_id)
+    return {
+        "impressions": data.get("impressions", 0),
+        "clicks":      data.get("clicks", 0),
+        "spend":       data.get("cost", 0),
+        "reach":       0,  # Google Search campaigns unique reach report nahi karte jaise Meta karta hai
+    }
+
+
+def get_google_campaign_status(campaign_id: str) -> dict:
+    """
+    Sirf status field chahiye router ke PLATFORM_STATUS_FETCHERS ke liye —
+    Meta ke get_meta_campaign_status() jaisi hi shape.
+    """
+    data = get_campaign_status(campaign_id)
+    return {"campaign_id": campaign_id, "status": data.get("status")}    
+
+
+# ════════════════════════════════════════════════════════════
+# 9. IMAGE EXTENSION — campaign ke saath image dikhane ke liye
+# ════════════════════════════════════════════════════════════
+def upload_image_asset(image_url: str, asset_name: str) -> str:
+    """
+    Image URL se image download karke Google Ads mein "Asset" banata hai.
+    Returns: asset resource name (jaise 'customers/123/assets/456')
+    """
+    client = get_google_ads_client()
+    asset_service = client.get_service("AssetService")
+
+    image_response = requests.get(image_url, timeout=15)
+    image_response.raise_for_status()
+
+    asset_operation = client.get_type("AssetOperation")
+    asset = asset_operation.create
+    asset.name = asset_name
+    asset.type_ = client.enums.AssetTypeEnum.IMAGE
+    asset.image_asset.data = image_response.content
+
+    response = asset_service.mutate_assets(
+        customer_id=CUSTOMER_ID,
+        operations=[asset_operation]
+    )
+    return response.results[0].resource_name
+
+
+def add_image_extension(campaign_resource: str, asset_resource: str):
+    """
+    Uploaded image asset ko campaign ke saath link karta hai —
+    isse search results mein ad ke saath chhota image thumbnail dikhta hai.
+    """
+    client = get_google_ads_client()
+    campaign_asset_service = client.get_service("CampaignAssetService")
+
+    op = client.get_type("CampaignAssetOperation")
+    ca = op.create
+    ca.campaign = campaign_resource
+    ca.asset = asset_resource
+    ca.field_type = client.enums.AssetFieldTypeEnum.AD_IMAGE
+
+    campaign_asset_service.mutate_campaign_assets(
+        customer_id=CUSTOMER_ID,
+        operations=[op]
+    )

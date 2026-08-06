@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getCampaignDetail, syncPlatformStats } from '../services/api'
 
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://127.0.0.1:8000'
+
 const platformColors = {
   'Google Ads': '#1A73E8',
-  'LinkedIn': '#0A66C2',
+  'LinkedIn': '#0A66C2 ',
   'Facebook': '#1877F2',
   'Instagram': '#E1306C',
 }
@@ -125,7 +127,7 @@ const CampaignDetail = () => {
 
       setLeadsLoading(true)
       try {
-        const res = await fetch(`http://127.0.0.1:8000/public/submissions/${campaignId}`)
+        const res = await fetch(`${API_BASE}/public/submissions/${campaignId}`)
         const data = await res.json()
         setSubmissions(data.submissions || [])
       } catch (err) {
@@ -146,6 +148,10 @@ const CampaignDetail = () => {
   const totalLeads = platformStats.reduce((sum, s) => sum + (s.leads || 0), 0)
   const totalSpent = platformStats.reduce((sum, s) => sum + (s.budget_spent || 0), 0)
   const unifiedCPL = totalLeads > 0 ? (totalSpent / totalLeads).toFixed(2) : 0
+   // 🆕 Website Traffic / Brand Awareness ke liye real Meta data se cost per calculate
+  const totalReach = platformStats.reduce((sum, s) => sum + (s.reach || 0), 0)
+  const costPer = totalReach > 0 ? ((totalSpent / totalReach) * 1000).toFixed(2) : 0
+  const isLeadGen = campaign.goal === 'LEAD_GEN'
 
   // ── WhatsApp URL helper ──
   const getWhatsAppUrl = (phone) => {
@@ -200,7 +206,7 @@ const CampaignDetail = () => {
 
     // 3) Best-effort persist to backend (won't break UI if this endpoint doesn't exist)
     try {
-      await fetch(`http://127.0.0.1:8000/public/submissions/${lead.id}/status`, {
+      await fetch(`${API_BASE}/public/submissions/${lead.id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
@@ -234,6 +240,7 @@ const CampaignDetail = () => {
         </div>
       </div>
 
+      
       {/* KPI Cards */}
       <div className="kpi-row" style={styles.kpiRow}>
         {[
@@ -241,8 +248,15 @@ const CampaignDetail = () => {
           { label: 'Total Spent',       val: `₹${totalSpent.toLocaleString()}` },
           { label: 'Total Impressions', val: totalImpressions.toLocaleString() },
           { label: 'Total Clicks',      val: totalClicks.toLocaleString() },
-          { label: 'Total Leads',       val: totalLeads },
-          { label: 'Unified CPL',       val: `₹${unifiedCPL}` },
+          ...(isLeadGen
+            ? [
+                { label: 'Total Leads', val: totalLeads },
+                { label: 'Unified CPL', val: `₹${unifiedCPL}` },
+              ]
+            : [
+                { label: 'Cost per 1,000 Reached', val: `₹${costPer}` },
+              ]
+          ),
         ].map((k, i) => (
           <div key={i} style={styles.kpiCard}>
             <div style={styles.kpiLabel}>{k.label}</div>
@@ -466,6 +480,7 @@ const CampaignDetail = () => {
       </div>
 
       {/* Leads Table */}
+      {isLeadGen && (
       <div style={styles.card}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '6px' }}>
           <div style={styles.cardTitle}>Leads from Form ({submissions.length})</div>
@@ -553,6 +568,7 @@ const CampaignDetail = () => {
           </div>
         )}
       </div>
+      )}
 
       {/* ── Lead Detail Modal ── */}
       {selectedLead && (

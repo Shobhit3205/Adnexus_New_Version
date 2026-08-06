@@ -1,5 +1,6 @@
 import random
 import os
+import requests
 import resend
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Request, BackgroundTasks
@@ -8,6 +9,9 @@ from app.models.models import Campaign, LeadForm, FormSubmission, ClickTracking,
 
 # Resend API key set karo
 resend.api_key = os.getenv("RESEND_API_KEY")
+
+# Fast2SMS API key set karo (.env mein FAST2SMS_API_KEY add karna)
+FAST2SMS_API_KEY = os.getenv("FAST2SMS_API_KEY")
 
 
 def generate_otp() -> str:
@@ -46,7 +50,44 @@ def send_otp_email(to_email: str, otp_code: str, name: str = ""):
     except Exception as e:
         print(f"❌ Failed to send OTP email: {e}")
         return False
-    
+
+
+def send_otp_sms(phone: str, otp_code: str) -> bool:
+    """
+    Fast2SMS API se real OTP SMS bhejta hai.
+    NOTE: India mein OTP route use karne ke liye Fast2SMS dashboard par
+    DLT registration (sender ID + template approval) karwana zaroori hai,
+    warna carriers SMS ko silently block kar dete hain. Ye ek baar ka
+    setup step hai, dashboard se hi hota hai — code se nahi.
+    """
+    if not FAST2SMS_API_KEY:
+        print("❌ FAST2SMS_API_KEY set nahi hai .env mein")
+        return False
+
+    try:
+        url = "https://www.fast2sms.com/dev/bulkV2"
+        payload = {
+            "route": "otp",
+            "variables_values": otp_code,
+            "numbers": phone,
+        }
+        headers = {
+            "authorization": FAST2SMS_API_KEY,
+        }
+        response = requests.post(url, data=payload, headers=headers, timeout=10)
+        result = response.json()
+
+        if result.get("return") is True:
+            print(f"✅ OTP SMS sent to {phone}")
+            return True
+        else:
+            print(f"❌ Failed to send OTP SMS: {result}")
+            return False
+    except Exception as e:
+        print(f"❌ Failed to send OTP SMS: {e}")
+        return False
+
+
 def send_lead_notification_email(
     to_email: str,
     owner_name: str,
