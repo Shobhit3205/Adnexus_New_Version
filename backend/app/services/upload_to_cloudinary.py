@@ -1,7 +1,6 @@
 import cloudinary
 import cloudinary.uploader
 import os
-import json
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -13,34 +12,15 @@ cloudinary.config(
     secure=True
 )
 
-BASE_PATH = r"C:\Users\HP\Downloads\TEMPLATE\FINANCIAL SERVICES"
-CLOUDINARY_FOLDER = "adnexus/templates/financial-services"
-
-uploaded_urls = {}
-
-for filename in os.listdir(BASE_PATH):
-    if not filename.lower().endswith(('.png', '.jpg', '.jpeg', '.webp')):
-        continue
-
-    filepath = os.path.join(BASE_PATH, filename)
-    public_id = filename.rsplit('.', 1)[0]
-
-    try:
-        result = cloudinary.uploader.upload(
-            filepath,
-            folder=CLOUDINARY_FOLDER,
-            public_id=public_id,
-            overwrite=True,
-            resource_type="image",
-        )
-        url = result["secure_url"]
-        uploaded_urls[public_id] = url
-        print(f"✅ {filename} → {url}")
-    except Exception as e:
-        print(f"❌ {filename} failed: {e}")
-
-with open("uploaded_urls.json", "w") as f:
-    json.dump(uploaded_urls, f, indent=2)
-
-print("\n✅ Done!")
-print(json.dumps(uploaded_urls, indent=2))
+def upload_base64_to_cloudinary(base64_data_uri: str) -> str:
+    """
+    Agar image base64 data-URI hai (user-uploaded), Cloudinary pe upload
+    karke real https URL return karta hai. Google/Meta ko sirf real URL
+    chahiye, base64 nahi.
+    """
+    result = cloudinary.uploader.upload(
+        base64_data_uri,
+        folder="adnexus/user-uploads",
+        resource_type="image",
+    )
+    return result["secure_url"]

@@ -26,3 +26,4 @@ backend/google-ads.yaml
 google-ads.yaml
 
 node_modules/
+backup_.dump

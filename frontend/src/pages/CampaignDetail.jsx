@@ -6,18 +6,27 @@ const API_BASE = import.meta.env.VITE_API_BASE || 'http://127.0.0.1:8000'
 
 const platformColors = {
   'Google Ads': '#1A73E8',
-  'LinkedIn': '#0A66C2 ',
+  'google': '#1A73E8',
+  'LinkedIn': '#0A66C2',
+  'linkedin': '#0A66C2',
   'Facebook': '#1877F2',
+  'facebook': '#1877F2',
+  'meta': '#1877F2',
   'Instagram': '#E1306C',
+  'instagram': '#E1306C',
 }
 
 const platformIcons = {
-  'Google Ads': 'G',
-  'LinkedIn': 'in',
-  'Facebook': 'f',
-  'Instagram': '📷',
+  'Google Ads': 'https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg',
+  'google':     'https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg',
+  'LinkedIn':   'https://upload.wikimedia.org/wikipedia/commons/c/ca/LinkedIn_logo_initials.png',
+  'linkedin':   'https://upload.wikimedia.org/wikipedia/commons/c/ca/LinkedIn_logo_initials.png',
+  'Facebook':   'https://upload.wikimedia.org/wikipedia/commons/b/b9/2023_Facebook_icon.svg',
+  'facebook':   'https://upload.wikimedia.org/wikipedia/commons/b/b9/2023_Facebook_icon.svg',
+  'meta':       'https://upload.wikimedia.org/wikipedia/commons/b/b9/2023_Facebook_icon.svg',
+  'Instagram':  'https://upload.wikimedia.org/wikipedia/commons/a/a5/Instagram_icon.png',
+  'instagram':  'https://upload.wikimedia.org/wikipedia/commons/a/a5/Instagram_icon.png',
 }
-
 // ── Status options shown as pill buttons in Lead Detail modal ──
 const STATUS_OPTIONS = ['Interested', 'Not Connected', 'In Progress', 'Not Answered', 'Converted', 'Visited', 'Dead']
 
@@ -142,16 +151,32 @@ const CampaignDetail = () => {
   if (loading) return <div style={styles.loading}>Loading...</div>
   if (!campaign) return <div style={styles.loading}>Campaign nahi mila!</div>
 
-  const platformStats = campaign.platform_stats || []
-  const totalImpressions = platformStats.reduce((sum, s) => sum + (s.impressions || 0), 0)
-  const totalClicks = platformStats.reduce((sum, s) => sum + (s.clicks || 0), 0)
-  const totalLeads = platformStats.reduce((sum, s) => sum + (s.leads || 0), 0)
-  const totalSpent = platformStats.reduce((sum, s) => sum + (s.budget_spent || 0), 0)
-  const unifiedCPL = totalLeads > 0 ? (totalSpent / totalLeads).toFixed(2) : 0
-   // 🆕 Website Traffic / Brand Awareness ke liye real Meta data se cost per calculate
-  const totalReach = platformStats.reduce((sum, s) => sum + (s.reach || 0), 0)
-  const costPer = totalReach > 0 ? ((totalSpent / totalReach) * 1000).toFixed(2) : 0
-  const isLeadGen = campaign.goal === 'LEAD_GEN'
+const platformStats = campaign.platform_stats || []
+const isLeadGen = campaign.goal === 'LEAD_GEN'
+const totalImpressions = platformStats.reduce((sum, s) => sum + (s.impressions || 0), 0)
+const totalClicks = platformStats.reduce((sum, s) => sum + (s.clicks || 0), 0)
+const totalSpent = platformStats.reduce((sum, s) => sum + (s.budget_spent || 0), 0)
+
+// ── Fix: Lead Gen campaigns ke liye asli lead count humare apne form-submissions
+//    se aana chahiye — Google/Meta ko in custom-form leads ka pata nahi hota,
+//    isliye unki API hamesha 0 bolti thi. ──
+const platformLeadsFromApi = platformStats.reduce((sum, s) => sum + (s.leads || 0), 0)
+const totalLeads = isLeadGen ? submissions.length : platformLeadsFromApi
+const unifiedCPL = totalLeads > 0 ? (totalSpent / totalLeads).toFixed(2) : 0
+
+// ── Fix: platform-wise "Leads" column bhi submissions se match karo (LEAD_GEN ke liye) ──
+const PLATFORM_NAME_MAP = { google: 'Google Ads', meta: 'Facebook', instagram: 'Instagram', linkedin: 'LinkedIn' }
+const leadsByPlatform = {}
+if (isLeadGen) {
+  submissions.forEach(lead => {
+    const key = PLATFORM_NAME_MAP[(lead.platform || '').toLowerCase()] || lead.platform || 'Direct'
+    leadsByPlatform[key] = (leadsByPlatform[key] || 0) + 1
+  })
+}
+
+ // 🆕 Website Traffic / Brand Awareness ke liye real Meta data se cost per calculate
+const totalReach = platformStats.reduce((sum, s) => sum + (s.reach || 0), 0)
+const costPer = totalReach > 0 ? ((totalSpent / totalReach) * 1000).toFixed(2) : 0
 
   // ── WhatsApp URL helper ──
   const getWhatsAppUrl = (phone) => {
@@ -291,7 +316,9 @@ const CampaignDetail = () => {
                     return (
                       <div key={i} style={{ border: '1px solid #e8eaf0', borderRadius: '12px', overflow: 'hidden' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', background: color + '12', borderBottom: '1px solid #e8eaf0' }}>
-                          <div style={{ ...styles.platIcon, background: color }}>{icon}</div>
+                          <div style={{ ...styles.platIcon, background: color, padding: '4px' }}>
+                          <img src={icon} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                          </div>
                           <span style={{ fontWeight: '700', fontSize: '14px' }}>{ad.platform_name}</span>
                           {ad.creative_score > 0 && (
                             <span style={{ marginLeft: 'auto', background: '#dcfce7', color: '#16a34a', padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '700' }}>
@@ -374,18 +401,26 @@ const CampaignDetail = () => {
                     <tr key={i} style={styles.tr}>
                       <td style={styles.td}>
                         <div style={styles.platformCell}>
-                          <div style={{ ...styles.platIcon, background: color }}>{icon}</div>
+                          <div style={{ ...styles.platIcon, background: color, padding: '4px' }}>
+  <img src={icon} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+</div>
                           <span style={{ fontWeight: '500' }}>{stat.platform_name}</span>
                         </div>
                       </td>
                       <td style={styles.td}>{(stat.impressions || 0).toLocaleString()}</td>
                       <td style={styles.td}>{(stat.clicks || 0).toLocaleString()}</td>
                       <td style={styles.td}>₹{(stat.budget_spent || 0).toLocaleString()}</td>
-                      <td style={styles.td}>{stat.leads || 0}</td>
-                      <td style={styles.td}>
-                        <span style={stat.cpl > 0 ? styles.cplRed : styles.cplGray}>
-                          {stat.cpl > 0 ? `₹${stat.cpl}` : '—'}
-                        </span>
+                      <td style={styles.td}>{isLeadGen ? (leadsByPlatform[stat.platform_name] || 0) : (stat.leads || 0)}</td>
+<td style={styles.td}>
+                        {(() => {
+                          const platformLeads = isLeadGen ? (leadsByPlatform[stat.platform_name] || 0) : (stat.leads || 0)
+                          const platformCpl = platformLeads > 0 ? (stat.budget_spent / platformLeads).toFixed(2) : 0
+                          return (
+                            <span style={platformCpl > 0 ? styles.cplRed : styles.cplGray}>
+                              {platformCpl > 0 ? `₹${platformCpl}` : '—'}
+                            </span>
+                          )
+                        })()}
                       </td>
                       <td style={styles.td}>{ctr}%</td>
                     </tr>
@@ -439,7 +474,9 @@ const CampaignDetail = () => {
                       const icon = platformIcons[ad.platform_name] || '?'
                       return (
                         <div key={i} style={styles.platformRow}>
-                          <div style={{ ...styles.platIcon, background: color }}>{icon}</div>
+                          <div style={{ ...styles.platIcon, background: color, padding: '4px' }}>
+  <img src={icon} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+</div>
                           <span style={{ fontSize: '13px', fontWeight: '500' }}>{ad.platform_name}</span>
                           <span style={{ ...styles.connectedBadge, background: '#fef9c3', color: '#ca8a04' }}>⏳ Pending</span>
                         </div>
@@ -454,7 +491,9 @@ const CampaignDetail = () => {
                 const icon = platformIcons[stat.platform_name] || '?'
                 return (
                   <div key={i} style={styles.platformRow}>
-                    <div style={{ ...styles.platIcon, background: color }}>{icon}</div>
+                    <div style={{ ...styles.platIcon, background: color, padding: '4px' }}>
+  <img src={icon} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+</div>
                     <span style={{ fontSize: '13px', fontWeight: '500' }}>{stat.platform_name}</span>
                     <span style={styles.connectedBadge}>✅ Connected</span>
                   </div>

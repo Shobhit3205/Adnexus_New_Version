@@ -359,6 +359,9 @@ const Dashboard = () => {
   const [selectedCampaign, setSelectedCampaign] = useState(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [darkMode, setDarkMode]         = useState(false)
+  const [dateFrom, setDateFrom]         = useState('')
+  const [dateTo, setDateTo]             = useState('')
+  const [showDatePicker, setShowDatePicker] = useState(false)
 
   const t = darkMode ? DARK : LIGHT   // active theme tokens
 
@@ -474,9 +477,31 @@ const Dashboard = () => {
   doc.save(`adnexus-leads-${Date.now()}.pdf`)
 }
 
-  const totalBudget     = campaigns.reduce((s, c) => s + (c.budget || 0), 0)
-  const totalSpent      = campaigns.reduce((s, c) => s + (c.budget_spent || 0), 0)
-  const activeCampaigns = campaigns.filter(c => c.status === 'active').length
+// ── Fix: date range ke hisaab se campaigns filter karo — jo campaign
+  //    selected range ke saath overlap kare (start_date/end_date), wahi dikhe ──
+  const isCampaignInRange = (c) => {
+    if (!dateFrom && !dateTo) return true
+    const campStart = c.start_date ? new Date(c.start_date) : null
+    const campEnd   = c.end_date ? new Date(c.end_date) : campStart
+    if (!campStart) return true
+    const rangeStart = dateFrom ? new Date(dateFrom) : null
+    const rangeEnd   = dateTo ? new Date(dateTo) : rangeStart
+    if (rangeStart && campEnd && campEnd < rangeStart) return false
+    if (rangeEnd && campStart > rangeEnd) return false
+    return true
+  }
+  const filteredCampaigns = campaigns.filter(isCampaignInRange)
+  const dateRangeLabel = () => {
+    if (!dateFrom && !dateTo) return '📅 All time'
+    if (dateFrom && dateTo && dateFrom === dateTo) return `📅 ${dateFrom}`
+    if (dateFrom && dateTo) return `📅 ${dateFrom} → ${dateTo}`
+    if (dateFrom) return `📅 From ${dateFrom}`
+    return `📅 Until ${dateTo}`
+  }
+
+  const totalBudget     = filteredCampaigns.reduce((s, c) => s + (c.budget || 0), 0)
+  const totalSpent      = filteredCampaigns.reduce((s, c) => s + (c.budget_spent || 0), 0)
+  const activeCampaigns = filteredCampaigns.filter(c => c.status === 'active').length
   const totalLeads      = leads.length
   const totalLeadsSpend = platformStats.reduce((s, p) => s + (p.spend || 0), 0)
   const totalLeadsCount = platformStats.reduce((s, p) => s + (p.leads || 0), 0)
@@ -678,7 +703,43 @@ const Dashboard = () => {
             onChange={e => { const c = campaigns.find(x => x.id === parseInt(e.target.value)); if (c) handleCampaignChange(c) }}>
             {campaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
-          <div style={datePill}>📅 All time</div>
+          <div style={{ position: 'relative' }}>
+            <div style={{ ...datePill, cursor: 'pointer' }} onClick={() => setShowDatePicker(v => !v)}>
+              {dateRangeLabel()}
+            </div>
+            {showDatePicker && (
+              <div style={{
+                position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 50,
+                background: t.cardBg, border: t.border, borderRadius: '12px',
+                padding: '14px', width: '260px', boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+              }}>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '12px' }}>
+                  {[
+                    { label: 'All time', from: '', to: '' },
+                    { label: 'Today', from: new Date().toISOString().slice(0,10), to: new Date().toISOString().slice(0,10) },
+                    { label: 'Last 7 days', from: new Date(Date.now() - 6*86400000).toISOString().slice(0,10), to: new Date().toISOString().slice(0,10) },
+                    { label: 'Last 30 days', from: new Date(Date.now() - 29*86400000).toISOString().slice(0,10), to: new Date().toISOString().slice(0,10) },
+                  ].map(preset => (
+                    <button key={preset.label} onClick={() => { setDateFrom(preset.from); setDateTo(preset.to) }}
+                      style={{ fontSize: '11px', padding: '5px 10px', borderRadius: '20px', border: `1px solid ${t.borderColor}`, background: t.inputBg, color: t.textPrimary, cursor: 'pointer', fontFamily: 'inherit' }}>
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+                <div style={{ fontSize: '10px', color: t.textMuted, fontWeight: '600', textTransform: 'uppercase', marginBottom: '6px' }}>Custom range</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '10px' }}>
+                  <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+                    style={{ padding: '7px 10px', borderRadius: '8px', border: `1px solid ${t.borderColor}`, background: t.inputBg, color: t.textPrimary, fontSize: '12px', fontFamily: 'inherit' }} />
+                  <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+                    style={{ padding: '7px 10px', borderRadius: '8px', border: `1px solid ${t.borderColor}`, background: t.inputBg, color: t.textPrimary, fontSize: '12px', fontFamily: 'inherit' }} />
+                </div>
+                <button onClick={() => setShowDatePicker(false)}
+                  style={{ width: '100%', padding: '8px', borderRadius: '8px', border: 'none', background: t.accent, color: '#fff', fontSize: '12px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit' }}>
+                  Apply
+                </button>
+              </div>
+            )}
+          </div>
           <div style={{ marginLeft:'auto', display:'flex', gap:'8px' }}>
             <button style={btnPrimary} onClick={() => navigate('/dashboard/create-campaign')}>+ New campaign</button>
             <button style={btnGhost}   onClick={() => navigate('/dashboard/leads')}>View leads</button>
@@ -789,7 +850,7 @@ const Dashboard = () => {
                     <table style={table}>
                       <thead><tr>{['Campaign','Goal','Budget','Status','Start date','Actions'].map(h => <th key={h} style={th}>{h}</th>)}</tr></thead>
                     <tbody>
-                      {campaigns.map(c => (
+                      {filteredCampaigns.map(c => (
                         <tr key={c.id}>
                           <td style={{ ...td, cursor:'pointer', color: t.accent, fontWeight:'600' }} onClick={() => navigate(`/dashboard/campaign/${c.id}`)}>{c.name}</td>
                           <td style={td}>{badge('badgeBlue', c.goal || '—')}</td>
@@ -810,7 +871,7 @@ const Dashboard = () => {
 
                   {/* Mobile card view — table par horizontal scroll ki jagah ye dikhta hai */}
                   <div className="dashboard-mobile-cards">
-                    {campaigns.map(c => (
+                    {filteredCampaigns.map(c => (
                       <div key={c.id} style={{ border: t.border, borderRadius:'12px', padding:'12px 14px', background: darkMode ? 'rgba(255,255,255,0.03)' : '#fafbff' }}>
                         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:'8px', marginBottom:'8px' }}>
                           <span style={{ fontWeight:'600', color: t.accent, cursor:'pointer', fontSize:'13px' }} onClick={() => navigate(`/dashboard/campaign/${c.id}`)}>{c.name}</span>

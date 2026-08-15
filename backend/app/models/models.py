@@ -74,7 +74,10 @@ class Campaign(Base):
     meta_adset_id    = Column(String(100), nullable=True)
     meta_ad_id       = Column(String(100), nullable=True)
     website_url = Column(String(500), nullable=True)   # Website Traffic/Brand Awareness ka destination URL
-
+    # ── Instagram platform IDs — Facebook se alag Ad Set banega isliye
+    #    inhe alag track karna padega (taaki dashboard pe alag data dikha sakein) ──
+    instagram_adset_id = Column(String(100), nullable=True)
+    instagram_ad_id    = Column(String(100), nullable=True)
     # ── Google Ads platform IDs — sync ke liye zaroori (jab tak Google pe live nahi hota, yeh null rahenge) ──
     google_campaign_id = Column(String(100), nullable=True)
     google_ad_group_id = Column(String(100), nullable=True)

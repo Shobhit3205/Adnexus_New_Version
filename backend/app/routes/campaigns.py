@@ -6,6 +6,7 @@ from app.models.models import (
     Lead, LeadForm, FormSubmission, ClickTracking,
     AudienceProfile, PlatformTargeting,
 )
+
 from app.core.security import get_current_user
 from pydantic import BaseModel
 from typing import Optional, List
@@ -24,7 +25,7 @@ except Exception:
     GOOGLE_AVAILABLE = False
 
 try:
-    from app.services.meta_ads_service import submit_campaign_to_meta, get_meta_campaign_status, get_meta_campaign_insights
+    from app.services.meta_ads_service import submit_campaign_to_meta, get_meta_campaign_status, get_meta_campaign_insights, get_meta_adset_insights
     META_AVAILABLE = True
 except Exception:
     META_AVAILABLE = False
@@ -262,9 +263,10 @@ def create_campaign(req: CampaignCreateRequest, db: Session = Depends(get_db), c
         "name":          req.name,
         "goal":          req.goal,
         "budget_amount": daily_budget,
+        "industry":      req.industry or "",
         "start_date":    req.start_date,
         "end_date":      req.end_date,
-        "keywords":      req.keywords or [req.business_niche] or ["business loan"],
+        "keywords": req.keywords or ([req.business_niche] if req.business_niche.strip() else []) or ["business loan"],
         "targeting":     req.targeting.dict() if req.targeting else {
             "locations": ["Delhi", "Mumbai"],
             "age_min":   25,
@@ -272,37 +274,8 @@ def create_campaign(req: CampaignCreateRequest, db: Session = Depends(get_db), c
             "radius_km": 25,
         }
     }
-    ad_content_data = req.ad_content.dict() if req.ad_content else {}
 
- # ── Google Ads ──
-    if "google" in platform_keys and GOOGLE_AVAILABLE:
-        google_budget = platform_budgets.get("google", daily_budget)
-        campaign_data["budget_amount"] = google_budget
-
-        try:
-            google_result = submit_campaign_to_google(campaign_data, ad_content_data)
-            print("========== GOOGLE RESULT ==========")
-            print(google_result)
-            print("===================================")
-        except Exception as e:
-            google_result = {"success": False, "error": str(e), "platform": "google"}
-        results["platforms"]["google"] = google_result
-
-        # ── Google IDs DB mein save karo, taaki baad mein stats/status sync ke liye use ho sakein ──
-        if google_result.get("success"):
-            db_campaign.google_campaign_id = google_result.get("google_campaign_id")
-            db_campaign.google_ad_group_id  = google_result.get("google_ad_group_id")
-            db_campaign.google_ad_id        = google_result.get("google_ad_id")
-            db.commit()
-    elif "google" in platform_keys:
-        results["platforms"]["google"] = {
-            "success":  False,
-            "error":    "Google Ads integration not configured",
-            "platform": "google"
-        }
-
-
-    # ── Age targeting + Location targeting bhi campaign_data mein
+       # ── Age targeting + Location targeting bhi campaign_data mein
     #    daalo (Meta/Google service tak pahunchane ke liye, top-level
     #    keys ke roop mein — nested "targeting" dict ke bharose nahi
     #    rehna, taaki services simple .get() se access kar sakein) ──
@@ -322,10 +295,80 @@ def create_campaign(req: CampaignCreateRequest, db: Session = Depends(get_db), c
         # ── NAYA: user ne Step 2 mein Instagram select kiya tha ya nahi —
     #    isi se Meta service decide karega ki ad set mein Instagram
     #    placement include karni hai ya sirf Facebook pe rehna hai. ──
-    campaign_data["instagram_selected"] = "instagram" in platform_keys    
+    campaign_data["instagram_selected"] = "instagram" in platform_keys
+    campaign_data["facebook_selected"]  = "meta" in platform_keys
 
-    # ── Meta Ads (Instagram bhi isi Meta Ad Account se chalta hai) ──
+    ad_content_data = req.ad_content.dict() if req.ad_content else {}
+
+    # ── Fix: Lead Generation campaigns ka click-through link hamesha
+    #    lead form hona chahiye — na ki adnexus.co.in homepage. Same
+    #    URL jo ad-content save ke waqt bhi generate hota hai. ──
+    if req.goal == "LEAD_GEN":
+        from app.routes.leads import generate_lead_form_url
+        lead_url = generate_lead_form_url(campaign_id)
+        ad_content_data["final_url"] = lead_url
+        ad_content_data["link_url"]  = lead_url
+    else:
+        # ── Fix: agar URL khali hai to apna domain fallback use karo, google.com nahi ──
+        if not ad_content_data.get("final_url"):
+            ad_content_data["final_url"] = "https://adnexus.co.in"
+        if not ad_content_data.get("link_url"):
+            ad_content_data["link_url"] = "https://adnexus.co.in"
+
+    # ── Fix: base64 image (user-uploaded) ko Cloudinary URL mein convert karo —
+    #    warna DB save crash hota hai (column limit) aur Google/Meta bhi reject karte hain ──
+    if ad_content_data.get("image_url", "").startswith("data:image"):
+        try:
+            from app.services.upload_to_cloudinary import upload_base64_to_cloudinary
+            ad_content_data["image_url"] = upload_base64_to_cloudinary(ad_content_data["image_url"])
+        except Exception as e:
+            print(f"[create_campaign] Image upload to Cloudinary failed: {e}")
+            ad_content_data["image_url"] = ""
+ # ── Google Ads ──
+    if "google" in platform_keys and GOOGLE_AVAILABLE:
+        google_campaign_data = dict(campaign_data)   # ← naya, alag copy
+        google_campaign_data["budget_amount"] = platform_budgets.get("google", daily_budget)
+
+        try:
+          google_result = submit_campaign_to_google(google_campaign_data, ad_content_data)
+          print("========== GOOGLE RESULT ==========")
+          print(google_result)
+          print("===================================")
+        except Exception as e:
+            google_result = {"success": False, "error": str(e), "platform": "google"}
+        results["platforms"]["google"] = google_result
+
+        # ── Google IDs DB mein save karo, taaki baad mein stats/status sync ke liye use ho sakein ──
+        if google_result.get("success"):
+            db_campaign.google_campaign_id = google_result.get("google_campaign_id")
+            db_campaign.google_ad_group_id  = google_result.get("google_ad_group_id")
+            db_campaign.google_ad_id        = google_result.get("google_ad_id")
+            db.commit()
+    elif "google" in platform_keys:
+        results["platforms"]["google"] = {
+            "success":  False,
+            "error":    "Google Ads integration not configured",
+            "platform": "google"
+        }
+
+
+# ── Meta Ads (Instagram bhi isi Meta Ad Account se chalta hai) ──
     if ("meta" in platform_keys or "instagram" in platform_keys) and META_AVAILABLE:
+        # ── FIX: Meta ke liye alag copy banao, taaki Google ka budget_amount
+        #    change Meta ko affect na kare (dono same dict share kar rahe the) ──
+        meta_campaign_data = dict(campaign_data)
+        # ── FIX: pehle sirf "meta" key dhoondta tha — agar sirf Instagram
+        #    selected ho (Facebook nahi), to galat fallback (poora
+        #    daily_budget) le leta tha. Ab dono ke exact split budgets
+        #    alag-alag pass ho rahe hain, taaki Facebook/Instagram ke
+        #    alag ad sets apna-apna sahi budget use karein. ──
+        meta_campaign_data["facebook_budget"]  = platform_budgets.get("meta", 0)
+        meta_campaign_data["instagram_budget"] = platform_budgets.get("instagram", 0)
+        # Fallback safety — agar dono hi 0 hain (edge case), purana bhaav rakho
+        meta_campaign_data["budget_amount"] = (
+            meta_campaign_data["facebook_budget"] + meta_campaign_data["instagram_budget"]
+        ) or daily_budget
+
         # Generate AI audience targeting first (if available), so the real
         # Meta Ad Set uses AI-resolved interests instead of just geo-only.
         audience_targeting_for_meta = None
@@ -348,7 +391,7 @@ def create_campaign(req: CampaignCreateRequest, db: Session = Depends(get_db), c
  
         try:
             meta_result = submit_campaign_to_meta(
-                campaign_data,
+                meta_campaign_data,
                 ad_content_data,
                 audience_targeting=audience_targeting_for_meta,
             )
@@ -363,19 +406,93 @@ def create_campaign(req: CampaignCreateRequest, db: Session = Depends(get_db), c
             db_campaign.meta_campaign_id = meta_result.get("meta_campaign_id")
             db_campaign.meta_adset_id    = meta_result.get("meta_adset_id")
             db_campaign.meta_ad_id       = meta_result.get("meta_ad_id")
+            # ── NAYA: agar Facebook+Instagram dono select the, Instagram
+            #    ka apna alag adset/ad ID bhi save karo (Step 1 ke naye
+            #    columns) — taaki baad mein alag se stats sync ho sakein ──
+            db_campaign.instagram_adset_id = meta_result.get("instagram_adset_id")
+            db_campaign.instagram_ad_id    = meta_result.get("instagram_ad_id")
             db.commit()
     # ── NAYA: Agar koi bhi platform pe launch successful nahi hua,
     #    to status "active" na rahe — asli situation reflect ho ──
-    any_platform_live = any(
+    # ── NAYA: All-or-nothing — sabhi selected platforms successful
+    #    hone chahiye, warna kuch bhi persist nahi hona chahiye. ──
+    all_success = all(
         p.get("success") for p in results["platforms"].values()
-    )
-    if not any_platform_live:
-        db_campaign.status = "not_connected"
-        db.commit()
-    else:
+    ) if results["platforms"] else False
+
+    if all_success:
         db_campaign.status = "active"
         db.commit()
-    return results
+        return results
+
+    # ── Kisi bhi ek platform ka launch fail hua — rollback karo ──
+    from app.services.google_ads_service import CUSTOMER_ID as GOOGLE_CUSTOMER_ID
+    for key, result in results["platforms"].items():
+        if result.get("success"):
+            if key == "google" and result.get("google_campaign_id"):
+                try:
+                    from app.services.google_ads_service import delete_google_campaign
+                    delete_google_campaign(f"customers/{GOOGLE_CUSTOMER_ID}/campaigns/{result['google_campaign_id']}")
+                except Exception as e:
+                    print(f"[create_campaign] Rollback Google failed: {e}")
+            elif key == "meta" and result.get("meta_campaign_id"):
+                try:
+                    from app.services.meta_ads_service import delete_meta_campaign
+                    delete_meta_campaign(result["meta_campaign_id"])
+                except Exception as e:
+                    print(f"[create_campaign] Rollback Meta failed: {e}")
+
+    # ── DB se bhi campaign hata do — kuch bhi save nahi rehna chahiye ──
+    if req.targeting:
+        db.query(TargetingRule).filter(TargetingRule.campaign_id == campaign_id).delete()
+    db.delete(db_campaign)
+    db.commit()
+
+# ── Clear English error message banao — pattern match karke
+    #    simple message + related step number nikalo ──
+    def parse_platform_error(raw_error: str):
+        e = raw_error.lower()
+        if "too few" in e or "headline" in e or "description" in e:
+            return "Your ad needs more headlines or descriptions.", 7
+        if "invalid_customer_id" in e or "customer id" in e:
+            return "There's a configuration issue with the connected ad account. Please contact support.", None
+        if "budget" in e or ("invalid_argument" in e and "amount" in e):
+            return "There's an issue with your budget — please check the daily budget you entered.", 3
+        if "image" in e or "cloudinary" in e or "picture" in e:
+            return "There's an issue with your ad image — please try a different image or remove it.", 7
+        if "final_url" in e or "link" in e or "url" in e:
+            return "There's an issue with the website or form link — please check it.", 5
+        if "duplicate_campaign_name" in e or "duplicate campaign name" in e:
+            return "A campaign with this name already exists — please use a different name.", 1
+        return "This platform rejected the campaign for an unspecified reason.", None
+
+    platform_errors = []
+    problem_steps = set()
+    for key, result in results["platforms"].items():
+        if key == "instagram":
+            continue
+        if result.get("success"):
+            platform_errors.append({
+                "platform": key.capitalize(),
+                "message": "This succeeded but was rolled back because another platform failed.",
+                "step": None,
+            })
+        else:
+            simple_msg, step = parse_platform_error(result.get("error", ""))
+            platform_errors.append({
+                "platform": key.capitalize(),
+                "message": simple_msg,
+                "step": step,
+            })
+            if step:
+                problem_steps.add(step)
+
+    detail_payload = {
+        "message": "Campaign could not be launched. Nothing was saved — please fix the issue below and try again.",
+        "platform_errors": platform_errors,
+        "problem_steps": sorted(problem_steps),
+    }
+    raise HTTPException(status_code=400, detail=detail_payload)
 
 
 # ════════════════════════════════════════════════════
@@ -630,8 +747,16 @@ PLATFORM_INSIGHT_FETCHERS = {}
 PLATFORM_STATUS_FETCHERS  = {}
 
 if META_AVAILABLE:
-    PLATFORM_INSIGHT_FETCHERS["meta"] = lambda campaign: get_meta_campaign_insights(campaign.meta_campaign_id)
+    PLATFORM_INSIGHT_FETCHERS["meta"] = lambda campaign: (
+        get_meta_adset_insights(campaign.meta_adset_id) if campaign.meta_adset_id
+        else get_meta_campaign_insights(campaign.meta_campaign_id)
+    )
     PLATFORM_STATUS_FETCHERS["meta"]  = lambda campaign: get_meta_campaign_status(campaign.meta_campaign_id)
+
+    PLATFORM_INSIGHT_FETCHERS["instagram"] = lambda campaign: (
+        get_meta_adset_insights(campaign.instagram_adset_id) if campaign.instagram_adset_id
+        else None
+    )
 
 if GOOGLE_AVAILABLE:
     PLATFORM_INSIGHT_FETCHERS["google"] = lambda campaign: get_google_campaign_insights(campaign.google_campaign_id)
@@ -675,12 +800,16 @@ def sync_platform_stats(campaign_id: int, db: Session = Depends(get_db), current
     resolved_statuses = []  # unified statuses collected across all platforms this campaign runs on
 
     for platform_key, fetch_fn in PLATFORM_INSIGHT_FETCHERS.items():
-        id_field = f"{platform_key}_campaign_id"
+        # ── FIX: Instagram ka apna campaign_id nahi hota (Meta campaign
+        #    hi shared hai) — uske liye instagram_adset_id check karo ──
+        id_field = "instagram_adset_id" if platform_key == "instagram" else f"{platform_key}_campaign_id"
         if not getattr(campaign, id_field, None):
             continue  # yeh campaign is platform pe launch hi nahi hua
 
         try:
             insights = fetch_fn(campaign)
+            if insights is None:
+                continue
 
             platform_row = db.query(Platform).filter(Platform.name.ilike(platform_key)).first()
             if not platform_row:

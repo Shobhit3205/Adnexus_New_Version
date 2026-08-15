@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, BackgroundTasks
 from app.models.models import Campaign, LeadForm, FormSubmission, ClickTracking, User
 from app.services.otp_service import send_lead_notification_email
 import json
+from app.services.meta_ads_service import send_meta_lead_event
 
 router = APIRouter(tags=["Public Forms"])
 
@@ -403,6 +404,14 @@ def submit_form(
     db.add(submission)
     db.commit()
     db.refresh(submission)
+
+    # ── Meta Conversions API ko Lead event bhejo (background mein, response slow na ho) ──
+    if data.platform == "meta":
+        background_tasks.add_task(
+            send_meta_lead_event,
+            email=data.email or "",
+            phone=data.phone or "",
+        )
 
     # ── Owner ko email notification bhejo (background mein, response slow na ho) ──
     owner = db.query(User).filter(User.id == campaign.user_id).first()

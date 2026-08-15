@@ -134,6 +134,22 @@ def create_google_campaign(campaign_data: dict) -> dict:
     }
 
 # ════════════════════════════════════════════════════════════
+# HELPER: Daily budget ke hisaab se CPC bid nikaalo
+# ════════════════════════════════════════════════════════════
+def calculate_cpc_bid(daily_budget: float) -> float:
+    """
+    Fixed ₹50 bid ki jagah — budget ke proportion mein bid nikaalte hain,
+    taaki chhoti budget pe bid bhi chhoti ho (auction mein pura din chale)
+    aur badi budget pe bid competitive ho sake.
+
+    Formula: daily_budget ka 3%, min ₹15, max ₹200 (safety cap taaki
+    bhoolse bahut zyada bid na chali jaaye).
+    """
+    bid = daily_budget * 0.03
+    return round(max(15, min(bid, 200)), 2)
+
+
+# ════════════════════════════════════════════════════════════
 # 2. AD GROUP BANAO
 # ════════════════════════════════════════════════════════════
 def create_ad_group(campaign_resource: str, ad_group_data: dict) -> dict:
@@ -465,12 +481,13 @@ def submit_campaign_to_google(campaign_data: dict, ad_content_data: dict) -> dic
             print(f"Location targeting warning: {e}")  # non-fatal, campaign phir bhi chalega
 
         # Step 2: Ad group banao
-
+        suggested_cpc = calculate_cpc_bid(campaign_data.get("budget_amount", 1000))
+        
         ag_result = create_ad_group(
             campaign_result["campaign_resource"],
             {
                 "name":     f"{campaign_data['name']} - Ad Group",
-                "cpc_bid":  50,
+                "cpc_bid":  suggested_cpc,
                 "keywords": campaign_data.get("keywords", ["business loan", "working capital"])
             }
         )
@@ -558,6 +575,13 @@ def upload_image_asset(image_url: str, asset_name: str) -> str:
     client = get_google_ads_client()
     asset_service = client.get_service("AssetService")
 
+    # ── Fix: agar base64 data-URI hai (user-uploaded image), pehle
+    #    Cloudinary pe upload karke real URL banao, taaki requests.get()
+    #    kaam kar sake — wo base64 handle nahi kar sakta ──
+    if image_url.startswith("data:image"):
+        from app.services.upload_to_cloudinary import upload_base64_to_cloudinary
+        image_url = upload_base64_to_cloudinary(image_url)
+
     image_response = requests.get(image_url, timeout=15)
     image_response.raise_for_status()
 
@@ -592,3 +616,21 @@ def add_image_extension(campaign_resource: str, asset_resource: str):
         customer_id=CUSTOMER_ID,
         operations=[op]
     )
+
+def delete_google_campaign(campaign_resource: str) -> dict:
+    """Rollback: agar dusra platform fail ho jaaye to Google campaign remove karo."""
+    try:
+        client = get_google_ads_client()
+        campaign_service = client.get_service("CampaignService")
+        from google.protobuf import field_mask_pb2
+
+        op = client.get_type("CampaignOperation")
+        op.update.resource_name = campaign_resource
+        op.update.status = client.enums.CampaignStatusEnum.REMOVED
+        op.update_mask.CopyFrom(field_mask_pb2.FieldMask(paths=["status"]))
+
+        campaign_service.mutate_campaigns(customer_id=CUSTOMER_ID, operations=[op])
+        return {"success": True}
+    except Exception as e:
+        print(f"[rollback] Google campaign remove failed: {e}")
+        return {"success": False, "error": str(e)}        

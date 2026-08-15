@@ -260,6 +260,8 @@ class LocationReachResponse(BaseModel):
 # ROUTE 1 — POST: Save ad content for a campaign
 # Also runs validation + health score + lead form URL
 # ════════════════════════════════════════════════════
+
+
 @router.post("/{campaign_id}/ad-content")
 def create_ad_content(
     campaign_id: int,
@@ -269,6 +271,14 @@ def create_ad_content(
     campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign nahi mila!")
+
+    if content.image_url and content.image_url.startswith("data:image"):
+        try:
+            from app.services.upload_to_cloudinary import upload_base64_to_cloudinary
+            content.image_url = upload_base64_to_cloudinary(content.image_url)
+        except Exception as e:
+            print(f"[create_ad_content] Image upload to Cloudinary failed: {e}")
+            content.image_url = ""
 
     # ── Get platform name for validation ──
     platform_name = PLATFORM_ID_NAME.get(content.platform_id, "")

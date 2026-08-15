@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import axios from 'axios'
 
-const API_BASE = 'http://127.0.0.1:8000'
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://127.0.0.1:8000'
 
 // ════════════════════════════════════════════════════
 // COLOR HELPERS — derive the whole chrome from one brand color
@@ -36,19 +36,12 @@ const FORM_CONFIGS = {
     title:  'Business Loan Enquiry',
     icon:   '🏦',
     fields: [
-      { name: 'full_name',     label: 'Full Name',               type: 'text',   required: true  },
-      { name: 'business_name', label: 'Business Name',           type: 'text',   required: true, extra: true  },
-      { name: 'phone',         label: 'Phone Number',            type: 'tel',    required: true  },
-      { name: 'email',         label: 'Email Address',           type: 'email',  required: false },
-      { name: 'loan_amount',   label: 'Loan Amount Required (₹)',type: 'text',   required: true, extra: true  },
-      { name: 'monthly_turnover', label: 'Monthly Business Turnover (₹)', type: 'text', required: true, extra: true },
-      { name: 'business_type', label: 'Business Type',          type: 'select', required: true, extra: true,
-        options: ['Proprietorship', 'Partnership', 'Private Limited', 'LLP', 'Other'] },
-      { name: 'years_in_business', label: 'Years in Business',  type: 'select', required: true, extra: true,
-        options: ['Less than 1 year', '1-3 years', '3-5 years', '5-10 years', '10+ years'] },
-      { name: 'location',      label: 'City',                    type: 'text',   required: true  },
-      { name: 'loan_purpose',  label: 'Purpose of Loan',         type: 'select', required: true, extra: true,
-        options: ['Working Capital', 'Business Expansion', 'Equipment Purchase', 'Raw Material', 'Other'] },
+      { name: 'full_name',     label: 'Full Name',                type: 'text',  required: true  },
+      { name: 'business_name', label: 'Business Name',            type: 'text',  required: true, extra: true },
+      { name: 'phone',         label: 'Phone Number',             type: 'tel',   required: true  },
+      { name: 'email',         label: 'Email Address',            type: 'email', required: false },
+      { name: 'loan_amount',   label: 'Loan Amount Required (₹)', type: 'text',  required: true, extra: true },
+      { name: 'location',      label: 'City',                     type: 'text',  required: true  },
     ],
   },
 
@@ -176,6 +169,22 @@ const FORM_CONFIGS = {
 }
 
 // ════════════════════════════════════════════════════
+// FIELD PAIRING — which fields sit side-by-side per form type
+// Only the FIRST name in each pair needs to be matched in render;
+// its partner is pulled in automatically. Unlisted fields render full-width.
+// ════════════════════════════════════════════════════
+const FIELD_PAIRS = {
+  working_capital: [['phone', 'email'], ['loan_amount', 'location']],
+  personal_loan:   [['phone', 'email'], ['loan_amount', 'monthly_income'], ['loan_purpose', 'employment_type']],
+  property_sale:   [['phone', 'email'], ['budget_range', 'location'], ['purpose', 'timeline']],
+  product_sale:    [['phone', 'email'], ['product_interest', 'budget_range'], ['location', 'timeline']],
+  services:        [['phone', 'email'], ['service_interest', 'budget_range'], ['timeline', 'location']],
+  manufacturing:   [['full_name', 'company_name'], ['phone', 'email'], ['product_required', 'quantity'], ['budget_range', 'location']],
+  appointment:     [['phone', 'email'], ['preferred_date', 'preferred_time'], ['service_needed', 'location']],
+  admission:       [['student_name', 'parent_name'], ['phone', 'email'], ['course_interest', 'qualification'], ['location', 'academic_year']],
+}
+
+// ════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ════════════════════════════════════════════════════
 const PublicLeadForm = () => {
@@ -288,6 +297,80 @@ const PublicLeadForm = () => {
   const brandGlow      = hexToRgba(brandColor, 0.16)
   const brandShadow     = hexToRgba(brandColor, 0.35)
 
+  // Renders a single field (label + input/select/textarea)
+  const renderField = (field) => (
+    <div key={field.name} style={s.fieldGroup}>
+      <label style={s.label}>
+        {field.label}
+        {field.required && <span style={{ color: '#e0464f' }}> *</span>}
+      </label>
+
+      {field.type === 'select' ? (
+        <select
+          name={field.name}
+          value={formData[field.name] || ''}
+          onChange={handleChange}
+          className="adnx-input adnx-select"
+          style={{ ...s.input, '--brand-ring': brandGlow, '--brand-border': brandColor }}
+        >
+          <option value="">Select...</option>
+          {field.options.map(opt => (
+            <option key={opt} value={opt}>{opt}</option>
+          ))}
+        </select>
+      ) : field.type === 'textarea' ? (
+        <textarea
+          name={field.name}
+          value={formData[field.name] || ''}
+          onChange={handleChange}
+          placeholder={`Enter ${field.label.toLowerCase()}...`}
+          className="adnx-input"
+          style={{ ...s.input, '--brand-ring': brandGlow, '--brand-border': brandColor, height: '86px', resize: 'vertical' }}
+        />
+      ) : (
+        <input
+          type={field.type}
+          name={field.name}
+          value={formData[field.name] || ''}
+          onChange={handleChange}
+          placeholder={`Enter ${field.label.toLowerCase()}...`}
+          className="adnx-input"
+          style={{ ...s.input, '--brand-ring': brandGlow, '--brand-border': brandColor }}
+        />
+      )}
+    </div>
+  )
+
+  // Builds the field rows — paired fields render side-by-side per FIELD_PAIRS,
+  // everything else falls back to full-width single column automatically.
+  const renderFieldRows = () => {
+    const pairs = FIELD_PAIRS[config?.form_type] || []
+    const rendered = new Set()
+    const rows = []
+
+    formConfig.fields.forEach(field => {
+      if (rendered.has(field.name)) return
+
+      const pair = pairs.find(p => p[0] === field.name)
+      if (pair) {
+        const partner = formConfig.fields.find(f => f.name === pair[1])
+        rendered.add(pair[0])
+        if (partner) rendered.add(pair[1])
+        rows.push(
+          <div key={field.name} style={s.pairRow}>
+            {renderField(field)}
+            {partner && renderField(partner)}
+          </div>
+        )
+      } else {
+        rendered.add(field.name)
+        rows.push(<div key={field.name}>{renderField(field)}</div>)
+      }
+    })
+
+    return rows
+  }
+
   return (
     <div
       style={{
@@ -330,48 +413,7 @@ const PublicLeadForm = () => {
         {error && <div style={s.error}>{error}</div>}
 
         <div style={s.fields}>
-          {formConfig.fields.map(field => (
-            <div key={field.name} style={s.fieldGroup}>
-              <label style={s.label}>
-                {field.label}
-                {field.required && <span style={{ color: '#e0464f' }}> *</span>}
-              </label>
-
-              {field.type === 'select' ? (
-                <select
-                  name={field.name}
-                  value={formData[field.name] || ''}
-                  onChange={handleChange}
-                  className="adnx-input adnx-select"
-                  style={{ ...s.input, '--brand-ring': brandGlow, '--brand-border': brandColor }}
-                >
-                  <option value="">Select...</option>
-                  {field.options.map(opt => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select>
-              ) : field.type === 'textarea' ? (
-                <textarea
-                  name={field.name}
-                  value={formData[field.name] || ''}
-                  onChange={handleChange}
-                  placeholder={`Enter ${field.label.toLowerCase()}...`}
-                  className="adnx-input"
-                  style={{ ...s.input, '--brand-ring': brandGlow, '--brand-border': brandColor, height: '86px', resize: 'vertical' }}
-                />
-              ) : (
-                <input
-                  type={field.type}
-                  name={field.name}
-                  value={formData[field.name] || ''}
-                  onChange={handleChange}
-                  placeholder={`Enter ${field.label.toLowerCase()}...`}
-                  className="adnx-input"
-                  style={{ ...s.input, '--brand-ring': brandGlow, '--brand-border': brandColor }}
-                />
-              )}
-            </div>
-          ))}
+          {renderFieldRows()}
         </div>
 
         <button
@@ -387,6 +429,10 @@ const PublicLeadForm = () => {
         >
           {submitting ? '⏳ Submitting...' : 'Submit Enquiry →'}
         </button>
+
+        <div style={s.trustLine}>
+          🔒 Your information is safe with us
+        </div>
 
         <div style={s.poweredBy}>
           Powered by <strong style={{ color: '#5b6480' }}>AdNexus</strong> ✓
@@ -445,11 +491,13 @@ const s = {
   formTitle:  { fontSize: '22px', fontWeight: '700', color: '#1a1a2e', margin: '14px 0 4px', letterSpacing: '-0.01em' },
   formSubtitle:{ fontSize: '13px', color: '#8892b0' },
   fields:     { display: 'flex', flexDirection: 'column', gap: '18px', marginBottom: '26px' },
+  pairRow:    { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' },
   fieldGroup: { display: 'flex', flexDirection: 'column', gap: '7px' },
   label:      { fontSize: '13px', fontWeight: '600', color: '#1a1a2e' },
   input:      { padding: '12px 16px', borderRadius: '12px', border: '1.5px solid #e4e7f0', background: '#fbfbfe', fontSize: '13.5px', color: '#1a1a2e', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' },
   submitBtn:  { width: '100%', padding: '15px', borderRadius: '14px', border: 'none', color: '#fff', fontSize: '15px', fontWeight: '700', letterSpacing: '0.01em', fontFamily: 'inherit' },
-  poweredBy:  { textAlign: 'center', fontSize: '12px', color: '#9ca3af', marginTop: '18px', paddingTop: '18px', borderTop: '1px solid #eef0f6' },
+  trustLine:  { textAlign: 'center', fontSize: '12px', color: '#9ca3af', marginTop: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' },
+  poweredBy:  { textAlign: 'center', fontSize: '12px', color: '#9ca3af', marginTop: '14px', paddingTop: '14px', borderTop: '1px solid #eef0f6' },
   error:      { background: '#fff5f5', color: '#c62828', padding: '11px 16px', borderRadius: '10px', fontSize: '13px', marginBottom: '18px', border: '1px solid #ffd4d6', borderLeft: '3px solid #e0464f' },
 }
 

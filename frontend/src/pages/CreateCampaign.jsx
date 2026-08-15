@@ -563,13 +563,39 @@ const LaunchSuccess = ({ launchResult, formData, selectedPlatforms, selectedCiti
     if (!formData.start_date || !formData.end_date) return 0
     return Math.ceil((new Date(formData.end_date) - new Date(formData.start_date)) / (1000*60*60*24))
   }
+  
   const getTotalWithGST = () => {
   const base = parseFloat(formData.budget || 0) * getDuration()
   return base + base * 0.18
 }
-  const platformNames = selectedPlatforms.map(id => platforms.find(p => p.id === id)?.name).filter(Boolean)
-  const estLeads      = locationData?.total_summary?.total_leads || '450 - 700 Leads'
-  const estCPL        = '₹1 - ₹2'
+
+const platformNames = selectedPlatforms.map(id => platforms.find(p => p.id === id)?.name).filter(Boolean)
+
+  // ── Fix: hardcoded "450-700 Leads" / "₹1-₹2" hata ke budget ke
+  //    hisaab se dynamic estimate banaya — agar location analyze
+  //    kiya ho to wahi real data use hoga, warna budget-based formula ──
+  const CPL_MIN = 60
+  const CPL_MAX = 100
+  const getDynamicEstimate = () => {
+    if (locationData?.total_summary?.total_leads) {
+      return {
+        leads: locationData.total_summary.total_leads,
+        cpl:   `₹${CPL_MIN} - ₹${CPL_MAX}`,
+      }
+    }
+    const dailyBudget = parseFloat(formData.budget) || 0
+    const totalBudget  = dailyBudget * getDuration()
+    if (totalBudget <= 0) {
+      return { leads: '—', cpl: '—' }
+    }
+    const minLeads = Math.floor(totalBudget / CPL_MAX)
+    const maxLeads = Math.floor(totalBudget / CPL_MIN)
+    return {
+      leads: `${minLeads} - ${maxLeads} Leads`,
+      cpl:   `₹${CPL_MIN} - ₹${CPL_MAX}`,
+    }
+  }
+  const { leads: estLeads, cpl: estCPL } = getDynamicEstimate()
 
   const overviewItems = [
     { icon:'💰', bg:'#dcfce7', label:'Daily Budget',       val: formData.budget ? `₹${parseInt(formData.budget).toLocaleString()}/day` : '—' },
@@ -857,6 +883,8 @@ const CreateCampaign = () => {
   const navigate = useNavigate()
   const [loading, setLoading]                     = useState(false)
   const [error, setError]                         = useState('')
+  const [platformErrors, setPlatformErrors]       = useState([])
+  const [problemSteps, setProblemSteps]           = useState([])
   const [selectedPlatforms, setSelectedPlatforms] = useState([])
   const [step, setStep]                           = useState(1)
   const [launchResult, setLaunchResult]           = useState(null)
@@ -1103,12 +1131,50 @@ const connectPlatform = async (apiKey) => {
   return base + base * 0.18
 }
 
+const getTodayStr = () => {
+  const d = new Date()
+  const yyyy = d.getFullYear()
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
+}
+
+const getMinPlatformAmount = () => {
+  const budget = parseFloat(formData.budget) || 0
+  if (selectedPlatforms.length === 0) return budget
+  if (splitMode === 'equal') {
+    return budget / selectedPlatforms.length
+  }
+  // custom split — sabse kam % wale platform ka amount check karo
+  return selectedPlatforms.reduce((min, id) => {
+    const key = platforms.find(p => p.id === id)?.apiKey
+    const pct = budgetSplit[key] ?? 0
+    const amt = (budget * pct) / 100
+    return Math.min(min, amt)
+  }, Infinity)
+}
+
+const getOthersSum = (excludeKey) => {
+  return selectedPlatforms.reduce((sum, pid) => {
+    const pKey = platforms.find(pl => pl.id === pid)?.apiKey
+    if (pKey === excludeKey) return sum
+    return sum + (budgetSplit[pKey] || 0)
+  }, 0)
+}
+
+const handleBudgetSplitChange = (key, rawValue) => {
+  const value = parseInt(rawValue)
+  const maxAllowed = 100 - getOthersSum(key)
+  const clamped = Math.min(value, Math.max(maxAllowed, 0))
+  setBudgetSplit(prev => ({ ...prev, [key]: clamped }))
+}
   const getSelectedPlatformKeys  = () => selectedPlatforms.map(id => platforms.find(p => p.id===id)?.apiKey).filter(Boolean)
   const getSelectedPlatformNames = () => selectedPlatforms.map(id => platforms.find(p => p.id===id)?.name).filter(Boolean)
   const getGoalApiVal            = () => GOALS.find(g => g.val===formData.goal)?.apiVal || 'LEAD_GEN'
 
   const getGoogleAdContent = () => {
-    const content = adContents[platforms.find(p => p.apiKey==='google')?.id] || {}
+    const googleId = platforms.find(p => p.apiKey==='google')?.id
+const content = adContents[googleId] || Object.values(adContents).find(c => c?.image_url || c?.headline) || {}
     return {
       headlines:    content.headlines    || [content.headline    || '', '', ''].filter(Boolean),
       descriptions: content.descriptions || [content.description || ''].filter(Boolean),
@@ -1249,10 +1315,20 @@ const connectPlatform = async (apiKey) => {
         audienceProfile: generatedAudience,
         success: true,
       })
-    } catch (err) {
-      // FIX: backend ka asli error message dikhao, "Network Error" jaisa vague nahi
-      const backendMessage = err.response?.data?.detail || err.response?.data?.message
-      setError(`Error launching campaign: ${backendMessage || err.message}`)
+} catch (err) {
+      // FIX: backend ka structured error (platform_errors + problem_steps) samjho,
+      // agar wo format nahi hai to purana plain-string fallback use karo.
+      const detail = err.response?.data?.detail
+      if (detail && typeof detail === 'object' && detail.platform_errors) {
+        setError(detail.message)
+        setPlatformErrors(detail.platform_errors)
+        setProblemSteps(detail.problem_steps || [])
+      } else {
+        const backendMessage = typeof detail === 'string' ? detail : err.response?.data?.message
+        setError(`Error launching campaign: ${backendMessage || err.message}`)
+        setPlatformErrors([])
+        setProblemSteps([])
+      }
       console.error('Launch error:', err.response?.data || err.message)
     } finally { setLoading(false) }
   }
@@ -1316,7 +1392,27 @@ const connectPlatform = async (apiKey) => {
             <h1 style={s.formTitle}>{steps[step-1].label}</h1>
             <p style={s.formSubtitle}>Step {step} of {steps.length}</p>
           </div>
-          {error && <div style={s.error}>{error}</div>}
+          {error && (
+            <div style={s.error}>
+              <div style={{ marginBottom: platformErrors.length > 0 ? '10px' : 0 }}>{error}</div>
+              {platformErrors.map((pe, i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: '#fff', borderRadius: '8px', marginTop: '6px', gap: '10px', flexWrap: 'wrap' }}>
+                  <div>
+                    <strong>{pe.platform}:</strong> <span style={{ color: '#7a1f1f' }}>{pe.message}</span>
+                  </div>
+                  {pe.step && (
+                    <button
+                      type="button"
+                      onClick={() => setStep(pe.step)}
+                      style={{ background: '#c62828', color: '#fff', border: 'none', borderRadius: '6px', padding: '5px 12px', fontSize: '12px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
+                    >
+                      Go fix this →
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* ══ Step 1 ══ */}
           {step === 1 && (
@@ -1474,39 +1570,63 @@ const isConnected = connections[connectionKey]?.connected
               return `${p.name}: ${pct}% (₹${amt}/day)`
             }).join(' · ')}
           </div>
-        ) : (
+ ) : (
           <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
             {selectedPlatforms.map(id => {
               const p = platforms.find(pl => pl.id === id)
               const key = p.apiKey
               const pct = budgetSplit[key] ?? 0
               const amt = (((parseFloat(formData.budget) || 0) * pct) / 100).toFixed(0)
+              const maxForThis = Math.max(100 - getOthersSum(key), 0)
               return (
                 <div key={id} style={{ display:'flex', alignItems:'center', gap:'12px' }}>
                   <span style={{ width:'90px', fontSize:'12px', fontWeight:'600', color:'#1a1a2e' }}>{p.name}</span>
                   <input
-                    type="range" min={0} max={100} value={pct}
-                    onChange={e => setBudgetSplit(prev => ({ ...prev, [key]: parseInt(e.target.value) }))}
+                    type="range" min={0} max={maxForThis} value={pct}
+                    onChange={e => handleBudgetSplitChange(key, e.target.value)}
                     style={{ flex:1, accentColor:'#1A73E8' }}
                   />
                   <span style={{ width:'70px', fontSize:'12px', color:'#8892b0', textAlign:'right' }}>{pct}% (₹{amt})</span>
                 </div>
               )
             })}
-            <span style={{ fontSize:'11px', color:'#8892b0' }}>
-              Total: {selectedPlatforms.reduce((sum, id) => sum + (budgetSplit[platforms.find(p=>p.id===id)?.apiKey] || 0), 0)}%
-              {' '}(auto-normalized agar 100 se match na ho)
-            </span>
+            {(() => {
+              const totalPct = selectedPlatforms.reduce((sum, id) => sum + (budgetSplit[platforms.find(p=>p.id===id)?.apiKey] || 0), 0)
+              return (
+                <span style={{ fontSize:'11px', color: totalPct === 100 ? '#16a34a' : '#8892b0', fontWeight: totalPct === 100 ? '600' : '400' }}>
+                  Total: {totalPct}% {totalPct < 100 ? `— ${100 - totalPct}% remaining to allocate` : totalPct === 100 ? '✓ fully allocated' : ''}
+                </span>
+              )
+            })()}
           </div>
         )}
       </div>
     )}
+{selectedPlatforms.length > 0 && formData.budget && getMinPlatformAmount() < 100 && (
+      <div style={{ ...s.fieldError, marginTop:'10px', background:'#fff5f5', padding:'10px 14px', borderRadius:'8px', border:'0.5px solid #ffcdd2' }}>
+        ⚠ Each platform requires a minimum of ₹100/day. Right now {selectedPlatforms.length} platform{selectedPlatforms.length>1?'s':''} {selectedPlatforms.length>1?'are':'is'} getting only ₹{getMinPlatformAmount().toFixed(0)}/day each — increase your budget or select fewer platforms.
+      </div>
+    )}
+
               <div className="date-row" style={s.dateRow}>
                 <div style={{ flex:1 }}>
                   <label style={s.label}>Start Date <span style={s.requiredStar}>*</span></label>
                   <div style={{ ...s.dateInputWrap, ...(fieldErrors.start_date ? s.inputError : {}) }}>
                     <svg style={s.dateIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8892b0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                    <input ref={registerRef('start_date')} style={s.dateInput} type="date" name="start_date" value={formData.start_date} onChange={handleChange} />
+                   <input
+  ref={registerRef('start_date')} style={s.dateInput} type="date" name="start_date"
+  min={getTodayStr()}
+  value={formData.start_date}
+  onChange={e => {
+    const newStart = e.target.value
+    setFormData(prev => ({
+      ...prev,
+      start_date: newStart,
+      end_date: prev.end_date && prev.end_date < newStart ? '' : prev.end_date,
+    }))
+    clearFieldError('start_date')
+  }}
+/>
                   </div>
                   {fieldErrors.start_date && <span style={s.fieldError}>⚠ {fieldErrors.start_date}</span>}
                 </div>
@@ -1515,7 +1635,12 @@ const isConnected = connections[connectionKey]?.connected
                   <label style={s.label}>End Date <span style={s.requiredStar}>*</span></label>
                   <div style={{ ...s.dateInputWrap, ...(fieldErrors.end_date ? s.inputError : {}) }}>
                     <svg style={s.dateIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8892b0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                    <input ref={registerRef('end_date')} style={s.dateInput} type="date" name="end_date" value={formData.end_date} onChange={handleChange} />
+<input
+  ref={registerRef('end_date')} style={s.dateInput} type="date" name="end_date"
+  min={formData.start_date || getTodayStr()}
+  value={formData.end_date}
+  onChange={handleChange}
+/>
                   </div>
                   {fieldErrors.end_date && <span style={s.fieldError}>⚠ {fieldErrors.end_date}</span>}
                 </div>
@@ -1992,12 +2117,18 @@ const unconnected = selectedPlatforms
     setError(''); setStep(3)
   }}>Next: Budget & Dates →</button>
 )}
-          {step === 3 && (
+{step === 3 && (
             <button type="button" style={s.nextBtnFull} onClick={() => {
+              const minPerPlatform = getMinPlatformAmount()
+              const today = getTodayStr()
               const ok = runValidation([
                 ['budget', !formData.budget, 'Please enter a daily budget'],
                 ['start_date', !formData.start_date, 'Please pick a start date'],
+                ['start_date', formData.start_date && formData.start_date < today, 'Start date cannot be in the past'],
                 ['end_date', !formData.end_date, 'Please pick an end date'],
+                ['end_date', formData.start_date && formData.end_date && formData.end_date < formData.start_date, 'End date cannot be before the start date'],
+                ['budgetSplit', formData.budget && minPerPlatform < 100,
+                  `Each platform needs a minimum of ₹100/day — right now only ₹${minPerPlatform.toFixed(0)}/day is being allocated per platform. Increase your budget or select fewer platforms.`],
               ])
               if (!ok) return
               setError(''); setStep(4)
@@ -2026,11 +2157,11 @@ const unconnected = selectedPlatforms
               setError(''); setStep(7)
             }}>Next: Ad Content →</button>
           )}
-          {step === 8 && (
-            <button type="button" style={loading ? s.submitBtnDisabled : s.nextBtnFull} disabled={loading} onClick={handleSubmit}>
-              {loading ? '⏳ Launching...' : '🚀 Launch Campaign'}
-            </button>
-          )}
+  {step === 8 && (
+  <button type="button" style={loading ? s.submitBtnDisabled : s.nextBtnFull} disabled={loading} onClick={handleSubmit}>
+    {loading ? '⏳ Launching...' : error ? '🔁 Retry Launch' : '🚀 Launch Campaign'}
+  </button>
+  )}
         </div>
       </div>
 
