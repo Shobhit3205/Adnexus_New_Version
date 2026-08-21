@@ -23,8 +23,11 @@ import ResetPassword from './pages/ResetPassword.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import CreateCampaign from './pages/CreateCampaign.jsx'
 import Leads from './pages/Leads.jsx'
+import ReferEarn from './pages/ReferEarn.jsx'
 import PublicLeadForm from './pages/PublicLeadForm.jsx'
 import ThankYou from './pages/ThankYou.jsx'
+
+
 
 import Settings from './pages/Settings'
 import AdminDashboard from './pages/AdminDashboard.jsx'
@@ -67,6 +70,9 @@ function App() {
             <Route path="/dashboard" element={
               <ProtectedRoute><Dashboard /></ProtectedRoute>
             } />
+            <Route path="/dashboard/refer" element={
+  <ProtectedRoute><ReferEarn /></ProtectedRoute>
+} />
             <Route path="/dashboard/create-campaign" element={
               <ProtectedRoute><CreateCampaign /></ProtectedRoute>
             } />

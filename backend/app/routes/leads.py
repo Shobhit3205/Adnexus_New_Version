@@ -15,9 +15,12 @@ router = APIRouter(tags=["leads"])
 # Same logic as ad_content.py — one URL per campaign
 # that works on all 4 platforms (Google, FB, IG, LinkedIn)
 # ════════════════════════════════════════════════════
-def generate_lead_form_url(campaign_id: int) -> str:
+def generate_lead_form_url(campaign_id: int, platform: str = "") -> str:
     base_url = os.getenv("APP_BASE_URL", "https://adnexus.com")
-    return f"{base_url}/lead/{campaign_id}"
+    url = f"{base_url}/lead/{campaign_id}"
+    if platform:
+        url += f"?platform={platform}&utm_source={platform}_ads"
+    return url
 
 
 # ════════════════════════════════════════════════════

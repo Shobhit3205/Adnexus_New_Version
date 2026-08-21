@@ -634,3 +634,54 @@ def delete_google_campaign(campaign_resource: str) -> dict:
     except Exception as e:
         print(f"[rollback] Google campaign remove failed: {e}")
         return {"success": False, "error": str(e)}        
+
+# ════════════════════════════════════════════════════════════
+# 10. GOOGLE LEAD CONVERSION UPLOAD (NAYA)
+# Jab koi lead form submit karta hai aur uske paas gclid ho,
+# Google Ads ko batata hai "ye click convert hua" — isse Google
+# ka Smart Bidding seekhta hai kaunsa click lead banata hai.
+# Fails silently — form-submission kabhi iski wajah se fail
+# nahi honi chahiye.
+# ════════════════════════════════════════════════════════════
+GOOGLE_CONVERSION_ACTION_ID = os.getenv("GOOGLE_CONVERSION_ACTION_ID")
+
+def send_google_lead_conversion(gclid: str = None, conversion_time: str = None) -> dict:
+    """
+    gclid: URL se capture kiya gaya Google Click ID (?gclid=...)
+    conversion_time: ISO format string, agar nahi diya to abhi ka time use hoga
+    """
+    if not gclid:
+        print("[google_lead_conversion] gclid missing — skip kar rahe hain")
+        return {"success": False, "error": "gclid missing"}
+
+    if not GOOGLE_CONVERSION_ACTION_ID:
+        print("[google_lead_conversion] GOOGLE_CONVERSION_ACTION_ID missing — skip kar rahe hain")
+        return {"success": False, "error": "Conversion action not configured"}
+
+    try:
+        client = get_google_ads_client()
+        conversion_upload_service = client.get_service("ConversionUploadService")
+
+        click_conversion = client.get_type("ClickConversion")
+        click_conversion.gclid = gclid
+        click_conversion.conversion_action = (
+            f"customers/{CUSTOMER_ID}/conversionActions/{GOOGLE_CONVERSION_ACTION_ID}"
+        )
+
+        if conversion_time:
+            ct = conversion_time
+        else:
+            ct = datetime.now().strftime("%Y-%m-%d %H:%M:%S+05:30")
+        click_conversion.conversion_date_time = ct
+
+        request = client.get_type("UploadClickConversionsRequest")
+        request.customer_id = CUSTOMER_ID
+        request.conversions.append(click_conversion)
+        request.partial_failure = True
+
+        response = conversion_upload_service.upload_click_conversions(request=request)
+        return {"success": True, "response": str(response)}
+
+    except Exception as e:
+        print(f"[google_lead_conversion] Failed: {e}")
+        return {"success": False, "error": str(e)}    

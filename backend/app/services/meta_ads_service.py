@@ -286,12 +286,16 @@ def get_meta_campaign_status(campaign_id: str) -> dict:
         raise Exception(f"Meta status error: {e.api_error_message()}")
 
 
-def submit_campaign_to_meta(campaign_data: dict, ad_content_data: dict, audience_targeting: dict = None) -> dict:
+def submit_campaign_to_meta(campaign_data: dict, ad_content_data: dict, audience_targeting: dict = None, campaign_id: int = None) -> dict:
     """
     NAYA behavior: agar Facebook AND Instagram dono selected hain, do ALAG
     ad sets banate hain (har ek apne exact split budget ke saath) — taaki
     (a) budget split guaranteed ho, Meta ke auto-optimization ke bharose
     na rahe, aur (b) baad mein dono ka data alag-alag track ho sake.
+
+    NAYA: agar campaign_id diya gaya hai aur goal LEAD_GEN hai, Facebook
+    aur Instagram ko apna-apna alag lead-form URL milta hai (?platform=meta
+    ya ?platform=instagram) — taaki form-submission attribution sahi ho.
 
     Agar sirf ek hi (Facebook YA Instagram) selected hai, purana
     single-ad-set flow chalta hai — kuch nahi toota.
@@ -316,8 +320,20 @@ def submit_campaign_to_meta(campaign_data: dict, ad_content_data: dict, audience
             "platform":         "meta",
         }
 
+        # ── NAYA: platform-specific lead URL helper ──
+        def build_ad_content(platform_key):
+            content = dict(ad_content_data)
+            if campaign_id and campaign_data.get("goal") == "LEAD_GEN":
+                try:
+                    from app.routes.leads import generate_lead_form_url
+                    url = generate_lead_form_url(campaign_id, platform_key)
+                    content["final_url"] = url
+                    content["link_url"]  = url
+                except Exception as e:
+                    print(f"[submit_campaign_to_meta] lead URL build failed: {e}")
+            return content
+
         if run_split:
-            # ── Facebook ka apna ad set + creative + ad ──
             fb_adset = create_meta_ad_set(
                 campaign_result["campaign_id"],
                 {
@@ -335,12 +351,12 @@ def submit_campaign_to_meta(campaign_data: dict, ad_content_data: dict, audience
                 }
             )
             print("STEP 2A FB ADSET =", fb_adset)
-            fb_creative = create_meta_ad_creative(ad_content_data, instagram_selected=False)
+            fb_ad_content = build_ad_content("meta")
+            fb_creative = create_meta_ad_creative(fb_ad_content, instagram_selected=False)
             print("STEP 3A FB CREATIVE =", fb_creative)
             fb_ad = create_meta_ad(fb_adset["adset_id"], fb_creative["creative_id"], f"{campaign_data['name']} - Facebook Ad")
             print("STEP 4A FB AD =", fb_ad)
 
-            # ── Instagram ka apna ad set + creative + ad ──
             ig_adset = create_meta_ad_set(
                 campaign_result["campaign_id"],
                 {
@@ -358,7 +374,8 @@ def submit_campaign_to_meta(campaign_data: dict, ad_content_data: dict, audience
                 }
             )
             print("STEP 2B IG ADSET =", ig_adset)
-            ig_creative = create_meta_ad_creative(ad_content_data, instagram_selected=True)
+            ig_ad_content = build_ad_content("instagram")
+            ig_creative = create_meta_ad_creative(ig_ad_content, instagram_selected=True)
             print("STEP 3B IG CREATIVE =", ig_creative)
             ig_ad = create_meta_ad(ig_adset["adset_id"], ig_creative["creative_id"], f"{campaign_data['name']} - Instagram Ad")
             print("STEP 4B IG AD =", ig_ad)
@@ -374,8 +391,8 @@ def submit_campaign_to_meta(campaign_data: dict, ad_content_data: dict, audience
             })
 
         else:
-            # ── Purana single-ad-set flow — jab sirf Facebook YA sirf
-            #    Instagram selected ho. Kuch nahi tootega yahan. ──
+            single_platform_key = "instagram" if (instagram_selected and not facebook_selected) else "meta"
+
             if instagram_selected and not facebook_selected:
                 budget_amount = campaign_data.get("instagram_budget", campaign_data.get("budget_amount", 100))
             else:
@@ -398,7 +415,8 @@ def submit_campaign_to_meta(campaign_data: dict, ad_content_data: dict, audience
                 }
             )
             print("STEP 2 ADSET =", adset_result)
-            creative_result = create_meta_ad_creative(ad_content_data, instagram_selected=instagram_selected)
+            single_ad_content = build_ad_content(single_platform_key)
+            creative_result = create_meta_ad_creative(single_ad_content, instagram_selected=instagram_selected)
             print("STEP 3 CREATIVE =", creative_result)
             ad_result = create_meta_ad(adset_result["adset_id"], creative_result["creative_id"], f"{campaign_data['name']} - Ad")
             print("STEP 4 AD =", ad_result)
@@ -410,7 +428,7 @@ def submit_campaign_to_meta(campaign_data: dict, ad_content_data: dict, audience
                 "targeting_used":   adset_result.get("targeting_used"),
             })
 
-        return result
+        return result 
 
     except Exception as e:
         print("META ERROR =", str(e))

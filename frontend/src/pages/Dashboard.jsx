@@ -208,8 +208,8 @@ const DashboardStyles = () => (
 
     @media (max-width: 760px) {
       .dashboard-kpis {
-        grid-template-columns: 1fr;
-        gap: 12px;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
       }
 
       .dashboard-midrow {
@@ -237,11 +237,34 @@ const DashboardStyles = () => (
         width: 100%;
         justify-content: flex-start;
       }
+
+      /* ── Compact KPI cards below 760px: smaller padding/type so all 4 fit in one row ── */
+      .kpi-card {
+        padding: 12px 10px 10px !important;
+      }
+      .kpi-card .kpi-icon {
+        width: 26px !important;
+        height: 26px !important;
+        font-size: 13px !important;
+        margin-bottom: 8px !important;
+      }
+      .kpi-card .kpi-label {
+        font-size: 8.5px !important;
+        margin-bottom: 4px !important;
+        letter-spacing: 0.02em !important;
+      }
+      .kpi-card .kpi-value {
+        font-size: 15px !important;
+      }
+      .kpi-card .kpi-sub {
+        font-size: 10px !important;
+        display: block;
+      }
     }
 
     @media (max-width: 540px) {
       .dashboard-kpis {
-        gap: 10px;
+        gap: 7px;
       }
 
       .dashboard-midrow {
@@ -269,6 +292,14 @@ const DashboardStyles = () => (
       .dashboard-filterbar select {
         max-width: 140px !important;
       }
+
+      .kpi-card {
+        padding: 10px 8px 9px !important;
+        border-radius: 12px !important;
+      }
+      .kpi-card .kpi-value {
+        font-size: 13px !important;
+      }
     }
 
     .dashboard-mobile-cards {
@@ -291,6 +322,23 @@ const DashboardStyles = () => (
       .dashboard-left-col > div,
       .dashboard-right-col > div {
         padding: 14px 16px !important;
+      }
+    }
+
+    /* ── Platform performance: compact mobile table (Platform / Spend / Leads / CPL + Total row) ── */
+    .platform-table-desktop {
+      display: block;
+    }
+    .platform-table-mobile {
+      display: none;
+    }
+
+    @media (max-width: 640px) {
+      .platform-table-desktop {
+        display: none;
+      }
+      .platform-table-mobile {
+        display: block;
       }
     }
 
@@ -504,11 +552,21 @@ const Dashboard = () => {
   const activeCampaigns = filteredCampaigns.filter(c => c.status === 'active').length
   const totalLeads      = leads.length
   const totalLeadsSpend = platformStats.reduce((s, p) => s + (p.spend || 0), 0)
-  const totalLeadsCount = platformStats.reduce((s, p) => s + (p.leads || 0), 0)
-  const unifiedCPL      = totalLeadsCount > 0 ? (totalLeadsSpend / totalLeadsCount).toFixed(2) : null
-  const campaignLeads   = leads.filter(l =>
-    l.campaign_id === selectedCampaign?.id || l.campaign_id === String(selectedCampaign?.id)
-  )
+const campaignLeads   = leads.filter(l =>
+  l.campaign_id === selectedCampaign?.id || l.campaign_id === String(selectedCampaign?.id)
+)
+// NAYA — leads count ab FormSubmission-based `leads` state se, PlatformStat.leads se nahi
+// (PlatformStat.leads sync-stats mein kabhi update nahi hoti, hamesha 0 rehti hai)
+const totalLeadsCount = campaignLeads.length
+const unifiedCPL      = totalLeadsCount > 0 ? (totalLeadsSpend / totalLeadsCount).toFixed(2) : null
+// NAYA — per-platform lead count, form-submissions se (PlatformStat.leads bharosemand nahi hai)
+const PLATFORM_NAME_MAP = { google: 'Google Ads', meta: 'Facebook', instagram: 'Instagram', linkedin: 'LinkedIn' }
+const leadsByPlatform = {}
+campaignLeads.forEach(lead => {
+  const rawPlatform = (lead.platform_name || lead.platform || '').toLowerCase()
+  const key = PLATFORM_NAME_MAP[rawPlatform] || lead.platform_name || lead.platform || 'Direct'
+  leadsByPlatform[key] = (leadsByPlatform[key] || 0) + 1
+})
 
   const navItems = [
     { id:'dashboard', label:'Dashboard', action:() => {},
@@ -519,6 +577,13 @@ const Dashboard = () => {
       icon:<svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="1.8"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg> },
     { id:'analytics', label:'Analytics', action:() => {},
       icon:<svg width="18" height="18" fill="none" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg> },
+    { id:'refer', label:'Refer & Earn', action:() => navigate('/dashboard/refer'),
+  icon:<svg width="18" height="18" fill="none" viewBox="0 0 24 24">
+    <circle cx="18" cy="5" r="3" stroke="currentColor" strokeWidth="1.8"/>
+    <circle cx="6" cy="12" r="3" stroke="currentColor" strokeWidth="1.8"/>
+    <circle cx="18" cy="19" r="3" stroke="currentColor" strokeWidth="1.8"/>
+    <path d="M8.6 10.6l6.8-3.8M8.6 13.4l6.8 3.8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+  </svg> },
    { id:'settings', label:'Settings', action:() => navigate('/dashboard/settings'),
       icon:<svg width="18" height="18" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.8"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06-.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" strokeWidth="1.8"/></svg> },
   ]
@@ -613,6 +678,15 @@ const Dashboard = () => {
     '--tt-color':  t.textPrimary,
     '--tt-border': t.borderColor,
   }
+
+  /* ── Platform performance totals — used by the new compact mobile table's Total row ── */
+  const platformTotals = {
+    impressions: platformStats.reduce((s, p) => s + (p.impressions || 0), 0),
+    clicks:      platformStats.reduce((s, p) => s + (p.clicks || 0), 0),
+    spend:       platformStats.reduce((s, p) => s + (p.spend || 0), 0),
+    leads:       totalLeadsCount,
+  }
+  const platformTotalCPL = platformTotals.leads > 0 ? (platformTotals.spend / platformTotals.leads).toFixed(2) : null
 
   return (
     <div className="dashboard-page" style={wrap}>
@@ -757,15 +831,15 @@ const Dashboard = () => {
               { label:'Unified CPL',      value: unifiedCPL ? `₹${unifiedCPL}` : '—' },
               { label:'Active Campaigns', value: activeCampaigns || '—' },
             ].map((k, i) => (
-              <div key={k.label} style={{ background: t.kpiBg, border: t.border, borderRadius:'16px', padding:'20px 20px 18px', position:'relative', overflow:'hidden', ...(darkMode ? { backdropFilter:'blur(12px)' } : { boxShadow: t.kpiShadow }) }}>
+              <div key={k.label} className="kpi-card" style={{ background: t.kpiBg, border: t.border, borderRadius:'16px', padding:'20px 20px 18px', position:'relative', overflow:'hidden', ...(darkMode ? { backdropFilter:'blur(12px)' } : { boxShadow: t.kpiShadow }) }}>
                 <div style={{ position:'absolute', top:0, left:0, right:0, height:'3px', background: kpiAccentColors[i], borderRadius:'16px 16px 0 0' }} />
-                <div style={{ width:'34px', height:'34px', borderRadius:'10px', background: kpiIconColors[i].bg, color: kpiIconColors[i].color, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'17px', fontWeight:'700', marginBottom:'14px' }}>
+                <div className="kpi-icon" style={{ width:'34px', height:'34px', borderRadius:'10px', background: kpiIconColors[i].bg, color: kpiIconColors[i].color, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'17px', fontWeight:'700', marginBottom:'14px' }}>
                   {['₹','↗','⌀','◈'][i]}
                 </div>
-                <div style={{ fontSize:'10px', fontWeight:'600', color: t.textSecondary, textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:'8px' }}>{k.label}</div>
-                <div style={{ fontSize:'24px', fontWeight:'700', color: t.textPrimary, lineHeight:1, letterSpacing:'-0.5px' }}>
+                <div className="kpi-label" style={{ fontSize:'10px', fontWeight:'600', color: t.textSecondary, textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:'8px' }}>{k.label}</div>
+                <div className="kpi-value" style={{ fontSize:'24px', fontWeight:'700', color: t.textPrimary, lineHeight:1, letterSpacing:'-0.5px' }}>
                   {k.value}
-                  {k.sub && <span style={{ fontSize:'13px', color: t.textMuted, fontWeight:'400' }}>{k.sub}</span>}
+                  {k.sub && <span className="kpi-sub" style={{ fontSize:'13px', color: t.textMuted, fontWeight:'400' }}>{k.sub}</span>}
                 </div>
               </div>
             ))}
@@ -808,7 +882,9 @@ const Dashboard = () => {
                 {statsLoading ? <div style={emptyStyle}>Loading stats…</div>
                 : platformStats.length === 0 ? <div style={emptyStyle}>{selectedCampaign ? 'No platform data for this campaign yet.' : 'Select a campaign to see stats.'}</div>
                 : (
-                  <div className="dashboard-table-scroll">
+                  <>
+                  {/* Desktop / tablet: full table with all columns, horizontally scrollable */}
+                  <div className="dashboard-table-scroll platform-table-desktop">
                     <table style={table}>
                       <thead><tr>{['Platform','Impressions','Clicks','Spend','Leads','CPL'].map(h => <th key={h} style={th}>{h}</th>)}</tr></thead>
                       <tbody>
@@ -825,14 +901,54 @@ const Dashboard = () => {
                             <td style={td}>{fmt(p.impressions)}</td>
                             <td style={td}>{p.clicks ? p.clicks.toLocaleString() : '—'}</td>
                             <td style={td}>{p.spend ? `₹${p.spend.toLocaleString()}` : '—'}</td>
-                            <td style={td}>{badge('badgeBlue', p.leads ?? '—')}</td>
-                            <td style={td}>{badge('badgePurple', cpl ? `₹${cpl}` : '—')}</td>
+                            <td style={td}>{badge('badgeBlue', leadsByPlatform[p.platform_name || p.platform] ?? '—')}</td>
+<td style={td}>{badge('badgePurple', (() => {
+  const pLeads = leadsByPlatform[p.platform_name || p.platform] || 0
+  const pCpl = pLeads > 0 ? (p.spend / pLeads).toFixed(2) : null
+  return pCpl ? `₹${pCpl}` : '—'
+})())}</td>
                           </tr>
                         )
                       })}
                     </tbody>
                   </table>
                   </div>
+
+                  {/* Mobile: compact 4-column table (Platform / Spend / Leads / CPL) + Total row */}
+                  <div className="platform-table-mobile">
+                    <table style={table}>
+                      <thead><tr>{['Platform','Spend','Leads','CPL'].map(h => <th key={h} style={{ ...th, padding:'6px 8px' }}>{h}</th>)}</tr></thead>
+                      <tbody>
+                        {platformStats.map((p, i) => {
+                          const cpl = p.leads > 0 ? (p.spend / p.leads).toFixed(2) : null
+                          return (
+                            <tr key={p.platform_id || i}>
+                              <td style={{ ...td, padding:'8px' }}>
+                                <div style={{ display:'flex', alignItems:'center', gap:'6px' }}>
+                                  <div style={{ ...chip, width:'20px', height:'20px', fontSize:'10px' }}>{(p.platform_name || p.platform || 'P').charAt(0).toUpperCase()}</div>
+                                  <span style={{ fontWeight:'500', fontSize:'12px' }}>{p.platform_name || p.platform || '—'}</span>
+                                </div>
+                              </td>
+                              <td style={{ ...td, padding:'8px', fontSize:'12px' }}>{p.spend ? `₹${p.spend.toLocaleString()}` : '—'}</td>
+                              <td style={{ ...td, padding:'8px', fontSize:'12px' }}>{leadsByPlatform[p.platform_name || p.platform] ?? '—'}</td>
+<td style={{ ...td, padding:'8px', fontSize:'12px' }}>{(() => {
+  const pLeads = leadsByPlatform[p.platform_name || p.platform] || 0
+  const pCpl = pLeads > 0 ? (p.spend / pLeads).toFixed(2) : null
+  return pCpl ? `₹${pCpl}` : '—'
+})()}</td>
+                            </tr>
+                          )
+                        })}
+                        <tr>
+                          <td style={{ ...td, padding:'8px', fontWeight:'700', fontSize:'12px', borderBottom:'none' }}>Total</td>
+                          <td style={{ ...td, padding:'8px', fontWeight:'700', fontSize:'12px', borderBottom:'none' }}>{platformTotals.spend ? `₹${platformTotals.spend.toLocaleString()}` : '—'}</td>
+                          <td style={{ ...td, padding:'8px', fontWeight:'700', fontSize:'12px', borderBottom:'none' }}>{platformTotals.leads || '—'}</td>
+                          <td style={{ ...td, padding:'8px', fontWeight:'700', fontSize:'12px', borderBottom:'none' }}>{platformTotalCPL ? `₹${platformTotalCPL}` : '—'}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  </>
                 )}
               </div>
 
@@ -840,7 +956,7 @@ const Dashboard = () => {
               <div style={card}>
                 <div style={cardHeader}>
                   <span style={cardTitle}>Your Campaigns</span>
-                  <button style={btnPrimary} onClick={() => navigate('dashboard/create-campaign')}>+ New</button>
+                  <button style={btnPrimary} onClick={() => navigate('/dashboard/create-campaign')}>+ New</button>
                 </div>
                 {loading ? <div style={emptyStyle}>Loading…</div>
                 : campaigns.length === 0 ? <div style={emptyStyle}>No campaigns yet. Create one to get started.</div>
@@ -869,25 +985,45 @@ const Dashboard = () => {
                   </table>
                   </div>
 
-                  {/* Mobile card view — table par horizontal scroll ki jagah ye dikhta hai */}
+                  {/* Mobile card view — richer "Recent Campaigns" style card:
+                      status badge + name + platform·goal line + Spend/Leads/CPL mini-grid */}
                   <div className="dashboard-mobile-cards">
-                    {filteredCampaigns.map(c => (
-                      <div key={c.id} style={{ border: t.border, borderRadius:'12px', padding:'12px 14px', background: darkMode ? 'rgba(255,255,255,0.03)' : '#fafbff' }}>
-                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:'8px', marginBottom:'8px' }}>
-                          <span style={{ fontWeight:'600', color: t.accent, cursor:'pointer', fontSize:'13px' }} onClick={() => navigate(`/dashboard/campaign/${c.id}`)}>{c.name}</span>
-                          {badge(c.status === 'active' ? 'badgeGreen' : 'badgeAmber', c.status || '—')}
+                    {filteredCampaigns.map(c => {
+                      const cLeadsCount = leads.filter(l => l.campaign_id === c.id || l.campaign_id === String(c.id)).length
+                      const cStat = platformStats.find(p => p.campaign_id === c.id || p.campaign_id === String(c.id))
+                      const cSpend = cStat?.spend
+                      const cCpl = cStat?.leads > 0 ? (cStat.spend / cStat.leads).toFixed(2) : null
+                      return (
+                        <div key={c.id} style={{ border: t.border, borderRadius:'12px', padding:'12px 14px', background: darkMode ? 'rgba(255,255,255,0.03)' : '#fafbff' }}>
+                          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:'8px', marginBottom:'6px' }}>
+                            {badge(c.status === 'active' ? 'badgeGreen' : 'badgeAmber', c.status || '—')}
+                          </div>
+                          <div style={{ fontWeight:'600', color: t.textPrimary, cursor:'pointer', fontSize:'13px', marginBottom:'4px' }} onClick={() => navigate(`/dashboard/campaign/${c.id}`)}>{c.name}</div>
+                          <div style={{ display:'flex', flexWrap:'wrap', alignItems:'center', gap:'6px', marginBottom:'10px', fontSize:'11px', color: t.textSecondary }}>
+                            {badge('badgeBlue', c.goal || '—')}
+                            <span style={{ color: t.textMuted }}>{c.start_date || '—'}</span>
+                          </div>
+                          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'6px', marginBottom:'10px' }}>
+                            <div>
+                              <div style={{ fontSize:'9px', color: t.textMuted, textTransform:'uppercase', marginBottom:'2px' }}>Spend</div>
+                              <div style={{ fontSize:'12px', fontWeight:'600', color: t.textPrimary }}>{cSpend ? `₹${cSpend.toLocaleString()}` : (c.budget ? `₹${c.budget.toLocaleString()}` : '—')}</div>
+                            </div>
+                            <div>
+                              <div style={{ fontSize:'9px', color: t.textMuted, textTransform:'uppercase', marginBottom:'2px' }}>Leads</div>
+                              <div style={{ fontSize:'12px', fontWeight:'600', color: t.textPrimary }}>{cLeadsCount || '—'}</div>
+                            </div>
+                            <div>
+                              <div style={{ fontSize:'9px', color: t.textMuted, textTransform:'uppercase', marginBottom:'2px' }}>CPL</div>
+                              <div style={{ fontSize:'12px', fontWeight:'600', color: t.textPrimary }}>{cCpl ? `₹${cCpl}` : '—'}</div>
+                            </div>
+                          </div>
+                          <div style={{ display:'flex', gap:'6px' }}>
+                            <button style={{ ...manageBtn, flex:1, textAlign:'center' }}>Manage</button>
+                            <button style={{ ...deleteBtn, flex:1, textAlign:'center' }} onClick={() => handleDelete(c.id)}>Delete</button>
+                          </div>
                         </div>
-                        <div style={{ display:'flex', flexWrap:'wrap', alignItems:'center', gap:'8px', marginBottom:'10px', fontSize:'11px', color: t.textSecondary }}>
-                          {badge('badgeBlue', c.goal || '—')}
-                          <span>₹{c.budget ? c.budget.toLocaleString() : '—'}</span>
-                          <span style={{ color: t.textMuted }}>{c.start_date || '—'}</span>
-                        </div>
-                        <div style={{ display:'flex', gap:'6px' }}>
-                          <button style={{ ...manageBtn, flex:1, textAlign:'center' }}>Manage</button>
-                          <button style={{ ...deleteBtn, flex:1, textAlign:'center' }} onClick={() => handleDelete(c.id)}>Delete</button>
-                        </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                   </>
                 )}

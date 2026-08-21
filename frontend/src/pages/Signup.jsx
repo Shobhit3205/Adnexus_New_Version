@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { signup } from '../services/api'
+import { signup, validateReferralCode } from '../services/api'
 
 const Signup = () => {
   const navigate = useNavigate()
@@ -10,6 +10,52 @@ const Signup = () => {
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [passwordFocused, setPasswordFocused] = useState(false)
+  const [manualRefCode, setManualRefCode] = useState('')
+  const [refCheckStatus, setRefCheckStatus] = useState('idle') // idle | checking | valid | invalid
+  const [referrerName, setReferrerName] = useState('')
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const ref = params.get('ref')
+    if (ref) {
+      try {
+        localStorage.setItem('adnexus_referral_code', ref)
+        setManualRefCode(ref)
+      } catch (e) {
+        // storage disabled (e.g. Safari private mode) — ignore, form still works
+      }
+    } else {
+      try {
+        const saved = localStorage.getItem('adnexus_referral_code')
+        if (saved) setManualRefCode(saved)
+      } catch (e) {
+        // storage disabled — ignore
+      }
+    }
+  }, [])
+
+  // Referral code type karte hi (debounced) backend se check karo — kiske through refer hua
+  useEffect(() => {
+    const code = manualRefCode.trim()
+    if (!code) {
+      setRefCheckStatus('idle')
+      setReferrerName('')
+      return
+    }
+    setRefCheckStatus('checking')
+    const timer = setTimeout(async () => {
+      try {
+        const res = await validateReferralCode(code)
+        setReferrerName(res.data.name)
+        setRefCheckStatus('valid')
+      } catch (err) {
+        setReferrerName('')
+        setRefCheckStatus('invalid')
+      }
+    }, 500) // typing rukne ke 500ms baad hi call hoga, har keystroke pe nahi
+
+    return () => clearTimeout(timer) // pichla pending check cancel, agar user abhi bhi type kar raha hai
+  }, [manualRefCode])
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value })
@@ -47,8 +93,18 @@ const Signup = () => {
 
     setLoading(true)
     try {
-      await signup({ ...form, otp_channel: otpChannel })
-      // Signup success — OTP verify page pe bhejo, email/phone/channel saath le jao
+      const refCode = manualRefCode.trim() || null
+
+      await signup({ ...form, otp_channel: otpChannel, referral_code: refCode })
+
+      // Signup successful ho gaya — ab referral code ki zaroorat nahi,
+      // clean up kar do taaki agla signup (agar koi test kare) affect na ho
+      try {
+        localStorage.removeItem('adnexus_referral_code')
+      } catch (e) {
+        // storage disabled — ignore
+      }
+
       navigate('/verify-otp', {
         state: { email: form.email, phone: form.phone, otpChannel },
       })
@@ -155,6 +211,25 @@ const Signup = () => {
             </div>
           )}
 
+          <label style={styles.label}>Referral Code (optional)</label>
+          <input
+            style={styles.input}
+            type="text"
+            name="referralCode"
+            placeholder="Enter referral code if you have one"
+            value={manualRefCode}
+            onChange={(e) => setManualRefCode(e.target.value.toUpperCase())}
+          />
+          {refCheckStatus === 'checking' && (
+            <p style={styles.refHint}>Checking code...</p>
+          )}
+          {refCheckStatus === 'valid' && (
+            <p style={{ ...styles.refHint, color: '#16a34a' }}>Referred by: {referrerName}</p>
+          )}
+          {refCheckStatus === 'invalid' && (
+            <p style={{ ...styles.refHint, color: '#dc2626' }}>Invalid referral code</p>
+          )}
+
           {/* OTP channel choice */}
           <label style={styles.label}>Send verification code via</label>
           <div style={styles.channelWrap}>
@@ -224,6 +299,7 @@ const styles = {
   ruleRow: { display: 'flex', alignItems: 'center', gap: '8px', padding: '2px 0' },
   ruleIcon: { fontSize: '13px', fontWeight: '700', width: '14px', textAlign: 'center' },
   ruleText: { fontSize: '12.5px' },
+  refHint: { fontSize: '12px', marginTop: '5px', color: '#64748b' },
   channelWrap: { display: 'flex', gap: '8px' },
   channelBtn: { flex: 1, padding: '9px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff', color: '#64748b', fontWeight: '600', fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' },
   channelBtnActive: { background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe' },

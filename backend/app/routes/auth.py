@@ -6,8 +6,10 @@ from google.oauth2 import id_token as google_id_token
 from google.auth.transport import requests as google_requests
 import os
 
+
 from app.database import get_db
-from app.models.models import User
+from app.models.models import User,Referral 
+from app.utils.referral import generate_unique_referral_code, get_referrer_by_code
 
 from app.schemas.auth import (
     SignupRequest, LoginRequest, VerifyOtpRequest,
@@ -22,6 +24,8 @@ from app.core.security import (
 from app.services.otp_service import (
     generate_otp, get_otp_expiry, send_otp_email, send_otp_sms
 )
+from app.models.models import User, Referral
+REFERRAL_REWARD_AMOUNT = 0
 
 router = APIRouter()
 
@@ -45,6 +49,17 @@ def signup(data: SignupRequest, db: Session = Depends(get_db)):
 
     if not PHONE_REGEX.match(data.phone):
         raise HTTPException(status_code=400, detail="Please enter a valid 10-digit phone number")
+
+    # ── Referral code validate karo (agar diya gaya hai) ──
+    # Invalid code hone par signup yahin rok denge — koi user create nahi hoga.
+    referrer = None
+    if data.referral_code:
+        referrer = get_referrer_by_code(db, data.referral_code)
+        if not referrer:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid referral code. Please check the link and try again."
+            )
 
     # Check karo email already exist to nahi karta
     # Check karo email/phone already exist to nahi karta
@@ -79,6 +94,10 @@ def signup(data: SignupRequest, db: Session = Depends(get_db)):
     otp_code = generate_otp()
     otp_expiry = get_otp_expiry()
 
+    # Har naye user ko apna unique referral code milega,
+    # taaki wo khud aage refer kar sake
+    own_referral_code = generate_unique_referral_code(db)
+
     # Naya user banao (abhi unverified)
     new_user = User(
         name=data.name,
@@ -92,10 +111,22 @@ def signup(data: SignupRequest, db: Session = Depends(get_db)):
         otp_code=otp_code,
         otp_expires_at=otp_expiry,
         otp_channel=data.otp_channel,
+        referral_code=own_referral_code,
+        referred_by=referrer.id if referrer else None,
     )
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
+
+    # Agar valid referrer tha, to Referral table me relationship record bana do
+    if referrer:
+        new_referral = Referral(
+            referrer_id=referrer.id,
+            referee_id=new_user.id,
+            status="pending",   # reward trigger hone tak pending rahega
+        )
+        db.add(new_referral)
+        db.commit()
 
     # Chosen channel par OTP bhejo
     sent = _send_otp(data.otp_channel, data.email, data.phone, otp_code, data.name)
@@ -128,21 +159,31 @@ def verify_otp(data: VerifyOtpRequest, db: Session = Depends(get_db)):
     if user.otp_expires_at < datetime.utcnow():
         raise HTTPException(status_code=400, detail="OTP expired, please request a new one")
 
-    # Jis channel par OTP gaya tha, wahi verified maano
     if user.otp_channel == "phone":
         user.is_phone_verified = True
     else:
         user.is_email_verified = True
 
-    # Overall verified — login isi flag ko check karta hai
     user.is_verified = True
     user.otp_code = None
     user.otp_expires_at = None
     user.otp_channel = None
+
+    # ── Referral reward trigger ──
+    # Referee ka OTP verify ho gaya — agar isse kisi ne refer kiya tha,
+    # us referral ko "completed" mark kar do
+    if user.referred_by:
+        referral = db.query(Referral).filter(
+            Referral.referee_id == user.id,
+            Referral.status == "pending",
+        ).first()
+        if referral:
+            referral.status = "completed"
+            referral.reward_amount = REFERRAL_REWARD_AMOUNT  # abhi 0, amount decide hote hi update kar dena
+
     db.commit()
     db.refresh(user)
 
-    # Auto-login: token generate karo
     token = create_access_token({"sub": str(user.id)})
 
     return {"access_token": token, "user": user}

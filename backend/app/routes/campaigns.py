@@ -10,6 +10,7 @@ from app.models.models import (
 from app.core.security import get_current_user
 from pydantic import BaseModel
 from typing import Optional, List
+from app.routes.leads import generate_lead_form_url
 import os
 
 # Google + Meta imports
@@ -303,12 +304,12 @@ def create_campaign(req: CampaignCreateRequest, db: Session = Depends(get_db), c
     # ── Fix: Lead Generation campaigns ka click-through link hamesha
     #    lead form hona chahiye — na ki adnexus.co.in homepage. Same
     #    URL jo ad-content save ke waqt bhi generate hota hai. ──
-    if req.goal == "LEAD_GEN":
-        from app.routes.leads import generate_lead_form_url
-        lead_url = generate_lead_form_url(campaign_id)
-        ad_content_data["final_url"] = lead_url
-        ad_content_data["link_url"]  = lead_url
-    else:
+    if req.goal != "LEAD_GEN":
+    # Non-lead-gen campaigns — koi platform-specific URL nahi chahiye
+     if not ad_content_data.get("final_url"):
+        ad_content_data["final_url"] = "https://adnexus.co.in"
+     if not ad_content_data.get("link_url"):
+        ad_content_data["link_url"] = "https://adnexus.co.in"
         # ── Fix: agar URL khali hai to apna domain fallback use karo, google.com nahi ──
         if not ad_content_data.get("final_url"):
             ad_content_data["final_url"] = "https://adnexus.co.in"
@@ -329,8 +330,15 @@ def create_campaign(req: CampaignCreateRequest, db: Session = Depends(get_db), c
         google_campaign_data = dict(campaign_data)   # ← naya, alag copy
         google_campaign_data["budget_amount"] = platform_budgets.get("google", daily_budget)
 
+        # NAYA — Google ka apna platform-specific lead URL
+        google_ad_content_data = dict(ad_content_data)
+        if req.goal == "LEAD_GEN":
+            google_url = generate_lead_form_url(campaign_id, "google")
+            google_ad_content_data["final_url"] = google_url
+            google_ad_content_data["link_url"]  = google_url
+
         try:
-          google_result = submit_campaign_to_google(google_campaign_data, ad_content_data)
+          google_result = submit_campaign_to_google(google_campaign_data, google_ad_content_data)
           print("========== GOOGLE RESULT ==========")
           print(google_result)
           print("===================================")
@@ -394,6 +402,7 @@ def create_campaign(req: CampaignCreateRequest, db: Session = Depends(get_db), c
                 meta_campaign_data,
                 ad_content_data,
                 audience_targeting=audience_targeting_for_meta,
+                campaign_id=campaign_id,
             )
         except Exception as e:
             meta_result = {"success": False, "error": str(e), "platform": "meta"}

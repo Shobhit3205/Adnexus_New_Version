@@ -3,6 +3,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
 from sqlalchemy import Boolean
+from sqlalchemy import Boolean, Numeric, UniqueConstraint
 
 # ════════════════════════════════════════════════════
 # Users Table
@@ -32,9 +33,16 @@ class User(Base):
     otp_channel     = Column(String(10),nullable=True)
     created_at = Column(DateTime, default=func.now())
 
+    referral_code = Column(String(12), unique=True, index=True, nullable=True)
+    referred_by   = Column(Integer, ForeignKey("users.id"), nullable=True)
+
     # Relationship
     campaigns = relationship("Campaign", back_populates="user")
     platform_connections = relationship("PlatformConnection", back_populates="user")
+    referrals_made  = relationship("Referral", foreign_keys="Referral.referrer_id", back_populates="referrer")
+    referral_earned = relationship("Referral", foreign_keys="Referral.referee_id", back_populates="referee")
+    earnings        = relationship("Earning", back_populates="user")
+
 
 
 # ════════════════════════════════════════════════════
@@ -310,7 +318,7 @@ class PlatformConnection(Base):
 
     # Relationship
     user = relationship("User", back_populates="platform_connections")
-
+                  
 
     # ════════════════════════════════════════════════════
 # Audience Profiles Table
@@ -395,3 +403,46 @@ class CustomAudienceUpload(Base):
     error_message     = Column(Text, nullable=True)
 
     created_at        = Column(DateTime, default=func.now())
+
+
+# ════════════════════════════════════════════════════
+# Referrals Table
+# Har referral relationship yahan store hota hai:
+# kisne (referrer) kisko (referee) refer kiya, aur kya status hai
+# ════════════════════════════════════════════════════
+class Referral(Base):
+    __tablename__ = "referrals"
+
+    id            = Column(Integer, primary_key=True, index=True)
+    referrer_id   = Column(Integer, ForeignKey("users.id"), nullable=False)
+    referee_id    = Column(Integer, ForeignKey("users.id"), nullable=False)
+    status        = Column(String(20), default="pending")   # pending | completed | rejected
+    reward_amount = Column(Numeric(10, 2), default=0)
+    created_at    = Column(DateTime, default=func.now())
+    completed_at  = Column(DateTime, nullable=True)
+
+    # Ek user sirf ek hi baar "referee" ban sakta hai
+    __table_args__ = (UniqueConstraint("referee_id", name="uq_referral_referee"),)
+
+    # Relationships
+    referrer = relationship("User", foreign_keys=[referrer_id], back_populates="referrals_made")
+    referee  = relationship("User", foreign_keys=[referee_id], back_populates="referral_earned")
+
+
+# ════════════════════════════════════════════════════
+# Earnings Table
+# Immutable ledger — jab bhi referral reward credit hoti hai,
+# yahan ek naya row insert hota hai (kabhi update nahi karte)
+# ════════════════════════════════════════════════════
+class Earning(Base):
+    __tablename__ = "earnings"
+
+    id           = Column(Integer, primary_key=True, index=True)
+    user_id      = Column(Integer, ForeignKey("users.id"), nullable=False)
+    amount       = Column(Numeric(10, 2), nullable=False)
+    source       = Column(String(30), default="referral_bonus")
+    reference_id = Column(Integer, ForeignKey("referrals.id"), nullable=True)
+    created_at   = Column(DateTime, default=func.now())
+
+    # Relationship
+    user = relationship("User", back_populates="earnings")

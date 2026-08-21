@@ -7,6 +7,7 @@ from app.models.models import Campaign, LeadForm, FormSubmission, ClickTracking,
 from app.services.otp_service import send_lead_notification_email
 import json
 from app.services.meta_ads_service import send_meta_lead_event
+from app.services.google_ads_service import send_google_lead_conversion
 
 router = APIRouter(tags=["Public Forms"])
 
@@ -368,6 +369,7 @@ def submit_form(
     campaign_id: int,
     data: FormSubmissionCreate,
     background_tasks: BackgroundTasks,
+    request: Request,
     db: Session = Depends(get_db)
 ):
     campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
@@ -406,12 +408,24 @@ def submit_form(
     db.refresh(submission)
 
     # ── Meta Conversions API ko Lead event bhejo (background mein, response slow na ho) ──
-    if data.platform == "meta":
+    # NEW:
+    if data.platform in ("meta", "instagram", "facebook"):
+     background_tasks.add_task(
+        send_meta_lead_event,
+        email=data.email or "",
+        phone=data.phone or "",
+        fbclid=(data.extra_data or {}).get("fbclid"),
+        fbp=(data.extra_data or {}).get("fbp"),
+        client_ip=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent"),
+        source_url=f"https://adnexus.co.in/lead/{campaign_id}",
+    )
+
+    if data.platform == "google":
         background_tasks.add_task(
-            send_meta_lead_event,
-            email=data.email or "",
-            phone=data.phone or "",
-        )
+        send_google_lead_conversion,
+        gclid=(data.extra_data or {}).get("gclid"),
+    )
 
     # ── Owner ko email notification bhejo (background mein, response slow na ho) ──
     owner = db.query(User).filter(User.id == campaign.user_id).first()

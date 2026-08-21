@@ -13,7 +13,7 @@ from sqlalchemy import func
 
 from app.database import get_db
 from app.models.models import (
-    User, Campaign, AdContent, Lead, FormSubmission, ClickTracking, Platform
+    User, Campaign, AdContent, Lead, FormSubmission, ClickTracking, Platform, Referral
 )
 from app.core.security import get_current_admin
 
@@ -46,7 +46,9 @@ def get_overview(
 
 # ════════════════════════════════════════════════════
 # GET /api/admin/users
-# List every user with a quick summary of their activity
+# List every user with a quick summary of their activity.
+# referral_count = kitne logon ko is user ne refer kiya
+# (Referral.referrer_id = is user ki id)
 # ════════════════════════════════════════════════════
 @router.get("/users")
 def get_all_users(
@@ -61,6 +63,9 @@ def get_all_users(
         total_spent = db.query(func.coalesce(func.sum(Campaign.budget_spent), 0)).filter(
             Campaign.user_id == u.id
         ).scalar()
+        referral_count = db.query(func.count(Referral.id)).filter(
+            Referral.referrer_id == u.id
+        ).scalar()
 
         result.append({
             "id": u.id,
@@ -71,6 +76,7 @@ def get_all_users(
             "created_at": u.created_at,
             "campaign_count": campaign_count,
             "total_budget_spent": total_spent,
+            "referral_count": referral_count,
         })
 
     return {"users": result}
@@ -141,6 +147,48 @@ def get_user_detail(
             "created_at": user.created_at,
         },
         "campaigns": campaigns_data,
+    }
+
+
+# ════════════════════════════════════════════════════
+# GET /api/admin/users/{user_id}/referrals
+# Kisi ek user ne kisko-kisko refer kiya — naam, joined date,
+# referral status, aur unke apne campaigns count.
+# Users table mein referral_count pe click karke ye khulega.
+# ════════════════════════════════════════════════════
+@router.get("/users/{user_id}/referrals")
+def get_user_referrals(
+    user_id: int,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_current_admin),
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    referrals = db.query(Referral).filter(
+        Referral.referrer_id == user_id
+    ).order_by(Referral.created_at.desc()).all()
+
+    result = []
+    for r in referrals:
+        referee = db.query(User).filter(User.id == r.referee_id).first()
+        campaigns_count = db.query(func.count(Campaign.id)).filter(
+            Campaign.user_id == r.referee_id
+        ).scalar()
+
+        result.append({
+            "id": r.id,
+            "name": referee.name if referee else "—",
+            "email": referee.email if referee else None,
+            "joined_at": referee.created_at.isoformat() if referee and referee.created_at else None,
+            "status": r.status,
+            "campaigns_count": campaigns_count,
+        })
+
+    return {
+        "referrer_name": user.name,
+        "referrals": result,
     }
 
 

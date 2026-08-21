@@ -76,6 +76,7 @@ const AdminDashboard = () => {
   const [leads, setLeads] = useState([])
   const [selectedUser, setSelectedUser] = useState(null)
   const [selectedCampaign, setSelectedCampaign] = useState(null)
+  const [selectedReferrals, setSelectedReferrals] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [page, setPage] = useState(1)
@@ -152,6 +153,16 @@ const AdminDashboard = () => {
       if (!res.ok) return handleAuthError(res.status)
       setSelectedCampaign(await res.json())
     } catch (e) { setError('Could not load campaign detail.') }
+  }
+
+  // Users table mein referral_count pe click hone par ye khulta hai —
+  // us user ne kisko-kisko refer kiya, naam + campaigns count ke saath
+  const openReferralsDetail = async (userId) => {
+    try {
+      const res = await fetch(`${API_BASE}/admin/users/${userId}/referrals`, { headers: authHeaders() })
+      if (!res.ok) return handleAuthError(res.status)
+      setSelectedReferrals(await res.json())
+    } catch (e) { setError('Could not load referral detail.') }
   }
 
   if (error) {
@@ -247,7 +258,7 @@ const AdminDashboard = () => {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
               <thead>
                 <tr style={{ background: '#F8FAFF', textAlign: 'left' }}>
-                  {['Name', 'Email', 'Provider', 'Verified', 'Campaigns', 'Budget Spent', 'Joined', ''].map(h => (
+                  {['Name', 'Email', 'Provider', 'Verified', 'Campaigns', 'Referrals', 'Budget Spent', 'Joined', ''].map(h => (
                     <th key={h} style={{ padding: '12px 16px', fontSize: '11px', fontWeight: '700', color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{h}</th>
                   ))}
                 </tr>
@@ -271,6 +282,18 @@ const AdminDashboard = () => {
                       </span>
                     </td>
                     <td style={{ padding: '12px 16px', color: '#374151' }}>{u.campaign_count}</td>
+                    <td style={{ padding: '12px 16px' }}>
+                      {u.referral_count > 0 ? (
+                        <button
+                          onClick={() => openReferralsDetail(u.id)}
+                          style={{ fontSize: '12px', fontWeight: '700', color: '#4F46E5', background: '#EEF2FF', border: 'none', borderRadius: '20px', padding: '3px 12px', cursor: 'pointer', fontFamily: 'inherit' }}
+                        >
+                          {u.referral_count}
+                        </button>
+                      ) : (
+                        <span style={{ fontSize: '12px', color: '#9CA3AF' }}>0</span>
+                      )}
+                    </td>
                     <td style={{ padding: '12px 16px', color: '#374151' }}>₹{Number(u.total_budget_spent || 0).toLocaleString()}</td>
                     <td style={{ padding: '12px 16px', color: '#9CA3AF' }}>{new Date(u.created_at).toLocaleDateString()}</td>
                     <td style={{ padding: '12px 16px' }}>
@@ -516,6 +539,54 @@ const AdminDashboard = () => {
                 ))}
                 {selectedCampaign.ad_contents.length === 0 && (
                   <div style={{ padding: '16px', textAlign: 'center', color: '#9CA3AF', fontSize: '12px', background: '#F9FAFB', borderRadius: '12px' }}>No ad creatives yet.</div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Referrals detail modal ── */}
+        {selectedReferrals && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '20px' }}
+            onClick={() => setSelectedReferrals(null)}>
+            <div style={{ background: '#fff', borderRadius: '20px', width: '640px', maxHeight: '85vh', overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.25)', display: 'flex', flexDirection: 'column' }}
+              onClick={e => e.stopPropagation()}>
+
+              {/* Header banner */}
+              <div style={{ background: 'linear-gradient(135deg, #4F46E5 0%, #9333EA 100%)', padding: '24px 28px', position: 'relative' }}>
+                <button onClick={() => setSelectedReferrals(null)} style={{ position: 'absolute', top: '18px', right: '18px', background: 'rgba(255,255,255,0.18)', border: 'none', borderRadius: '8px', width: '28px', height: '28px', fontSize: '15px', cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                <div style={{ fontSize: '11px', fontWeight: '700', color: 'rgba(255,255,255,0.8)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>Referred by</div>
+                <div style={{ fontSize: '21px', fontWeight: '800', color: '#fff' }}>{selectedReferrals.referrer_name}</div>
+                <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.85)', marginTop: '4px' }}>
+                  {selectedReferrals.referrals.length} referral{selectedReferrals.referrals.length !== 1 ? 's' : ''}
+                </div>
+              </div>
+
+              {/* Scrollable body */}
+              <div style={{ padding: '20px 28px', overflowY: 'auto' }}>
+                {selectedReferrals.referrals.map(r => (
+                  <div key={r.id} style={{ border: '1px solid #E5E7EB', borderRadius: '12px', padding: '13px 14px', marginBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: avatarColor(r.name), color: '#374151', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700', fontSize: '12px', flexShrink: 0 }}>
+                        {initials(r.name)}
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: '600', fontSize: '13px', color: '#111827' }}>{r.name}</div>
+                        <div style={{ fontSize: '11px', color: '#9CA3AF' }}>
+                          Joined {r.joined_at ? new Date(r.joined_at).toLocaleDateString() : '—'}
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                      <span style={{ fontSize: '10px', fontWeight: '700', padding: '2px 9px', borderRadius: '20px', background: r.status === 'completed' ? '#D1FAE5' : '#FEF3C7', color: r.status === 'completed' ? '#065F46' : '#92400E', display: 'inline-block', marginBottom: '5px' }}>
+                        {r.status === 'completed' ? 'Completed' : 'Pending'}
+                      </span>
+                      <div style={{ fontSize: '11px', color: '#6B7280' }}>{r.campaigns_count} campaign{r.campaigns_count !== 1 ? 's' : ''}</div>
+                    </div>
+                  </div>
+                ))}
+                {selectedReferrals.referrals.length === 0 && (
+                  <div style={{ padding: '16px', textAlign: 'center', color: '#9CA3AF', fontSize: '12px', background: '#F9FAFB', borderRadius: '12px' }}>No referrals yet.</div>
                 )}
               </div>
             </div>

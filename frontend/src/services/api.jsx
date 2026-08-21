@@ -38,6 +38,12 @@ export const getLeads = () => API.get('/api/leads/')
 export const getCampaignLeads = (campaignId) => API.get(`/api/leads/campaign/${campaignId}`)
 export const updateLeadStatus = (id, data) => API.put(`/api/leads/${id}`, data)
 export const deleteLead = (id) => API.delete(`/api/leads/${id}`)
+
+// Referral APIs
+export const getReferralSummary = () => API.get('/api/referral/summary')
+export const getReferralList = () => API.get('/api/referral/list')
+export const validateReferralCode = (code) => API.get(`/api/referral/validate/${code}`)
+
 // ════════════════════════════════════════════════════
 // AUTH FUNCTIONS
 // ════════════════════════════════════════════════════

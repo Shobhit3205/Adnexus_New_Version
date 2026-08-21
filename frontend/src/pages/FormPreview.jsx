@@ -188,6 +188,20 @@ const getFormType = (subCategory, industry) => {
   return INDUSTRY_DEFAULTS[industry] || 'services'
 }
 
+// ── NAYA: mobile ke liye responsive CSS — desktop par 2-column grid
+//    waisa hi rehta hai, ≤768px par ek "Preview / Customize" tab-switcher
+//    ban jaata hai taaki dono columns squeeze na hon (inline styles ke
+//    display ko yahan !important se override karna padta hai) ──
+const responsiveStyles = `
+  .fp-mobile-tabs { display: none; }
+  @media (max-width: 768px) {
+    .fp-wrapper { display: block !important; }
+    .fp-mobile-tabs { display: flex !important; gap: 8px; margin-bottom: 16px; }
+    .fp-side { display: none !important; }
+    .fp-side.fp-active { display: flex !important; }
+  }
+`
+
 // ════════════════════════════════════════════════════
 // FORM PREVIEW COMPONENT
 // Used inside CreateCampaign as Step 5
@@ -203,6 +217,10 @@ const FormPreview = ({ campaignData, onNext, onBack, campaignId }) => {
   const [saving, setSaving]   = useState(false)
   const [saved, setSaved]     = useState(false)
   const [error, setError]     = useState('')
+
+  // ── NAYA: mobile tab state — 'customize' default hai kyunki user yahan
+  //    fields bharne aaya hai, preview ek tap door hai jab dekhna ho ──
+  const [mobileTab, setMobileTab] = useState('customize')
 
   const formType   = getFormType(campaignData?.sub_category, campaignData?.industry)
   const formConfig = FORM_CONFIGS[formType] || FORM_CONFIGS.services
@@ -235,179 +253,201 @@ const FormPreview = ({ campaignData, onNext, onBack, campaignId }) => {
   }
 
   return (
-    <div style={s.wrapper}>
+    <div>
+      <style>{responsiveStyles}</style>
 
-      {/* ── Left: Live Form Preview ── */}
-      <div style={s.previewSide}>
-        <div style={s.previewLabel}>👁️ Customer will see this form</div>
-        <div style={s.previewCard}>
-
-          {/* Branding Header */}
-          <div style={{ ...s.previewHeader, background: brandColor }}>
-            {branding.company_logo
-              ? <img src={branding.company_logo} alt="logo" style={s.logo} />
-              : <div style={s.logoPlaceholder}>
-                  {branding.company_name ? branding.company_name[0].toUpperCase() : 'A'}
-                </div>
-            }
-            <div>
-              <div style={s.previewCompany}>
-                {branding.company_name || 'Your Company Name'}
-              </div>
-              {branding.tagline && (
-                <div style={s.previewTagline}>{branding.tagline}</div>
-              )}
-            </div>
-          </div>
-
-          {/* Form Fields Preview */}
-          <div style={s.previewBody}>
-            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-              <div style={{ fontSize: '28px' }}>{formConfig.icon}</div>
-              <div style={{ fontSize: '16px', fontWeight: '700', color: '#1a1a2e', marginTop: '6px' }}>
-                {formConfig.title}
-              </div>
-              <div style={{ fontSize: '12px', color: '#8892b0', marginTop: '4px' }}>
-                Fill in your details and we'll get back to you shortly.
-              </div>
-            </div>
-
-            {formConfig.fields.map(field => (
-              <div key={field.name} style={s.previewField}>
-                <div style={s.previewFieldLabel}>{field.label}</div>
-                <div style={s.previewFieldInput}>
-                  {field.type === 'textarea'
-                    ? <div style={{ color: '#c0c8da', fontSize: '12px' }}>Enter text...</div>
-                    : field.type === 'select'
-                    ? <div style={{ color: '#c0c8da', fontSize: '12px' }}>Select option ▾</div>
-                    : <div style={{ color: '#c0c8da', fontSize: '12px' }}>Enter {field.label.toLowerCase()}...</div>
-                  }
-                </div>
-              </div>
-            ))}
-
-            <div style={{ ...s.previewSubmit, background: brandColor }}>
-              Submit Enquiry →
-            </div>
-
-            <div style={s.previewPowered}>
-              Powered by <strong>AdNexus</strong> ✓
-            </div>
-          </div>
-        </div>
+      {/* ── NAYA: mobile-only tab switcher — desktop par CSS se hidden rehta hai ── */}
+      <div className="fp-mobile-tabs">
+        <button
+          type="button"
+          onClick={() => setMobileTab('customize')}
+          style={{ ...s.mobileTabBtn, ...(mobileTab === 'customize' ? s.mobileTabBtnActive : {}) }}
+        >
+          🎨 Customize
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileTab('preview')}
+          style={{ ...s.mobileTabBtn, ...(mobileTab === 'preview' ? s.mobileTabBtnActive : {}) }}
+        >
+          👁️ Preview
+        </button>
       </div>
 
-      {/* ── Right: Branding Setup ── */}
-      <div style={s.brandingSide}>
-        <div style={s.brandingLabel}>🎨 Setup Your Branding</div>
-        <p style={s.brandingHint}>
-          This form will be shown to your customers when they click your ad.
-          Add your branding so it looks like your own form.
-        </p>
+      <div className="fp-wrapper" style={s.wrapper}>
 
-        {/* Form Type Badge */}
-        <div style={s.formTypeBadge}>
-          <span style={{ fontSize: '20px' }}>{formConfig.icon}</span>
-          <div>
-            <div style={{ fontSize: '12px', color: '#8892b0' }}>Auto-detected form type</div>
-            <div style={{ fontSize: '14px', fontWeight: '700', color: '#1a1a2e' }}>
-              {formConfig.title}
+        {/* ── Left: Live Form Preview ── */}
+        <div className={`fp-side ${mobileTab === 'preview' ? 'fp-active' : ''}`} style={s.previewSide}>
+          <div style={s.previewLabel}>👁️ Customer will see this form</div>
+          <div style={s.previewCard}>
+
+            {/* Branding Header */}
+            <div style={{ ...s.previewHeader, background: brandColor }}>
+              {branding.company_logo
+                ? <img src={branding.company_logo} alt="logo" style={s.logo} />
+                : <div style={s.logoPlaceholder}>
+                    {branding.company_name ? branding.company_name[0].toUpperCase() : 'A'}
+                  </div>
+              }
+              <div>
+                <div style={s.previewCompany}>
+                  {branding.company_name || 'Your Company Name'}
+                </div>
+                {branding.tagline && (
+                  <div style={s.previewTagline}>{branding.tagline}</div>
+                )}
+              </div>
+            </div>
+
+            {/* Form Fields Preview */}
+            <div style={s.previewBody}>
+              <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                <div style={{ fontSize: '28px' }}>{formConfig.icon}</div>
+                <div style={{ fontSize: '16px', fontWeight: '700', color: '#1a1a2e', marginTop: '6px' }}>
+                  {formConfig.title}
+                </div>
+                <div style={{ fontSize: '12px', color: '#8892b0', marginTop: '4px' }}>
+                  Fill in your details and we'll get back to you shortly.
+                </div>
+              </div>
+
+              {formConfig.fields.map(field => (
+                <div key={field.name} style={s.previewField}>
+                  <div style={s.previewFieldLabel}>{field.label}</div>
+                  <div style={s.previewFieldInput}>
+                    {field.type === 'textarea'
+                      ? <div style={{ color: '#c0c8da', fontSize: '12px' }}>Enter text...</div>
+                      : field.type === 'select'
+                      ? <div style={{ color: '#c0c8da', fontSize: '12px' }}>Select option ▾</div>
+                      : <div style={{ color: '#c0c8da', fontSize: '12px' }}>Enter {field.label.toLowerCase()}...</div>
+                    }
+                  </div>
+                </div>
+              ))}
+
+              <div style={{ ...s.previewSubmit, background: brandColor }}>
+                Submit Enquiry →
+              </div>
+
+              <div style={s.previewPowered}>
+                Powered by <strong>AdNexus</strong> ✓
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Branding Fields */}
-        <div style={s.brandingFields}>
-          <div style={s.fieldGroup}>
-            <label style={s.label}>Company Name</label>
-            <input
-              style={s.input}
-              type="text"
-              name="company_name"
-              placeholder="e.g. XYZ Finance Pvt Ltd"
-              value={branding.company_name}
-              onChange={handleBranding}
-            />
+        {/* ── Right: Branding Setup ── */}
+        <div className={`fp-side ${mobileTab === 'customize' ? 'fp-active' : ''}`} style={s.brandingSide}>
+          <div style={s.brandingLabel}>🎨 Setup Your Branding</div>
+          <p style={s.brandingHint}>
+            This form will be shown to your customers when they click your ad.
+            Add your branding so it looks like your own form.
+          </p>
+
+          {/* Form Type Badge */}
+          <div style={s.formTypeBadge}>
+            <span style={{ fontSize: '20px' }}>{formConfig.icon}</span>
+            <div>
+              <div style={{ fontSize: '12px', color: '#8892b0' }}>Auto-detected form type</div>
+              <div style={{ fontSize: '14px', fontWeight: '700', color: '#1a1a2e' }}>
+                {formConfig.title}
+              </div>
+            </div>
           </div>
 
-          <div style={s.fieldGroup}>
-            <label style={s.label}>Company Logo URL <span style={s.optional}>(optional)</span></label>
-            <input
-              style={s.input}
-              type="text"
-              name="company_logo"
-              placeholder="https://yourcompany.com/logo.png"
-              value={branding.company_logo}
-              onChange={handleBranding}
-            />
-          </div>
-
-          <div style={s.fieldGroup}>
-            <label style={s.label}>Brand Color</label>
-            <div style={s.colorRow}>
+          {/* Branding Fields */}
+          <div style={s.brandingFields}>
+            <div style={s.fieldGroup}>
+              <label style={s.label}>Company Name</label>
               <input
-                type="color"
-                name="brand_color"
-                value={branding.brand_color}
-                onChange={handleBranding}
-                style={s.colorPicker}
-              />
-              <input
-                style={{ ...s.input, flex: 1 }}
+                style={s.input}
                 type="text"
-                name="brand_color"
-                value={branding.brand_color}
+                name="company_name"
+                placeholder="e.g. XYZ Finance Pvt Ltd"
+                value={branding.company_name}
                 onChange={handleBranding}
-                placeholder="#1A73E8"
+              />
+            </div>
+
+            <div style={s.fieldGroup}>
+              <label style={s.label}>Company Logo URL <span style={s.optional}>(optional)</span></label>
+              <input
+                style={s.input}
+                type="text"
+                name="company_logo"
+                placeholder="https://yourcompany.com/logo.png"
+                value={branding.company_logo}
+                onChange={handleBranding}
+              />
+            </div>
+
+            <div style={s.fieldGroup}>
+              <label style={s.label}>Brand Color</label>
+              <div style={s.colorRow}>
+                <input
+                  type="color"
+                  name="brand_color"
+                  value={branding.brand_color}
+                  onChange={handleBranding}
+                  style={s.colorPicker}
+                />
+                <input
+                  style={{ ...s.input, flex: 1 }}
+                  type="text"
+                  name="brand_color"
+                  value={branding.brand_color}
+                  onChange={handleBranding}
+                  placeholder="#1A73E8"
+                />
+              </div>
+            </div>
+
+            <div style={s.fieldGroup}>
+              <label style={s.label}>Tagline <span style={s.optional}>(optional)</span></label>
+              <input
+                style={s.input}
+                type="text"
+                name="tagline"
+                placeholder="e.g. Trusted by 10,000+ businesses"
+                value={branding.tagline}
+                onChange={handleBranding}
               />
             </div>
           </div>
 
-          <div style={s.fieldGroup}>
-            <label style={s.label}>Tagline <span style={s.optional}>(optional)</span></label>
-            <input
-              style={s.input}
-              type="text"
-              name="tagline"
-              placeholder="e.g. Trusted by 10,000+ businesses"
-              value={branding.tagline}
-              onChange={handleBranding}
-            />
-          </div>
-        </div>
+          {error && <div style={s.error}>{error}</div>}
 
-        {error && <div style={s.error}>{error}</div>}
-
-        {saved && (
-          <div style={s.success}>
-            ✅ Branding saved! Moving to next step...
-          </div>
-        )}
-
-        {/* Form URL Preview */}
-        {campaignId && (
-          <div style={s.urlBox}>
-            <div style={{ fontSize: '11px', color: '#8892b0', marginBottom: '4px' }}>
-              Your form link (share in ads):
+          {saved && (
+            <div style={s.success}>
+              ✅ Branding saved! Moving to next step...
             </div>
-            <div style={s.urlText}>
-              {window.location.origin}/lead/{campaignId}
-            </div>
-          </div>
-        )}
+          )}
 
-        {/* Navigation */}
-        <div style={s.navRow}>
-          <button style={s.backBtn} onClick={onBack}>
-            ← Back
-          </button>
-          <button
-            style={{ ...s.nextBtn, background: saving ? '#93b8f4' : '#1A73E8' }}
-            onClick={handleSave}
-            disabled={saving}
-          >
-            {saving ? '⏳ Saving...' : saved ? '✅ Saved!' : 'Save & Continue →'}
-          </button>
+          {/* Form URL Preview */}
+          {campaignId && (
+            <div style={s.urlBox}>
+              <div style={{ fontSize: '11px', color: '#8892b0', marginBottom: '4px' }}>
+                Your form link (share in ads):
+              </div>
+              <div style={s.urlText}>
+                {window.location.origin}/lead/{campaignId}
+              </div>
+            </div>
+          )}
+
+          {/* Navigation */}
+          <div style={s.navRow}>
+            <button style={s.backBtn} onClick={onBack}>
+              ← Back
+            </button>
+            <button
+              style={{ ...s.nextBtn, background: saving ? '#93b8f4' : '#1A73E8' }}
+              onClick={handleSave}
+              disabled={saving}
+            >
+              {saving ? '⏳ Saving...' : saved ? '✅ Saved!' : 'Save & Continue →'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -448,6 +488,8 @@ const s = {
   nextBtn:      { flex: 1, padding: '12px 20px', borderRadius: '10px', border: 'none', color: '#fff', fontSize: '14px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit' },
   error:        { background: '#fff5f5', color: '#c62828', padding: '10px 14px', borderRadius: '8px', fontSize: '13px', border: '0.5px solid #ffcdd2' },
   success:      { background: '#f0fdf4', color: '#16a34a', padding: '10px 14px', borderRadius: '8px', fontSize: '13px', border: '0.5px solid #bbf7d0' },
+  mobileTabBtn: { flex: 1, padding: '10px', borderRadius: '10px', border: '1.5px solid #e0e4ef', background: '#fff', color: '#8892b0', fontSize: '13px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit' },
+  mobileTabBtnActive: { border: '1.5px solid #1A73E8', background: '#e8f0fe', color: '#1A73E8' },
 }
 
 export default FormPreview

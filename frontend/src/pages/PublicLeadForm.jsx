@@ -191,8 +191,20 @@ const PublicLeadForm = () => {
   const { campaignId }              = useParams()
   const navigate                    = useNavigate()
   const [searchParams]              = useSearchParams()
-  const platform                    = searchParams.get('platform') || ''
-  const utm_source                  = searchParams.get('utm_source') || ''
+const platform                    = searchParams.get('platform') || ''
+const utm_source                  = searchParams.get('utm_source') || ''
+const gclid                       = searchParams.get('gclid') || ''
+const fbclid                      = searchParams.get('fbclid') || ''
+
+// Meta ka _fbp cookie padhne ka helper — pixel load hote hi ye cookie set hoti hai
+const getFbpCookie = () => {
+  try {
+    const match = document.cookie.match(/(?:^|;\s*)_fbp=([^;]+)/)
+    return match ? match[1] : ''
+  } catch {
+    return ''
+  }
+}
 
   const [config, setConfig]         = useState(null)
   const [loading, setLoading]       = useState(true)
@@ -238,23 +250,30 @@ const PublicLeadForm = () => {
 
     try {
       // Separate common fields from extra fields
-      const extra_data = {}
-      formConfig.fields
-        .filter(f => f.extra)
-        .forEach(f => { if (formData[f.name]) extra_data[f.name] = formData[f.name] })
+ const extra_data = {}
+formConfig.fields
+  .filter(f => f.extra)
+  .forEach(f => { if (formData[f.name]) extra_data[f.name] = formData[f.name] })
 
-      await axios.post(`${API_BASE}/public/submit/${campaignId}`, {
-        full_name:    formData.full_name || formData.student_name || '',
-        phone:        formData.phone        || '',
-        email:        formData.email        || '',
-        location:     formData.location     || '',
-        budget_range: formData.budget_range || '',
-        timeline:     formData.timeline     || '',
-        requirement:  formData.requirement  || '',
-        extra_data,
-        platform,
-        utm_source,
-      })
+// NAYA — tracking IDs bhi extra_data mein daalo, taaki backend
+// Meta CAPI / Google conversion upload ke liye use kar sake
+if (gclid)  extra_data.gclid  = gclid
+if (fbclid) extra_data.fbclid = fbclid
+const fbp = getFbpCookie()
+if (fbp)    extra_data.fbp    = fbp
+
+await axios.post(`${API_BASE}/public/submit/${campaignId}`, {
+  full_name:    formData.full_name || formData.student_name || '',
+  phone:        formData.phone        || '',
+  email:        formData.email        || '',
+  location:     formData.location     || '',
+  budget_range: formData.budget_range || '',
+  timeline:     formData.timeline     || '',
+  requirement:  formData.requirement  || '',
+  extra_data,
+  platform,
+  utm_source,
+})
 
       // Go to thank you page
       navigate('/thank-you', {

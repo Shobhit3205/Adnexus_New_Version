@@ -18,7 +18,7 @@ from groq import Groq
 
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
-MODEL = "llama-3.3-70b-versatile"
+MODEL = "openai/gpt-oss-120b"
 
 SYSTEM_PROMPT = """You are an ad-targeting analyst for a B2B/B2C ad campaign platform.
 Given an ad's title, description, and industry, return ONLY a valid JSON object

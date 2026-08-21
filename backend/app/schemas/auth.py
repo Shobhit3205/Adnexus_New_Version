@@ -10,7 +10,7 @@ class SignupRequest(BaseModel):
     phone: str                 # naya field
     password: str
     otp_channel: str           # "email" ya "phone" — user ne jo choose kiya
-
+    referral_code: Optional[str] = None
 
 # ── Login ──
 class LoginRequest(BaseModel):
@@ -52,6 +52,7 @@ class UserResponse(BaseModel):
     is_phone_verified: bool
     auth_provider: str
     created_at: datetime
+    referral_code: Optional[str] = None
 
     class Config:
         from_attributes = True
