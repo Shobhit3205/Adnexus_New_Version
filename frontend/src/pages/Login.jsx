@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { GoogleLogin } from '@react-oauth/google'
 import { login, googleLogin } from '../services/api'
@@ -25,7 +25,36 @@ const Login = () => {
   const [form, setForm] = useState({ email: '', password: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)   // NEW: password visibility toggle
+  const [showPassword, setShowPassword] = useState(false)
+
+  // ── NEW: lockout feature states ──
+  const [attemptsLeft, setAttemptsLeft] = useState(null)
+  const [lockedUntil, setLockedUntil] = useState(null)
+  const [remainingSeconds, setRemainingSeconds] = useState(0)
+
+  // ── NEW: countdown timer ──
+  useEffect(() => {
+    if (!lockedUntil) return
+
+    const tick = () => {
+      const secs = Math.max(0, Math.ceil((lockedUntil - Date.now()) / 1000))
+      setRemainingSeconds(secs)
+      if (secs <= 0) {
+        setLockedUntil(null)
+        setError('')
+      }
+    }
+
+    tick()
+    const interval = setInterval(tick, 1000)
+    return () => clearInterval(interval)
+  }, [lockedUntil])
+
+  const formatTime = (secs) => {
+    const m = Math.floor(secs / 60)
+    const s = secs % 60
+    return `${m}:${s.toString().padStart(2, '0')}`
+  }
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value })
@@ -34,6 +63,10 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+    setAttemptsLeft(null)
+
+    if (lockedUntil && remainingSeconds > 0) return
+
     setLoading(true)
     try {
       const res = await login(form)
@@ -41,7 +74,18 @@ const Login = () => {
       navigate('/dashboard')
     } catch (err) {
       const detail = err.response?.data?.detail
-      if (detail === 'Please verify your email first') {
+
+      if (detail && typeof detail === 'object') {
+        if (detail.locked) {
+          setLockedUntil(Date.now() + detail.retry_after * 1000)
+          setError(detail.message || 'Too many failed attempts.')
+        } else if (detail.attempts_left !== undefined) {
+          setAttemptsLeft(detail.attempts_left)
+          setError(detail.message || 'Invalid email or password.')
+        } else {
+          setError(detail.message || 'Login failed.')
+        }
+      } else if (detail === 'Please verify your account first') {
         navigate('/verify-otp', { state: { email: form.email } })
       } else {
         setError(detail || 'Invalid email or password.')
@@ -69,6 +113,18 @@ const Login = () => {
         <p style={styles.subtitle}>Manage all your ad campaigns in one place</p>
 
         {error && <div style={styles.error}>{error}</div>}
+
+        {attemptsLeft !== null && !lockedUntil && (
+          <div style={styles.warning}>
+            ⚠️ {attemptsLeft} attempt{attemptsLeft > 1 ? 's' : ''} left
+          </div>
+        )}
+
+        {lockedUntil && remainingSeconds > 0 && (
+          <div style={styles.warning}>
+            ⏱️ Try again in {formatTime(remainingSeconds)}
+          </div>
+        )}
 
         <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>
           <GoogleLogin
@@ -112,8 +168,14 @@ const Login = () => {
             </span>
           </div>
 
-          <button style={styles.button} type="submit" disabled={loading}>
-            {loading ? 'Logging in...' : 'Log In'}
+          <button
+            style={styles.button}
+            type="submit"
+            disabled={loading || (lockedUntil && remainingSeconds > 0)}
+          >
+            {lockedUntil && remainingSeconds > 0
+              ? `Locked (${formatTime(remainingSeconds)})`
+              : loading ? 'Logging in...' : 'Log In'}
           </button>
 
           <p style={styles.forgotText}>
@@ -145,6 +207,7 @@ const styles = {
   eyeIcon: { position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', display: 'flex', color: '#94a3b8' },
   button: { width: '100%', marginTop: '22px', padding: '11px', borderRadius: '8px', border: 'none', background: '#2563eb', color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' },
   error: { background: '#fef2f2', color: '#dc2626', padding: '10px 12px', borderRadius: '8px', fontSize: '13px', marginBottom: '10px' },
+  warning: { background: '#fffbeb', color: '#b45309', padding: '10px 12px', borderRadius: '8px', fontSize: '13px', marginBottom: '10px' },
   footerText: { textAlign: 'center', fontSize: '13px', color: '#64748b', marginTop: '18px' },
   supportText: { textAlign: 'center', fontSize: '12px', color: '#94a3b8', marginTop: '10px' },
   forgotText: { textAlign: 'center', fontSize: '13px', color: '#64748b', marginTop: '12px' },

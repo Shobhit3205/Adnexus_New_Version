@@ -165,6 +165,64 @@ const AdminDashboard = () => {
     } catch (e) { setError('Could not load referral detail.') }
   }
 
+  // ══════════════════════════════════════════════════════════════
+  // NEW — B (referee) ka payment admin ne verify kar diya, tick karo.
+  // Backend khud check karta hai ki A (referrer) verified hai ya
+  // nahi — agar nahi, referral "on_hold" reh jayega. Modal ko turant
+  // refresh kar dete hain taaki naya status turant dikhe.
+  // ══════════════════════════════════════════════════════════════
+  const markPaymentReceived = async (referralId) => {
+    try {
+      const res = await fetch(`${API_BASE}/admin/referrals/${referralId}/mark-payment-received`, {
+        method: 'PATCH',
+        headers: authHeaders(),
+      })
+      if (!res.ok) return handleAuthError(res.status)
+      if (selectedReferrals?.referrer_id) {
+        openReferralsDetail(selectedReferrals.referrer_id)
+      }
+    } catch (e) {
+      setError('Could not update payment status.')
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // NEW — A ko actual mein manually commission pay kar diya, tick karo.
+  // Sirf tab allowed jab commission already "completed" ho chuka ho.
+  // ══════════════════════════════════════════════════════════════
+  const grantReward = async (referralId) => {
+    try {
+      const res = await fetch(`${API_BASE}/admin/referrals/${referralId}/grant-reward`, {
+        method: 'PATCH',
+        headers: authHeaders(),
+      })
+      if (!res.ok) return handleAuthError(res.status)
+      if (selectedReferrals?.referrer_id) {
+        openReferralsDetail(selectedReferrals.referrer_id)
+      }
+    } catch (e) {
+      setError('Could not update reward status.')
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // NEW — A khud apna ₹10,000 associate-fee pay kar chuka hai, tick karo.
+  // Backend automatically A ke pehle se "on_hold" pade referrals ko
+  // bhi release kar deta hai (jahan B ka payment pehle se verified tha).
+  // ══════════════════════════════════════════════════════════════
+  const markPaidAssociate = async (userId) => {
+    try {
+      const res = await fetch(`${API_BASE}/admin/users/${userId}/mark-paid-associate`, {
+        method: 'PATCH',
+        headers: authHeaders(),
+      })
+      if (!res.ok) return handleAuthError(res.status)
+      fetchUsers()
+    } catch (e) {
+      setError('Could not update associate status.')
+    }
+  }
+
   if (error) {
     return (
       <div style={{ padding: '60px', textAlign: 'center', fontFamily: 'inherit' }}>
@@ -258,7 +316,7 @@ const AdminDashboard = () => {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
               <thead>
                 <tr style={{ background: '#F8FAFF', textAlign: 'left' }}>
-                  {['Name', 'Email', 'Provider', 'Verified', 'Campaigns', 'Referrals', 'Budget Spent', 'Joined', ''].map(h => (
+                  {['Name', 'Email', 'Provider', 'Verified', 'Associate', 'Campaigns', 'Referrals', 'Budget Spent', 'Joined', ''].map(h => (
                     <th key={h} style={{ padding: '12px 16px', fontSize: '11px', fontWeight: '700', color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{h}</th>
                   ))}
                 </tr>
@@ -280,6 +338,21 @@ const AdminDashboard = () => {
                       <span style={{ fontSize: '11px', fontWeight: '700', padding: '3px 10px', borderRadius: '20px', background: u.is_verified ? '#D1FAE5' : '#FEE2E2', color: u.is_verified ? '#065F46' : '#991B1B' }}>
                         {u.is_verified ? 'Verified' : 'Unverified'}
                       </span>
+                    </td>
+                    {/* NEW: Associate column — A ka apna ₹10,000 payment status */}
+                    <td style={{ padding: '12px 16px' }}>
+                      {u.is_paid_associate ? (
+                        <span style={{ fontSize: '11px', fontWeight: '700', padding: '3px 10px', borderRadius: '20px', background: '#D1FAE5', color: '#065F46' }}>
+                          Paid Associate
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => markPaidAssociate(u.id)}
+                          style={{ fontSize: '11px', fontWeight: '700', color: '#065F46', background: '#D1FAE5', border: 'none', borderRadius: '8px', padding: '5px 10px', cursor: 'pointer', fontFamily: 'inherit' }}
+                        >
+                          Mark Paid
+                        </button>
+                      )}
                     </td>
                     <td style={{ padding: '12px 16px', color: '#374151' }}>{u.campaign_count}</td>
                     <td style={{ padding: '12px 16px' }}>
@@ -565,23 +638,67 @@ const AdminDashboard = () => {
               {/* Scrollable body */}
               <div style={{ padding: '20px 28px', overflowY: 'auto' }}>
                 {selectedReferrals.referrals.map(r => (
-                  <div key={r.id} style={{ border: '1px solid #E5E7EB', borderRadius: '12px', padding: '13px 14px', marginBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: avatarColor(r.name), color: '#374151', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700', fontSize: '12px', flexShrink: 0 }}>
-                        {initials(r.name)}
-                      </div>
-                      <div>
-                        <div style={{ fontWeight: '600', fontSize: '13px', color: '#111827' }}>{r.name}</div>
-                        <div style={{ fontSize: '11px', color: '#9CA3AF' }}>
-                          Joined {r.joined_at ? new Date(r.joined_at).toLocaleDateString() : '—'}
+                  <div key={r.id} style={{ border: '1px solid #E5E7EB', borderRadius: '12px', padding: '13px 14px', marginBottom: '8px' }}>
+                    {/* Top row: avatar/name/joined + status badge/campaigns count */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', marginBottom: r.payment_received ? '10px' : '0' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: avatarColor(r.name), color: '#374151', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700', fontSize: '12px', flexShrink: 0 }}>
+                          {initials(r.name)}
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: '600', fontSize: '13px', color: '#111827' }}>{r.name}</div>
+                          <div style={{ fontSize: '11px', color: '#9CA3AF' }}>
+                            Joined {r.joined_at ? new Date(r.joined_at).toLocaleDateString() : '—'}
+                          </div>
                         </div>
                       </div>
+                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                        {/* NEW: status badge ab "on_hold" ko bhi handle karta hai */}
+                        <span style={{
+                          fontSize: '10px', fontWeight: '700', padding: '2px 9px', borderRadius: '20px',
+                          background: r.status === 'completed' ? '#D1FAE5' : r.status === 'on_hold' ? '#FEE2E2' : '#FEF3C7',
+                          color: r.status === 'completed' ? '#065F46' : r.status === 'on_hold' ? '#991B1B' : '#92400E',
+                          display: 'inline-block', marginBottom: '5px',
+                        }}>
+                          {r.status === 'completed' ? 'Completed' : r.status === 'on_hold' ? 'On Hold' : 'Pending'}
+                        </span>
+                        <div style={{ fontSize: '11px', color: '#6B7280' }}>{r.campaigns_count} campaign{r.campaigns_count !== 1 ? 's' : ''}</div>
+                      </div>
                     </div>
-                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                      <span style={{ fontSize: '10px', fontWeight: '700', padding: '2px 9px', borderRadius: '20px', background: r.status === 'completed' ? '#D1FAE5' : '#FEF3C7', color: r.status === 'completed' ? '#065F46' : '#92400E', display: 'inline-block', marginBottom: '5px' }}>
-                        {r.status === 'completed' ? 'Completed' : 'Pending'}
-                      </span>
-                      <div style={{ fontSize: '11px', color: '#6B7280' }}>{r.campaigns_count} campaign{r.campaigns_count !== 1 ? 's' : ''}</div>
+
+                    {/* NEW: Payment / Reward action row */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', paddingTop: r.payment_received ? '10px' : '0', borderTop: r.payment_received ? '1px solid #F3F4F6' : 'none' }}>
+                      {r.commission_amount > 0 && (
+                        <span style={{ fontSize: '12px', fontWeight: '700', color: '#111827' }}>₹{r.commission_amount.toLocaleString()}</span>
+                      )}
+
+                      <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto' }}>
+                        {!r.payment_received ? (
+                          <button
+                            onClick={() => markPaymentReceived(r.id)}
+                            style={{ fontSize: '11px', fontWeight: '700', color: '#065F46', background: '#D1FAE5', border: 'none', borderRadius: '8px', padding: '6px 12px', cursor: 'pointer', fontFamily: 'inherit' }}
+                          >
+                            Mark Payment Received
+                          </button>
+                        ) : !r.reward_granted ? (
+                          <button
+                            onClick={() => grantReward(r.id)}
+                            disabled={r.status !== 'completed'}
+                            title={r.status !== 'completed' ? 'Referrer not yet a verified associate — commission on hold' : ''}
+                            style={{
+                              fontSize: '11px', fontWeight: '700', color: r.status === 'completed' ? '#1E3A8A' : '#9CA3AF',
+                              background: r.status === 'completed' ? '#DBEAFE' : '#F3F4F6', border: 'none', borderRadius: '8px',
+                              padding: '6px 12px', cursor: r.status === 'completed' ? 'pointer' : 'not-allowed', fontFamily: 'inherit',
+                            }}
+                          >
+                            Grant Reward
+                          </button>
+                        ) : (
+                          <span style={{ fontSize: '11px', fontWeight: '700', color: '#4F46E5', background: '#EEF2FF', borderRadius: '8px', padding: '6px 12px' }}>
+                            ✓ Reward Paid
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}

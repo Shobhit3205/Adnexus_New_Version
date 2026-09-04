@@ -257,43 +257,7 @@ const PrivacyPolicy = () => {
         </div>
       </div>
 
-      {/* ── Footer ── */}
-      <footer style={s.footer}>
-        <div style={s.footerTop} className="footer-top">
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-              <div style={s.logoMark}>A</div>
-              <span style={{ ...s.logoText, color: '#fff' }}>AdNexus</span>
-            </div>
-            <p style={s.footerDesc}>India's smartest ad management platform.</p>
-            <div style={{ marginTop: '10px', fontSize: '13px', color: 'rgba(255,255,255,0.5)' }}>
-              📧 support@adnexus.co.in
-            </div>
-          </div>
-          <div style={s.footerLinks} className="footer-links">
-            <div style={s.footerCol}>
-              <div style={s.footerColTitle}>Product</div>
-              <a href="/#features" style={s.footerLink}>Features</a>
-              <a href="/#pricing"  style={s.footerLink}>Pricing</a>
-              <a href="/#how"      style={s.footerLink}>How it works</a>
-            </div>
-            <div style={s.footerCol}>
-              <div style={s.footerColTitle}>Company</div>
-              <a href="/about"    style={s.footerLink}>About Us</a>
-              <a href="/#contact" style={s.footerLink}>Contact</a>
-            </div>
-            <div style={s.footerCol}>
-              <div style={s.footerColTitle}>Legal</div>
-              <a href="/privacy-policy" style={{ ...s.footerLink, color: '#fff', fontWeight: '600' }}>Privacy Policy</a>
-              <a href="/terms"          style={s.footerLink}>Terms of Service</a>
-            </div>
-          </div>
-        </div>
-        <div style={s.footerBottom} className="footer-bottom">
-          <span style={s.footerCopy}>© 2026 AdNexus. All rights reserved.</span>
-          <span style={s.footerCopy}>adnexus@adnexus.co.in</span>
-        </div>
-      </footer>
+      
 
     </div>
   )

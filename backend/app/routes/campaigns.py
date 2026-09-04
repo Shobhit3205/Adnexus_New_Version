@@ -752,18 +752,40 @@ def submit_to_platforms(campaign_id: int, db: Session = Depends(get_db), current
 # sab code same rahega.
 # ════════════════════════════════════════════════════
 
+# ── NAYA HELPER — get_meta_adset_insights ab {"breakdown": [...]} return
+#    karta hai (ek row per publisher_platform, kyunki ab single ad set
+#    FB+IG dono cover karta hai). Ye helper us list mein se ek specific
+#    platform (facebook/instagram) ka row nikaal ke deta hai.
+#    Agar "breakdown" key hi nahi hai (jaise Google ke insights, jo
+#    purane format mein aate hain), to insights ko waisa hi return
+#    kar do — kuch nahi todna.
+def extract_platform_insight(insights: dict, platform_name: str) -> dict:
+    if "breakdown" not in insights:
+        return insights
+    for row in insights["breakdown"]:
+        if row.get("publisher_platform") == platform_name:
+            return row
+    # Us platform ka koi data nahi mila (abhi tak koi spend/impression nahi hua)
+    return {"impressions": 0, "clicks": 0, "spend": 0, "reach": 0}
+
+
 PLATFORM_INSIGHT_FETCHERS = {}
 PLATFORM_STATUS_FETCHERS  = {}
 
+# ── AB: single ad set ki wajah se dono "meta" aur "instagram" ab SAME
+#    meta_adset_id se data lenge, bas breakdown list mein se apna-apna
+#    platform ka row nikaalenge ──
 if META_AVAILABLE:
     PLATFORM_INSIGHT_FETCHERS["meta"] = lambda campaign: (
-        get_meta_adset_insights(campaign.meta_adset_id) if campaign.meta_adset_id
+        extract_platform_insight(get_meta_adset_insights(campaign.meta_adset_id), "facebook")
+        if campaign.meta_adset_id
         else get_meta_campaign_insights(campaign.meta_campaign_id)
     )
     PLATFORM_STATUS_FETCHERS["meta"]  = lambda campaign: get_meta_campaign_status(campaign.meta_campaign_id)
 
     PLATFORM_INSIGHT_FETCHERS["instagram"] = lambda campaign: (
-        get_meta_adset_insights(campaign.instagram_adset_id) if campaign.instagram_adset_id
+        extract_platform_insight(get_meta_adset_insights(campaign.meta_adset_id), "instagram")
+        if campaign.meta_adset_id
         else None
     )
 
@@ -809,9 +831,13 @@ def sync_platform_stats(campaign_id: int, db: Session = Depends(get_db), current
     resolved_statuses = []  # unified statuses collected across all platforms this campaign runs on
 
     for platform_key, fetch_fn in PLATFORM_INSIGHT_FETCHERS.items():
-        # ── FIX: Instagram ka apna campaign_id nahi hota (Meta campaign
-        #    hi shared hai) — uske liye instagram_adset_id check karo ──
-        id_field = "instagram_adset_id" if platform_key == "instagram" else f"{platform_key}_campaign_id"
+        # ── FIX: Instagram ab apna alag adset_id nahi rakhta — single ad
+        #    set hai, isliye Instagram ke liye bhi meta_adset_id /
+        #    meta_campaign_id hi check karo ──
+        if platform_key == "instagram":
+            id_field = "meta_adset_id" if campaign.meta_adset_id else "meta_campaign_id"
+        else:
+            id_field = f"{platform_key}_campaign_id"
         if not getattr(campaign, id_field, None):
             continue  # yeh campaign is platform pe launch hi nahi hua
 

@@ -5,6 +5,14 @@
 # Only the account whose email matches ADMIN_EMAIL (in .env)
 # can call any of these — every other user gets 403,
 # no matter what the frontend shows or hides.
+#
+# CHANGES IN THIS VERSION (referral payment tracking):
+#   - get_all_users(): now also returns is_paid_associate
+#   - get_user_referrals(): now also returns payment_received,
+#     reward_granted, commission_amount
+#   - NEW: PATCH /users/{user_id}/mark-paid-associate
+#   - NEW: PATCH /referrals/{referral_id}/mark-payment-received
+#   - NEW: PATCH /referrals/{referral_id}/grant-reward
 # ════════════════════════════════════════════════════
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -13,11 +21,17 @@ from sqlalchemy import func
 
 from app.database import get_db
 from app.models.models import (
-    User, Campaign, AdContent, Lead, FormSubmission, ClickTracking, Platform, Referral
+    User, Campaign, AdContent, Lead, FormSubmission, ClickTracking, Platform,
+    Referral, Earning,  # ← Earning added
 )
 from app.core.security import get_current_admin
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
+
+# Flat 20% commission on the ₹10,000 associate fee.
+# Agar future mein associate fee variable ho sakta hai, is constant ko
+# calculation ke waqt actual referee payment ka 20% karna better hoga.
+REFERRAL_COMMISSION_AMOUNT = 2000
 
 
 # ════════════════════════════════════════════════════
@@ -73,6 +87,7 @@ def get_all_users(
             "email": u.email,
             "auth_provider": u.auth_provider,
             "is_verified": u.is_verified,
+            "is_paid_associate": u.is_paid_associate,   # ← NEW
             "created_at": u.created_at,
             "campaign_count": campaign_count,
             "total_budget_spent": total_spent,
@@ -144,6 +159,7 @@ def get_user_detail(
             "email": user.email,
             "auth_provider": user.auth_provider,
             "is_verified": user.is_verified,
+            "is_paid_associate": user.is_paid_associate,   # ← NEW
             "created_at": user.created_at,
         },
         "campaigns": campaigns_data,
@@ -151,9 +167,54 @@ def get_user_detail(
 
 
 # ════════════════════════════════════════════════════
+# PATCH /api/admin/users/{user_id}/mark-paid-associate
+# NEW — Admin yahan tick karta hai jab A ne apna ₹10,000
+# associate-fee manually pay kar diya ho (proof verify karke).
+#
+# Important: jab A khud verify hota hai, uske pehle se pade
+# "on_hold" referrals (jahan B ka payment aa chuka tha lekin A
+# khud abhi tak verified nahi tha) automatically release ho
+# jaate hain — commission calculate hoke Earning table mein add.
+# ════════════════════════════════════════════════════
+@router.patch("/users/{user_id}/mark-paid-associate")
+def mark_paid_associate(
+    user_id: int,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_current_admin),
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if user.is_paid_associate:
+        return {"status": "already_paid_associate", "released_referrals": 0}
+
+    user.is_paid_associate = True
+    user.paid_associate_verified_at = func.now()
+    db.commit()
+
+    # A ke referrals dhoondo jahan B ka payment already verified tha,
+    # lekin A khud verified na hone ki wajah se "on_hold" pade the.
+    on_hold_referrals = db.query(Referral).filter(
+        Referral.referrer_id == user_id,
+        Referral.payment_received == True,
+        Referral.status != "completed",
+    ).all()
+
+    for r in on_hold_referrals:
+        r.commission_amount = REFERRAL_COMMISSION_AMOUNT
+        r.status = "completed"
+        db.add(Earning(user_id=user_id, amount=r.commission_amount, referral_id=r.id))
+
+    db.commit()
+
+    return {"status": "ok", "released_referrals": len(on_hold_referrals)}
+
+
+# ════════════════════════════════════════════════════
 # GET /api/admin/users/{user_id}/referrals
 # Kisi ek user ne kisko-kisko refer kiya — naam, joined date,
-# referral status, aur unke apne campaigns count.
+# referral status, payment/reward status, aur campaigns count.
 # Users table mein referral_count pe click karke ye khulega.
 # ════════════════════════════════════════════════════
 @router.get("/users/{user_id}/referrals")
@@ -183,13 +244,99 @@ def get_user_referrals(
             "email": referee.email if referee else None,
             "joined_at": referee.created_at.isoformat() if referee and referee.created_at else None,
             "status": r.status,
+            "payment_received": r.payment_received,        # ← NEW
+            "reward_granted": r.reward_granted,             # ← NEW
+            "commission_amount": float(r.commission_amount) if r.commission_amount else 0,  # ← NEW
             "campaigns_count": campaigns_count,
         })
 
     return {
+        "referrer_id": user.id,      # ← NEW — frontend modal-refresh ke liye chahiye
         "referrer_name": user.name,
         "referrals": result,
     }
+
+
+# ════════════════════════════════════════════════════
+# PATCH /api/admin/referrals/{referral_id}/mark-payment-received
+# NEW — Admin yahan tick karta hai jab B (referee) ne apna
+# ₹10,000 associate-fee manually pay kar diya ho (proof verify karke).
+#
+# Commission tabhi turant "Total Earnings" mein reflect hota hai
+# jab DONO conditions poori hon:
+#   1) Referral row khud exist karta hai (guaranteed — signup
+#      A ke referral link/code se hi hua tha)
+#   2) A (referrer) khud is_paid_associate == True ho
+#
+# Agar A abhi verified nahi hai, referral "on_hold" reh jata hai
+# aur jaise hi A verify hota hai (mark-paid-associate), yeh
+# apne aap release ho jayega (upar wale endpoint mein logic hai).
+# ════════════════════════════════════════════════════
+@router.patch("/referrals/{referral_id}/mark-payment-received")
+def mark_payment_received(
+    referral_id: int,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_current_admin),
+):
+    referral = db.query(Referral).filter(Referral.id == referral_id).first()
+    if not referral:
+        raise HTTPException(status_code=404, detail="Referral not found")
+
+    if referral.payment_received:
+        return {"status": "already_marked", "referral_status": referral.status}
+
+    referral.payment_received = True
+    referral.payment_verified_at = func.now()
+
+    referrer = db.query(User).filter(User.id == referral.referrer_id).first()
+
+    if not referrer or not referrer.is_paid_associate:
+        # Condition 2 fail — referrer khud abhi verified associate nahi hai.
+        # Commission calculate NAHI hoga abhi, referral "on_hold" rahega.
+        referral.status = "on_hold"
+        db.commit()
+        return {"status": "on_hold", "reason": "Referrer not yet a verified associate"}
+
+    # Dono conditions pass — commission ab calculate/credit ho sakta hai
+    referral.commission_amount = REFERRAL_COMMISSION_AMOUNT
+    referral.status = "completed"
+    db.add(Earning(user_id=referral.referrer_id, amount=referral.commission_amount, referral_id=referral.id))
+    db.commit()
+
+    return {"status": "completed", "commission_amount": referral.commission_amount}
+
+
+# ════════════════════════════════════════════════════
+# PATCH /api/admin/referrals/{referral_id}/grant-reward
+# NEW — Admin yahan tick karta hai jab A ko actual mein manually
+# (UPI/bank transfer) ₹2000 commission pay kar diya ho.
+# Yeh sirf tab allowed hai jab payment_received already true ho
+# (yani commission already "earned"/calculated ho chuka ho).
+# ════════════════════════════════════════════════════
+@router.patch("/referrals/{referral_id}/grant-reward")
+def grant_reward(
+    referral_id: int,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_current_admin),
+):
+    referral = db.query(Referral).filter(Referral.id == referral_id).first()
+    if not referral:
+        raise HTTPException(status_code=404, detail="Referral not found")
+
+    if not referral.payment_received or referral.status != "completed":
+        raise HTTPException(
+            status_code=400,
+            detail="Commission not yet finalized for this referral — mark payment received first",
+        )
+
+    if referral.reward_granted:
+        return {"status": "already_granted"}
+
+    referral.reward_granted = True
+    referral.reward_granted_at = func.now()
+    db.commit()
+
+    return {"status": "reward_granted"}
 
 
 # ════════════════════════════════════════════════════

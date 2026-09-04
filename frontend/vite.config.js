@@ -27,6 +27,8 @@ export default defineConfig({
         '.js': 'jsx'
       }
     }
-  },
-  publicDir: false
+  }
+  // publicDir removed — it was set to false, which disabled serving
+  // anything from the /public folder (images, videos, favicon, etc.)
+  // Vite defaults to publicDir: 'public', which is what we want here.
 })

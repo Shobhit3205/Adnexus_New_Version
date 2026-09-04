@@ -33,6 +33,22 @@ class User(Base):
     otp_channel     = Column(String(10),nullable=True)
     created_at = Column(DateTime, default=func.now())
 
+    
+    # ── NEW: associate-fee payment tracking (alag hai is_verified se) ──
+    is_paid_associate = Column(Boolean, default=False, nullable=False)          # ← NEW
+    paid_associate_verified_at = Column(DateTime, nullable=True)                # ← NEW
+ 
+    campaigns = relationship("Campaign", back_populates="owner")
+ 
+ 
+
+      # ── NEW: Login lockout tracking ──
+    failed_login_attempts = Column(Integer, default=0)
+    lockout_until          = Column(DateTime, nullable=True)
+
+    referral_code = Column(String(12), unique=True, index=True, nullable=True)
+    referred_by   = Column(Integer, ForeignKey("users.id"), nullable=True)
+
     referral_code = Column(String(12), unique=True, index=True, nullable=True)
     referred_by   = Column(Integer, ForeignKey("users.id"), nullable=True)
 
@@ -421,6 +437,14 @@ class Referral(Base):
     created_at    = Column(DateTime, default=func.now())
     completed_at  = Column(DateTime, nullable=True)
 
+     # ── NEW: payment + reward tracking ──
+    payment_received = Column(Boolean, default=False, nullable=False)      # ← NEW — B ka payment admin-verified
+    reward_granted = Column(Boolean, default=False, nullable=False)        # ← NEW — A ko commission manually pay ho gaya
+    commission_amount = Column(Numeric(10, 2), default=0, nullable=True)   # ← NEW — calculated ₹ amount (e.g. 2000)
+    payment_verified_at = Column(DateTime, nullable=True)                  # ← NEW
+    reward_granted_at = Column(DateTime, nullable=True)                    # ← NEW
+ 
+
     # Ek user sirf ek hi baar "referee" ban sakta hai
     __table_args__ = (UniqueConstraint("referee_id", name="uq_referral_referee"),)
 
@@ -443,6 +467,7 @@ class Earning(Base):
     source       = Column(String(30), default="referral_bonus")
     reference_id = Column(Integer, ForeignKey("referrals.id"), nullable=True)
     created_at   = Column(DateTime, default=func.now())
+    referral_id = Column(Integer, ForeignKey("referrals.id"), nullable=True)  # ← NEW — traceability ke liye
 
     # Relationship
     user = relationship("User", back_populates="earnings")

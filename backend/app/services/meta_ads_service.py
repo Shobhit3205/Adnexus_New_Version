@@ -27,26 +27,14 @@ META_APP_SECRET   = os.getenv("META_APP_SECRET")
 META_ACCESS_TOKEN = os.getenv("META_ACCESS_TOKEN")
 META_AD_ACCOUNT   = os.getenv("META_AD_ACCOUNT_ID")
 META_PAGE_ID      = os.getenv("META_PAGE_ID")
-# Optional — sirf tab chahiye jab user Instagram bhi select kare.
-# Ye Instagram Business account ka ID hota hai (Page se linked).
 META_INSTAGRAM_ACCOUNT_ID = os.getenv("META_INSTAGRAM_ACCOUNT_ID")
 META_PIXEL_ID = os.getenv("META_PIXEL_ID")
 
-DEFAULT_LINK = "https://adnexus.co.in"  # fallback URL
+DEFAULT_LINK = "https://adnexus.co.in"
 
-
-
-# Meta custom_locations ke liye allowed radius range (kilometers mein)
 META_MIN_RADIUS_KM = 1
 META_MAX_RADIUS_KM = 80
 
-# ════════════════════════════════════════════════════════════
-# HELPER: Industry ke hisaab se Meta ki Special Ad Category decide karo
-# ════════════════════════════════════════════════════════════
-# Meta ka rule: sirf Credit/Employment/Housing/Social-Issues/Financial
-# Products se juda business hi apni respective category laga sakta hai.
-# Baaki sab industries ke liye khaali list bhejni chahiye — warna Meta
-# unnecessarily targeting (age/gender/interest) restrict kar deta hai.
 INDUSTRY_TO_SPECIAL_CATEGORY = {
     "Financial Services":          ["FINANCIAL_PRODUCTS_SERVICES"],
     "Real Estate & Construction":  ["HOUSING"],
@@ -88,29 +76,14 @@ def create_meta_campaign(campaign_data: dict) -> dict:
 
 
 def create_meta_ad_set(campaign_id: str, ad_set_data: dict) -> dict:
-    """
-    ad_set_data can now include:
-      - name (str)
-      - daily_budget_rupees (float) — real daily budget in INR, converted to paise here
-      - interests (list of {"id": ..., "name": ...}) — from our AI audience targeting,
-        resolved via Meta's Targeting Search API. Falls back to geo-only (India) if empty.
-      - locations (list of {"name": ..., "lat": ..., "lng": ...}) — jo bhi cities user ne
-        search/select ki hain. Agar diya gaya hai, targeting un exact cities + radius_km
-        pe hogi (custom_locations). Agar khaali hai, poore India pe fallback.
-      - radius_km (float) — har city ke around kitna radius (km mein)
-    """
     try:
         account = init_meta_api()
 
-        # Convert rupees to paise (Meta wants the smallest currency unit)
         daily_budget_rupees = ad_set_data.get("daily_budget_rupees", 100)
-        daily_budget_paise  = max(int(daily_budget_rupees * 100), 5000)  # Meta min ~₹50/day safeguard
+        daily_budget_paise  = max(int(daily_budget_rupees * 100), 5000)
 
-        # ── Geo targeting: agar cities di gayi hain toh unhi pe custom_locations
-        #    (lat/lng + radius) use karo. Warna poore India pe fallback. ──
         locations = ad_set_data.get("locations", [])
         radius_km = ad_set_data.get("radius_km", 25)
-        # Meta ka allowed radius range clamp karo, taaki API reject na kare
         radius_km_clamped = max(META_MIN_RADIUS_KM, min(radius_km, META_MAX_RADIUS_KM))
 
         if locations:
@@ -128,7 +101,6 @@ def create_meta_ad_set(campaign_id: str, ad_set_data: dict) -> dict:
         else:
             geo_locations = {"countries": ["IN"]}
 
-        # Build targeting — geo (city+radius ya India) + age range + AI-resolved interests
         targeting = {
             "geo_locations": geo_locations,
             "age_min": ad_set_data.get("age_min", 18),
@@ -139,20 +111,14 @@ def create_meta_ad_set(campaign_id: str, ad_set_data: dict) -> dict:
         valid_interests = [
             {"id": i["id"], "name": i["name"]}
             for i in interests
-            if i.get("id")  # only include resolved (real ID) interests
+            if i.get("id")
         ]
         if valid_interests:
             targeting["flexible_spec"] = [{"interests": valid_interests}]
 
-        targeting["targeting_automation"] = {"advantage_audience": 0}
+        # ── CHANGE 1: Advantage+ Audience ON ──
+        targeting["targeting_automation"] = {"advantage_audience": 1}
 
-        # ── Placements: agar user ne Step 2 mein Instagram select kiya
-        #    hai, tabhi Instagram bhi placements mein shaamil karo —
-        #    warna sirf Facebook. (Pehle yeh hamesha Facebook-only tha,
-        #    chahe Instagram select kiya ho ya nahi.) ──
-        # ── NAYA: agar explicit publisher_platforms diya gaya hai (jab
-        #    Facebook/Instagram ke ALAG ad sets ban rahe hon), usi ko use
-        #    karo — warna purana combined-behavior chalega jaisa pehle tha ──
         if ad_set_data.get("publisher_platforms"):
             targeting["publisher_platforms"] = ad_set_data["publisher_platforms"]
         elif ad_set_data.get("instagram_selected"):
@@ -160,12 +126,8 @@ def create_meta_ad_set(campaign_id: str, ad_set_data: dict) -> dict:
         else:
             targeting["publisher_platforms"] = ["facebook"]
 
-        # Start/end date agar diye gaye hain toh Meta ke format mein convert karo
         from datetime import datetime as dt
 
-        # ── FIX: dono conditions ab same variable se aati hain, taaki
-        #    optimization_goal aur promoted_object kabhi mismatch na ho
-        #    (agar Pixel ID missing ho, dono safe fallback pe jayenge) ──
         is_lead_pixel_ready = ad_set_data.get("goal") == "LEAD_GEN" and META_PIXEL_ID
 
         adset_params = {
@@ -190,11 +152,6 @@ def create_meta_ad_set(campaign_id: str, ad_set_data: dict) -> dict:
         if end_date:
             adset_params["end_time"] = dt.strptime(end_date, "%Y-%m-%d").strftime("%Y-%m-%dT23:59:59+05:30")
 
-        # ── FIX: pehle yahan account.create_ad_set() DO baar call ho raha tha —
-        #    dusra call adset_params ko ignore karke bina dates ke dobara
-        #    ad set bana raha tha, aur usi ka result final return hota tha
-        #    (matlab dates + ek extra ad set dono silently drop/duplicate ho
-        #    rahe the). Ab sirf EK call hai, adset_params ke saath. ──
         adset = account.create_ad_set(fields=[], params=adset_params)
 
         return {"adset_id": adset["id"], "status": "PAUSED", "targeting_used": targeting}
@@ -206,7 +163,6 @@ def create_meta_ad_creative(ad_content: dict, instagram_selected: bool = False) 
     try:
         account = init_meta_api()
 
-        # Link empty nahi hona chahiye
         link_url = (
             ad_content.get("link_url") or
             ad_content.get("final_url") or
@@ -230,10 +186,9 @@ def create_meta_ad_creative(ad_content: dict, instagram_selected: bool = False) 
             }
         }
 
-        # ── NAYA: image ko Meta ke format ke hisaab se attach karo ──
         image_result = upload_meta_image(account, ad_content.get("image_url"))
-        print("IMAGE_URL RECEIVED =", ad_content.get("image_url"))   # ← naya line
-        print("IMAGE_RESULT =", image_result)                          # ← naya line
+        print("IMAGE_URL RECEIVED =", ad_content.get("image_url"))
+        print("IMAGE_RESULT =", image_result)
         if image_result:
             if image_result["type"] == "url":
                 link_data["picture"] = image_result["value"]
@@ -244,9 +199,6 @@ def create_meta_ad_creative(ad_content: dict, instagram_selected: bool = False) 
             "page_id": META_PAGE_ID,
             "link_data": link_data
         }
-        # ── NAYA: Instagram select tha aur account ID configured hai
-        #    toh hi instagram_actor_id bhejo — warna Meta creative
-        #    Facebook Page se hi chalega. ──
         if instagram_selected and META_INSTAGRAM_ACCOUNT_ID:
            object_story_spec["instagram_user_id"] = META_INSTAGRAM_ACCOUNT_ID
 
@@ -288,17 +240,10 @@ def get_meta_campaign_status(campaign_id: str) -> dict:
 
 def submit_campaign_to_meta(campaign_data: dict, ad_content_data: dict, audience_targeting: dict = None, campaign_id: int = None) -> dict:
     """
-    NAYA behavior: agar Facebook AND Instagram dono selected hain, do ALAG
-    ad sets banate hain (har ek apne exact split budget ke saath) — taaki
-    (a) budget split guaranteed ho, Meta ke auto-optimization ke bharose
-    na rahe, aur (b) baad mein dono ka data alag-alag track ho sake.
-
-    NAYA: agar campaign_id diya gaya hai aur goal LEAD_GEN hai, Facebook
-    aur Instagram ko apna-apna alag lead-form URL milta hai (?platform=meta
-    ya ?platform=instagram) — taaki form-submission attribution sahi ho.
-
-    Agar sirf ek hi (Facebook YA Instagram) selected hai, purana
-    single-ad-set flow chalta hai — kuch nahi toota.
+    UPDATED: Facebook aur Instagram dono selected hone par bhi ab EK HI
+    ad set banate hain (Advantage+ Placements ke through) — overlap aur
+    Learning Phase issue khatam karne ke liye. Per-lead platform tracking
+    Meta ke {{site_source_name}} URL macro se milti hai.
     """
     try:
         if not ad_content_data.get("link_url") and not ad_content_data.get("final_url"):
@@ -311,7 +256,20 @@ def submit_campaign_to_meta(campaign_data: dict, ad_content_data: dict, audience
 
         facebook_selected  = campaign_data.get("facebook_selected", False)
         instagram_selected = campaign_data.get("instagram_selected", False)
-        run_split = facebook_selected and instagram_selected
+
+        # ── CHANGE 2: Single ad set, combined budget + platforms ──
+        if facebook_selected and instagram_selected:
+            combined_budget = (
+                campaign_data.get("facebook_budget", 0)
+                + campaign_data.get("instagram_budget", 0)
+            ) or campaign_data.get("budget_amount", 300)
+            publisher_platforms = ["facebook", "instagram"]
+        elif instagram_selected:
+            combined_budget = campaign_data.get("instagram_budget", campaign_data.get("budget_amount", 300))
+            publisher_platforms = ["instagram"]
+        else:
+            combined_budget = campaign_data.get("facebook_budget", campaign_data.get("budget_amount", 300))
+            publisher_platforms = ["facebook"]
 
         result = {
             "success":          True,
@@ -320,7 +278,7 @@ def submit_campaign_to_meta(campaign_data: dict, ad_content_data: dict, audience
             "platform":         "meta",
         }
 
-        # ── NAYA: platform-specific lead URL helper ──
+        # ── CHANGE 3: dynamic Meta macro instead of hardcoded platform_key ──
         def build_ad_content(platform_key):
             content = dict(ad_content_data)
             if campaign_id and campaign_data.get("goal") == "LEAD_GEN":
@@ -333,102 +291,39 @@ def submit_campaign_to_meta(campaign_data: dict, ad_content_data: dict, audience
                     print(f"[submit_campaign_to_meta] lead URL build failed: {e}")
             return content
 
-        if run_split:
-            fb_adset = create_meta_ad_set(
-                campaign_result["campaign_id"],
-                {
-                    "name": f"{campaign_data['name']} - Facebook Ad Set",
-                    "goal": campaign_data.get("goal", "LEAD_GEN"),
-                    "daily_budget_rupees": campaign_data.get("facebook_budget", 100),
-                    "interests": interests,
-                    "age_min": campaign_data.get("age_min", 18),
-                    "age_max": campaign_data.get("age_max", 65),
-                    "start_date": campaign_data.get("start_date"),
-                    "end_date": campaign_data.get("end_date"),
-                    "locations": campaign_data.get("location_details", []),
-                    "radius_km": campaign_data.get("radius_km", 25),
-                    "publisher_platforms": ["facebook"],
-                }
-            )
-            print("STEP 2A FB ADSET =", fb_adset)
-            fb_ad_content = build_ad_content("meta")
-            fb_creative = create_meta_ad_creative(fb_ad_content, instagram_selected=False)
-            print("STEP 3A FB CREATIVE =", fb_creative)
-            fb_ad = create_meta_ad(fb_adset["adset_id"], fb_creative["creative_id"], f"{campaign_data['name']} - Facebook Ad")
-            print("STEP 4A FB AD =", fb_ad)
+        adset_result = create_meta_ad_set(
+            campaign_result["campaign_id"],
+            {
+                "name": f"{campaign_data['name']} - Ad Set",
+                "goal": campaign_data.get("goal", "LEAD_GEN"),
+                "daily_budget_rupees": combined_budget,
+                "interests": interests,
+                "age_min": campaign_data.get("age_min", 18),
+                "age_max": campaign_data.get("age_max", 65),
+                "start_date": campaign_data.get("start_date"),
+                "end_date": campaign_data.get("end_date"),
+                "locations": campaign_data.get("location_details", []),
+                "radius_km": campaign_data.get("radius_km", 25),
+                "publisher_platforms": publisher_platforms,
+            }
+        )
+        print("STEP 2 ADSET =", adset_result)
 
-            ig_adset = create_meta_ad_set(
-                campaign_result["campaign_id"],
-                {
-                    "name": f"{campaign_data['name']} - Instagram Ad Set",
-                    "goal": campaign_data.get("goal", "LEAD_GEN"),
-                    "daily_budget_rupees": campaign_data.get("instagram_budget", 100),
-                    "interests": interests,
-                    "age_min": campaign_data.get("age_min", 18),
-                    "age_max": campaign_data.get("age_max", 65),
-                    "start_date": campaign_data.get("start_date"),
-                    "end_date": campaign_data.get("end_date"),
-                    "locations": campaign_data.get("location_details", []),
-                    "radius_km": campaign_data.get("radius_km", 25),
-                    "publisher_platforms": ["instagram"],
-                }
-            )
-            print("STEP 2B IG ADSET =", ig_adset)
-            ig_ad_content = build_ad_content("instagram")
-            ig_creative = create_meta_ad_creative(ig_ad_content, instagram_selected=True)
-            print("STEP 3B IG CREATIVE =", ig_creative)
-            ig_ad = create_meta_ad(ig_adset["adset_id"], ig_creative["creative_id"], f"{campaign_data['name']} - Instagram Ad")
-            print("STEP 4B IG AD =", ig_ad)
+        ad_content = build_ad_content("{{site_source_name}}")
+        creative_result = create_meta_ad_creative(ad_content, instagram_selected=instagram_selected)
+        print("STEP 3 CREATIVE =", creative_result)
 
-            result.update({
-                "meta_adset_id":         fb_adset["adset_id"],
-                "meta_ad_id":            fb_ad["ad_id"],
-                "meta_creative_id":      fb_creative["creative_id"],
-                "instagram_adset_id":    ig_adset["adset_id"],
-                "instagram_ad_id":       ig_ad["ad_id"],
-                "instagram_creative_id": ig_creative["creative_id"],
-                "targeting_used":        fb_adset.get("targeting_used"),
-            })
+        ad_result = create_meta_ad(adset_result["adset_id"], creative_result["creative_id"], f"{campaign_data['name']} - Ad")
+        print("STEP 4 AD =", ad_result)
 
-        else:
-            single_platform_key = "instagram" if (instagram_selected and not facebook_selected) else "meta"
+        result.update({
+            "meta_adset_id":    adset_result["adset_id"],
+            "meta_ad_id":       ad_result["ad_id"],
+            "meta_creative_id": creative_result["creative_id"],
+            "targeting_used":   adset_result.get("targeting_used"),
+        })
 
-            if instagram_selected and not facebook_selected:
-                budget_amount = campaign_data.get("instagram_budget", campaign_data.get("budget_amount", 100))
-            else:
-                budget_amount = campaign_data.get("facebook_budget", campaign_data.get("budget_amount", 100))
-
-            adset_result = create_meta_ad_set(
-                campaign_result["campaign_id"],
-                {
-                    "name": f"{campaign_data['name']} - Ad Set",
-                    "goal": campaign_data.get("goal", "LEAD_GEN"),
-                    "daily_budget_rupees": budget_amount,
-                    "interests": interests,
-                    "age_min": campaign_data.get("age_min", 18),
-                    "age_max": campaign_data.get("age_max", 65),
-                    "start_date": campaign_data.get("start_date"),
-                    "end_date": campaign_data.get("end_date"),
-                    "locations": campaign_data.get("location_details", []),
-                    "radius_km": campaign_data.get("radius_km", 25),
-                    "publisher_platforms": ["instagram"] if (instagram_selected and not facebook_selected) else ["facebook"],
-                }
-            )
-            print("STEP 2 ADSET =", adset_result)
-            single_ad_content = build_ad_content(single_platform_key)
-            creative_result = create_meta_ad_creative(single_ad_content, instagram_selected=instagram_selected)
-            print("STEP 3 CREATIVE =", creative_result)
-            ad_result = create_meta_ad(adset_result["adset_id"], creative_result["creative_id"], f"{campaign_data['name']} - Ad")
-            print("STEP 4 AD =", ad_result)
-
-            result.update({
-                "meta_adset_id":    adset_result["adset_id"],
-                "meta_ad_id":       ad_result["ad_id"],
-                "meta_creative_id": creative_result["creative_id"],
-                "targeting_used":   adset_result.get("targeting_used"),
-            })
-
-        return result 
+        return result
 
     except Exception as e:
         print("META ERROR =", str(e))
@@ -436,10 +331,6 @@ def submit_campaign_to_meta(campaign_data: dict, ad_content_data: dict, audience
 
 
 def get_meta_campaign_insights(campaign_id: str) -> dict:
-    """
-    Meta Insights API se ek campaign ka performance data laata hai:
-    impressions, clicks, spend, reach, ctr, cpc, cpm
-    """
     try:
         init_meta_api()
         campaign = Campaign(campaign_id)
@@ -465,14 +356,6 @@ def get_meta_campaign_insights(campaign_id: str) -> dict:
         raise Exception(f"Meta insights error: {str(e)}")
 
 def upload_meta_image(account, image_url_or_data: str):
-    """
-    Meta ke liye image ready karta hai:
-    - Agar image_url_or_data ek public http(s) URL hai (template/AI se aayi),
-      seedha wahi return karta hai — 'picture' field mein use hoga.
-    - Agar yeh base64 data-URI hai (user ne khud upload kiya), Meta ke
-      Ad Images API se upload karke ek 'hash' return karta hai —
-      'image_hash' field mein use hoga.
-    """
     if not image_url_or_data:
         return None
 
@@ -490,7 +373,6 @@ def upload_meta_image(account, image_url_or_data: str):
     return None
 
 def delete_meta_campaign(campaign_id: str) -> dict:
-    """Rollback: agar dusra platform fail ho jaaye to Meta campaign delete karo."""
     try:
         init_meta_api()
         campaign = Campaign(campaign_id)
@@ -500,21 +382,14 @@ def delete_meta_campaign(campaign_id: str) -> dict:
         print(f"[rollback] Meta campaign delete failed: {e.api_error_message()}")
         return {"success": False, "error": e.api_error_message()}
 
-    
+
 
 def send_meta_lead_event(email: str = "", phone: str = "", fbclid: str = None) -> dict:
-    """
-    Meta Conversions API ko 'Lead' event bhejta hai — jab koi form submit
-    karta hai, tab call hota hai. Isse Meta seekhta hai ki kaise log
-    actually convert karte hain, aur unhi jaise logo ko target karta hai.
-    Fails silently — agar ye fail ho, toh form-submission fail nahi honi chahiye.
-    """
     if not META_PIXEL_ID or not META_ACCESS_TOKEN:
         print("[meta_lead_event] Pixel ID ya Access Token missing — skip kar rahe hain")
         return {"success": False, "error": "Pixel not configured"}
 
     try:
-        # Meta ko hashed email/phone chahiye (raw nahi bhejna privacy ke liye)
         user_data = {}
         if email:
             user_data["em"] = [hashlib.sha256(email.strip().lower().encode()).hexdigest()]
@@ -543,11 +418,14 @@ def send_meta_lead_event(email: str = "", phone: str = "", fbclid: str = None) -
     except Exception as e:
         print(f"[meta_lead_event] Failed: {e}")
         return {"success": False, "error": str(e)}
+
+
 def get_meta_adset_insights(adset_id: str) -> dict:
     """
-    Ad Set level insights — Facebook aur Instagram ke ALAG ad sets
-    hone ki wajah se, campaign-level insights combined aa jaate.
-    Isliye specific adset_id se insights nikaalte hain.
+    UPDATED: ab breakdowns=publisher_platform ke saath — single ad set
+    se bhi Facebook aur Instagram ka spend/performance ALAG-ALAG milta
+    hai. Response ab EK dict ki jagah ek "breakdown" list return karta
+    hai (har platform ke liye ek entry).
     """
     try:
         init_meta_api()
@@ -555,19 +433,22 @@ def get_meta_adset_insights(adset_id: str) -> dict:
         adset = AdSet(adset_id)
         insights = adset.get_insights(fields=[
             "impressions", "clicks", "spend", "reach", "ctr", "cpc", "cpm"
-        ], params={"date_preset": "maximum"})
+        ], params={"date_preset": "maximum", "breakdowns": ["publisher_platform"]})
 
         if insights:
-            data = insights[0]
-            return {
-                "impressions": int(data.get("impressions", 0)),
-                "clicks":      int(data.get("clicks", 0)),
-                "spend":       float(data.get("spend", 0)),
-                "reach":       int(data.get("reach", 0)),
-                "ctr":         float(data.get("ctr", 0)),
-                "cpc":         float(data.get("cpc", 0)),
-                "cpm":         float(data.get("cpm", 0)),
-            }
-        return {"impressions": 0, "clicks": 0, "spend": 0, "reach": 0, "ctr": 0, "cpc": 0, "cpm": 0}
+            results = []
+            for data in insights:
+                results.append({
+                    "publisher_platform": data.get("publisher_platform", "unknown"),
+                    "impressions": int(data.get("impressions", 0)),
+                    "clicks":      int(data.get("clicks", 0)),
+                    "spend":       float(data.get("spend", 0)),
+                    "reach":       int(data.get("reach", 0)),
+                    "ctr":         float(data.get("ctr", 0)),
+                    "cpc":         float(data.get("cpc", 0)),
+                    "cpm":         float(data.get("cpm", 0)),
+                })
+            return {"breakdown": results}
+        return {"breakdown": []}
     except FacebookRequestError as e:
-        raise Exception(f"Meta adset insights error: {e.api_error_message()}")    
+        raise Exception(f"Meta adset insights error: {e.api_error_message()}")

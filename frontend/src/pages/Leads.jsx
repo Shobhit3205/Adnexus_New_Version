@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getLeads, getCampaigns, updateLeadStatus, deleteLead } from '../services/api'
+import logo from '../assets/logo.png'
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://127.0.0.1:8000'
 
@@ -291,9 +292,9 @@ const Leads = () => {
       {/* ───────── SIDEBAR ───────── */}
       <div style={sidebarStyle}>
         <div style={s.brand}>
-          <div style={s.brandIcon}>A</div>
-          <span style={s.brandName}>AdNexus</span>
-          {isMobile && (
+  <img src={logo} alt="AdNexus" style={{ width: '30px', height: '30px', objectFit: 'contain', flexShrink: 0 }} />
+  <span style={s.brandName}>AdNexus</span>
+  {isMobile && (
             <button
               onClick={() => setMobileNavOpen(false)}
               aria-label="Close menu"

@@ -4,6 +4,16 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import logo from '../assets/logo.png'
+import {
+  LayoutGrid, TrendingUp, Users, BarChart3, Share2, Settings, Settings2,
+  ChevronDown, ChevronsUpDown, ChevronLeft, Sun, Moon, Sparkles, Bell, CircleHelp,
+  CalendarDays, Plus, Download, MoreHorizontal, Megaphone, ArrowUpRight,
+  ArrowRight, MapPin, IndianRupee, UsersRound, BadgeIndianRupee, Activity, RefreshCw,
+} from 'lucide-react'
+import { SiGoogleads, SiMeta, SiInstagram } from 'react-icons/si'
+import { FaLinkedin } from 'react-icons/fa'
+
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://127.0.0.1:8000'
 
@@ -30,40 +40,53 @@ const LIGHT = {
   textPrimary:  '#0f172a',
   textSecondary:'#64748b',
   textMuted:    '#94a3b8',
-  accent:       '#2563eb',
-  accentHover:  '#1d4ed8',
-  accentLight:  '#eff6ff',
+  accent:       '#2b7fff',
+  accentHover:  '#1668f5',
+  accentLight:  '#eaf2ff',
   accentBorder: '#bfdbfe',
-  navActiveBg:  '#eff6ff',
-  navActiveColor:'#2563eb',
+  navActiveBg:  '#eaf2ff',
+  navActiveColor:'#2b7fff',
   navColor:     '#64748b',
-  badgeBlue:    { bg:'#eff6ff',   color:'#1d4ed8', border:'#bfdbfe' },
+  badgeBlue:    { bg:'#eaf2ff',   color:'#1668f5', border:'#bfdbfe' },
   badgeGreen:   { bg:'#f0fdf4',   color:'#15803d', border:'#bbf7d0' },
   badgeAmber:   { bg:'#fffbeb',   color:'#b45309', border:'#fde68a' },
   badgePurple:  { bg:'#faf5ff',   color:'#7c3aed', border:'#ddd6fe' },
   badgeRed:     { bg:'#fef2f2',   color:'#dc2626', border:'#fecaca' },
-  chipBg:       '#eff6ff',
-  chipColor:    '#2563eb',
-  avatarBg:     'linear-gradient(135deg,#2563eb,#7c3aed)',
+  chipBg:       '#eaf2ff',
+  chipColor:    '#2b7fff',
+  avatarBg:     'linear-gradient(135deg,#2b7fff,#7c3aed)',
   scoreTrack:   '#e2e8f0',
-  geoBg:        'linear-gradient(135deg,#eff6ff,#f0f4ff)',
-  geoBlob:      'rgba(37,99,235,0.12)',
-  geoBlobDeep:  'rgba(37,99,235,0.30)',
+  geoBg:        'linear-gradient(135deg,#eaf2ff,#f0f9ff)',
+  geoBlob:      'rgba(43,127,255,0.14)',
+  geoBlobDeep:  'rgba(43,127,255,0.32)',
   geoText:      '#1e40af',
-  aiBoxBg:      '#eff6ff',
+  aiBoxBg:      '#eaf2ff',
   aiBoxBorder:  '#bfdbfe',
   aiBoxColor:   '#1e40af',
-  aiDot:        '#2563eb',
+  aiDot:        '#2b7fff',
   actionHoverBg:'#f8faff',
   manageBg:     '#f8faff',
   manageColor:  '#64748b',
   manageBorder: '#e4e9f5',
+  kpiSpendBg:   'linear-gradient(135deg,#cbe0fd 0%,#e5f0ff 100%)',
+  kpiLeadsBg:   'linear-gradient(135deg,#b3efd0 0%,#dcf7e9 100%)',
+  kpiCplBg:     'linear-gradient(135deg,#fdecc0 0%,#fff8e5 100%)',
+  kpiActiveBg:  'linear-gradient(135deg,#ecd9ff 0%,#f6ecff 100%)',
+  kpiIconSpend: 'rgba(59,130,246,0.2)',
+  kpiIconLeads: 'rgba(16,185,129,0.2)',
+  kpiIconCpl:   'rgba(217,119,6,0.16)',
+  kpiIconActive:'rgba(168,85,247,0.16)',
+  kpiTextSpend: '#2563eb',
+  kpiTextLeads: '#059669',
+  kpiTextCpl:   '#c2760a',
+  kpiTextActive:'#9333ea',
   deleteBg:     '#fef2f2',
   deleteColor:  '#dc2626',
   deleteBorder: '#fecaca',
   emptyColor:   '#94a3b8',
   shadow:       '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
   kpiShadow:    '0 1px 3px rgba(0,0,0,0.06)',
+  progressTrack:'#eef2fb',
 }
 
 const DARK = {
@@ -115,26 +138,31 @@ const DARK = {
   emptyColor:   'rgba(255,255,255,0.25)',
   shadow:       'none',
   kpiShadow:    'none',
+  progressTrack:'rgba(255,255,255,0.08)',
+  kpiSpendBg:   'linear-gradient(135deg,rgba(59,139,255,0.3) 0%,rgba(59,139,255,0.12) 100%)',
+  kpiLeadsBg:   'linear-gradient(135deg,rgba(52,211,153,0.3) 0%,rgba(52,211,153,0.12) 100%)',
+  kpiCplBg:     'linear-gradient(135deg,rgba(251,191,36,0.22) 0%,rgba(251,191,36,0.09) 100%)',
+  kpiActiveBg:  'linear-gradient(135deg,rgba(167,139,250,0.22) 0%,rgba(167,139,250,0.09) 100%)',
+  kpiIconSpend: 'rgba(59,139,255,0.28)',
+  kpiIconLeads: 'rgba(52,211,153,0.28)',
+  kpiIconCpl:   'rgba(251,191,36,0.22)',
+  kpiIconActive:'rgba(167,139,250,0.2)',
+  kpiTextSpend: '#7bb8ff',
+  kpiTextLeads: '#6ee7b7',
+  kpiTextCpl:   '#fde68a',
+  kpiTextActive:'#c4b5fd',
 }
-
-/* ── Sun icon ── */
-const SunIcon = () => (
-  <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
-    <circle cx="12" cy="12" r="5" stroke="currentColor" strokeWidth="1.8"/>
-    <path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-  </svg>
-)
-
-/* ── Moon icon ── */
-const MoonIcon = () => (
-  <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
-    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-  </svg>
-)
 
 /* ── Merged styles (was Dashboard.css) ── */
 const DashboardStyles = () => (
   <style>{`
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
     .dashboard-kpis {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -238,7 +266,6 @@ const DashboardStyles = () => (
         justify-content: flex-start;
       }
 
-      /* ── Compact KPI cards below 760px: smaller padding/type so all 4 fit in one row ── */
       .kpi-card {
         padding: 12px 10px 10px !important;
       }
@@ -259,6 +286,9 @@ const DashboardStyles = () => (
       .kpi-card .kpi-sub {
         font-size: 10px !important;
         display: block;
+      }
+      .kpi-card .kpi-progress-wrap {
+        margin-top: 8px !important;
       }
     }
 
@@ -325,9 +355,15 @@ const DashboardStyles = () => (
       }
     }
 
-    /* ── Platform performance: compact mobile table (Platform / Spend / Leads / CPL + Total row) ── */
     .platform-table-desktop {
       display: block;
+    }
+    .platform-row {
+      transition: background 0.12s ease;
+      cursor: default;
+    }
+    .platform-row:hover {
+      background: var(--platform-row-hover);
     }
     .platform-table-mobile {
       display: none;
@@ -342,7 +378,6 @@ const DashboardStyles = () => (
       }
     }
 
-    /* ── Topbar right-side icons: hamesha visible rahein, kabhi cut/overlap na ho ── */
     .dashboard-topbar-actions {
       flex-shrink: 0;
     }
@@ -360,7 +395,6 @@ const DashboardStyles = () => (
       }
     }
 
-    /* ── Custom themed tooltip (replaces native browser title tooltip) ── */
     .icon-tooltip {
       position: relative;
     }
@@ -390,6 +424,27 @@ const DashboardStyles = () => (
       visibility: visible;
       transform: translateY(0);
     }
+
+    /* ── Recent campaigns: row-card hover + "more" menu ── */
+    .campaign-row-card {
+      transition: background 0.12s ease;
+    }
+    .campaign-row-card:hover {
+      background: var(--row-hover-bg);
+    }
+    .campaign-more-wrap {
+      position: relative;
+    }
+    .campaign-more-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px;
+      border-radius: 6px;
+    }
   `}</style>
 )
 
@@ -410,12 +465,13 @@ const Dashboard = () => {
   const [dateFrom, setDateFrom]         = useState('')
   const [dateTo, setDateTo]             = useState('')
   const [showDatePicker, setShowDatePicker] = useState(false)
+  const [openMenuId, setOpenMenuId]     = useState(null)
 
   const t = darkMode ? DARK : LIGHT   // active theme tokens
 
-  // Sidebar mein dikhane ke liye logged-in user ka naam/role — koi bhi login kare, sahi naam dikhna chahiye
   const displayName = user?.name || 'User'
   const displayRole = user?.role || 'Member'
+  const displayFirstName = displayName.split(' ')[0]
   const displayInitials = displayName
     .split(' ')
     .filter(Boolean)
@@ -423,9 +479,16 @@ const Dashboard = () => {
     .map(w => w[0].toUpperCase())
     .join('') || 'U'
 
+  // Real time-of-day greeting — no mock text
+  const greeting = (() => {
+    const h = new Date().getHours()
+    if (h < 12) return 'Good morning'
+    if (h < 17) return 'Good afternoon'
+    return 'Good evening'
+  })()
+
   useEffect(() => { fetchAll() }, [])
 
-  // Chhoti screens par sidebar apne aap collapse ho jaye taaki content ko jagah mile
   useEffect(() => {
     const checkWidth = () => {
       if (window.innerWidth <= 640) setSidebarCollapsed(true)
@@ -487,46 +550,42 @@ const Dashboard = () => {
   }
 
   const handleDownloadLeadsPDF = () => {
-  if (leads.length === 0) {
-    alert('No leads available to download.')
-    return
+    if (leads.length === 0) {
+      alert('No leads available to download.')
+      return
+    }
+
+    const doc = new jsPDF()
+
+    doc.setFontSize(16)
+    doc.setTextColor(37, 99, 235)
+    doc.text('AdNexus — Leads Report', 14, 15)
+
+    doc.setFontSize(10)
+    doc.setTextColor(100)
+    doc.text(`Generated: ${new Date().toLocaleDateString('en-IN')}`, 14, 22)
+    doc.text(`Total leads: ${leads.length}`, 14, 27)
+
+    autoTable(doc, {
+      startY: 33,
+      head: [['Name', 'Phone', 'Platform', 'Campaign', 'Date', 'Score']],
+      body: leads.map(lead => [
+        lead.name || lead.full_name || '—',
+        lead.phone || '—',
+        lead.platform_name || lead.platform || 'Direct',
+        campaigns.find(c => c.id === lead.campaign_id || c.id === String(lead.campaign_id))?.name || '—',
+        lead.created_at ? new Date(lead.created_at).toLocaleDateString('en-IN') : '—',
+        lead.quality_score != null ? `${lead.quality_score}/10` : '—',
+      ]),
+      theme: 'grid',
+      headStyles: { fillColor: [37, 99, 235], fontSize: 9 },
+      styles: { fontSize: 8, cellPadding: 3 },
+      alternateRowStyles: { fillColor: [240, 244, 255] },
+    })
+
+    doc.save(`adnexus-leads-${Date.now()}.pdf`)
   }
 
-  const doc = new jsPDF()
-
-  // Header
-  doc.setFontSize(16)
-  doc.setTextColor(37, 99, 235)
-  doc.text('AdNexus — Leads Report', 14, 15)
-
-  doc.setFontSize(10)
-  doc.setTextColor(100)
-  doc.text(`Generated: ${new Date().toLocaleDateString('en-IN')}`, 14, 22)
-  doc.text(`Total leads: ${leads.length}`, 14, 27)
-
-  // Table
-  autoTable(doc, {
-    startY: 33,
-    head: [['Name', 'Phone', 'Platform', 'Campaign', 'Date', 'Score']],
-    body: leads.map(lead => [
-      lead.name || lead.full_name || '—',
-      lead.phone || '—',
-      lead.platform_name || lead.platform || 'Direct',
-      campaigns.find(c => c.id === lead.campaign_id || c.id === String(lead.campaign_id))?.name || '—',
-      lead.created_at ? new Date(lead.created_at).toLocaleDateString('en-IN') : '—',
-      lead.quality_score != null ? `${lead.quality_score}/10` : '—',
-    ]),
-    theme: 'grid',
-    headStyles: { fillColor: [37, 99, 235], fontSize: 9 },
-    styles: { fontSize: 8, cellPadding: 3 },
-    alternateRowStyles: { fillColor: [240, 244, 255] },
-  })
-
-  doc.save(`adnexus-leads-${Date.now()}.pdf`)
-}
-
-// ── Fix: date range ke hisaab se campaigns filter karo — jo campaign
-  //    selected range ke saath overlap kare (start_date/end_date), wahi dikhe ──
   const isCampaignInRange = (c) => {
     if (!dateFrom && !dateTo) return true
     const campStart = c.start_date ? new Date(c.start_date) : null
@@ -540,11 +599,11 @@ const Dashboard = () => {
   }
   const filteredCampaigns = campaigns.filter(isCampaignInRange)
   const dateRangeLabel = () => {
-    if (!dateFrom && !dateTo) return '📅 All time'
-    if (dateFrom && dateTo && dateFrom === dateTo) return `📅 ${dateFrom}`
-    if (dateFrom && dateTo) return `📅 ${dateFrom} → ${dateTo}`
-    if (dateFrom) return `📅 From ${dateFrom}`
-    return `📅 Until ${dateTo}`
+    if (!dateFrom && !dateTo) return 'All time'
+    if (dateFrom && dateTo && dateFrom === dateTo) return `${dateFrom}`
+    if (dateFrom && dateTo) return `${dateFrom} → ${dateTo}`
+    if (dateFrom) return `From ${dateFrom}`
+    return `Until ${dateTo}`
   }
 
   const totalBudget     = filteredCampaigns.reduce((s, c) => s + (c.budget || 0), 0)
@@ -552,40 +611,44 @@ const Dashboard = () => {
   const activeCampaigns = filteredCampaigns.filter(c => c.status === 'active').length
   const totalLeads      = leads.length
   const totalLeadsSpend = platformStats.reduce((s, p) => s + (p.spend || 0), 0)
-const campaignLeads   = leads.filter(l =>
-  l.campaign_id === selectedCampaign?.id || l.campaign_id === String(selectedCampaign?.id)
-)
-// NAYA — leads count ab FormSubmission-based `leads` state se, PlatformStat.leads se nahi
-// (PlatformStat.leads sync-stats mein kabhi update nahi hoti, hamesha 0 rehti hai)
-const totalLeadsCount = campaignLeads.length
-const unifiedCPL      = totalLeadsCount > 0 ? (totalLeadsSpend / totalLeadsCount).toFixed(2) : null
-// NAYA — per-platform lead count, form-submissions se (PlatformStat.leads bharosemand nahi hai)
-const PLATFORM_NAME_MAP = { google: 'Google Ads', meta: 'Facebook', instagram: 'Instagram', linkedin: 'LinkedIn' }
-const leadsByPlatform = {}
-campaignLeads.forEach(lead => {
-  const rawPlatform = (lead.platform_name || lead.platform || '').toLowerCase()
-  const key = PLATFORM_NAME_MAP[rawPlatform] || lead.platform_name || lead.platform || 'Direct'
-  leadsByPlatform[key] = (leadsByPlatform[key] || 0) + 1
-})
+  const campaignLeads   = leads.filter(l =>
+    l.campaign_id === selectedCampaign?.id || l.campaign_id === String(selectedCampaign?.id)
+  )
+  const totalLeadsCount = campaignLeads.length
+  const unifiedCPL      = totalLeadsCount > 0 ? (totalLeadsSpend / totalLeadsCount).toFixed(2) : null
+  const PLATFORM_NAME_MAP = { google: 'Google Ads', meta: 'Facebook', instagram: 'Instagram', fb: 'Facebook', ig: 'Instagram', linkedin: 'LinkedIn' }
+  const leadsByPlatform = {}
+  campaignLeads.forEach(lead => {
+    const rawPlatform = (lead.platform_name || lead.platform || '').toLowerCase()
+    const key = PLATFORM_NAME_MAP[rawPlatform] || lead.platform_name || lead.platform || 'Direct'
+    leadsByPlatform[key] = (leadsByPlatform[key] || 0) + 1
+  })
+  // Same name-mapping used everywhere we look up leadsByPlatform by a platformStats row —
+  // fixes the bug where "meta" (raw) never matched "Facebook" (mapped) and always showed "—"
+  const platformStatKey = (p) => {
+    const raw = (p.platform_name || p.platform || '').toLowerCase()
+    return PLATFORM_NAME_MAP[raw] || p.platform_name || p.platform || 'Direct'
+  }
+  // Real brand icon + official color per platform — falls back to a colored letter chip for anything unrecognized
+  const PLATFORM_BRAND = {
+  'Google Ads':  { Icon: SiGoogleads, bg: '#4285F4' },
+  'Facebook':    { Icon: SiMeta,      bg: '#0866FF' },
+  'Instagram':   { Icon: SiInstagram, bg: 'linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)' },
+  'LinkedIn':    { Icon: FaLinkedin,  bg: '#0A66C2' },
+}
+  const platformBrand = (p) => PLATFORM_BRAND[platformStatKey(p)] || null
+
+  // Real progress ratios for KPI cards (no invented targets)
+  const budgetUsedPct    = totalBudget > 0 ? Math.min(100, Math.round((totalSpent / totalBudget) * 100)) : 0
+  const activeRatioPct   = filteredCampaigns.length > 0 ? Math.round((activeCampaigns / filteredCampaigns.length) * 100) : 0
 
   const navItems = [
-    { id:'dashboard', label:'Dashboard', action:() => {},
-      icon:<svg width="18" height="18" fill="none" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.8"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.8"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.8"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.8"/></svg> },
-    { id:'campaigns', label:'Campaigns', action:() => navigate('/dashboard/create-campaign'),
-      icon:<svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg> },
-    { id:'leads', label:'Leads', action:() => navigate('/dashboard/leads'),
-      icon:<svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="1.8"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg> },
-    { id:'analytics', label:'Analytics', action:() => {},
-      icon:<svg width="18" height="18" fill="none" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg> },
-    { id:'refer', label:'Refer & Earn', action:() => navigate('/dashboard/refer'),
-  icon:<svg width="18" height="18" fill="none" viewBox="0 0 24 24">
-    <circle cx="18" cy="5" r="3" stroke="currentColor" strokeWidth="1.8"/>
-    <circle cx="6" cy="12" r="3" stroke="currentColor" strokeWidth="1.8"/>
-    <circle cx="18" cy="19" r="3" stroke="currentColor" strokeWidth="1.8"/>
-    <path d="M8.6 10.6l6.8-3.8M8.6 13.4l6.8 3.8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-  </svg> },
-   { id:'settings', label:'Settings', action:() => navigate('/dashboard/settings'),
-      icon:<svg width="18" height="18" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.8"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06-.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" strokeWidth="1.8"/></svg> },
+    { id:'dashboard', label:'Dashboard', action:() => {}, icon:<LayoutGrid size={18} /> },
+    { id:'campaigns', label:'Campaigns', action:() => navigate('/dashboard/create-campaign'), icon:<TrendingUp size={18} /> },
+    { id:'leads', label:'Leads', action:() => navigate('/dashboard/leads'), icon:<Users size={18} /> },
+    { id:'analytics', label:'Analytics', action:() => {}, icon:<BarChart3 size={18} /> },
+    { id:'refer', label:'Refer & Earn', action:() => navigate('/dashboard/refer'), icon:<Share2 size={18} /> },
+    { id:'settings', label:'Settings', action:() => navigate('/dashboard/settings'), icon:<Settings size={18} /> },
   ]
 
   const aiSuggestions = []
@@ -608,22 +671,46 @@ campaignLeads.forEach(lead => {
     }}>{text}</span>
   )
 
-  const kpiAccentColors = ['#2563eb','#16a34a','#d97706','#7c3aed']
+  const progressBar = (pct, color, trackColor) => (
+    <div style={{ borderRadius:'20px', background: trackColor || t.progressTrack, height:'7px', overflow:'hidden' }}>
+      <div style={{ width:`${Math.max(0, Math.min(100, pct))}%`, height:'100%', borderRadius:'20px', background: color, transition:'width 0.3s ease' }} />
+    </div>
+  )
+
+  // Segmented pill bar (4 segments) — filled count derived from a real ratio, no invented data
+  const segmentedBar = (pct, color) => {
+    const filledSegments = Math.round((Math.max(0, Math.min(100, pct)) / 100) * 4)
+    return (
+      <div style={{ display:'flex', gap:'4px' }}>
+        {[0, 1, 2, 3].map(i => (
+          <div key={i} style={{ flex:1, height:'7px', borderRadius:'20px', background: color, opacity: i < filledSegments ? 1 : 0.25 }} />
+        ))}
+      </div>
+    )
+  }
+
+  const kpiAccentColors = ['#3b82f6','#10b981','#f59e0b','#a855f7']
+  // Gradient icon-box fills — tinted to match each card's pastel background
   const kpiIconColors   = [
-    { bg: darkMode ? 'rgba(59,139,255,0.2)'  : '#eff6ff', color: darkMode ? '#7bb8ff' : '#2563eb' },
-    { bg: darkMode ? 'rgba(52,211,153,0.2)'  : '#f0fdf4', color: darkMode ? '#6ee7b7' : '#16a34a' },
-    { bg: darkMode ? 'rgba(251,191,36,0.2)'  : '#fffbeb', color: darkMode ? '#fde68a' : '#d97706' },
-    { bg: darkMode ? 'rgba(167,139,250,0.2)' : '#faf5ff', color: darkMode ? '#c4b5fd' : '#7c3aed' },
+    { bg: t.kpiIconSpend,  color: t.kpiTextSpend },
+    { bg: t.kpiIconLeads,  color: t.kpiTextLeads },
+    { bg: t.kpiIconCpl,    color: t.kpiTextCpl },
+    { bg: t.kpiIconActive, color: t.kpiTextActive },
   ]
+  const kpiTextColors = [t.kpiTextSpend, t.kpiTextLeads, t.kpiTextCpl, t.kpiTextActive]
+  // Each KPI card gets its own full solid gradient background (like the AI Suggestions card)
+  const kpiCardBg = [t.kpiSpendBg, t.kpiLeadsBg, t.kpiCplBg, t.kpiActiveBg]
 
   /* Shared inline styles driven by theme tokens */
-  const wrap        = { display:'flex', height:'100vh', background: darkMode ? 'linear-gradient(135deg,#05101f 0%,#091830 50%,#05101f 100%)' : t.pageBg, fontFamily:"'DM Sans',system-ui,sans-serif", fontSize:'13px' }
+  const wrap        = { display:'flex', height:'100vh', background: darkMode ? 'linear-gradient(135deg,#05101f 0%,#091830 50%,#05101f 100%)' : t.pageBg, fontFamily:"'Inter',system-ui,-apple-system,sans-serif", fontSize:'13px' }
   const mainCol      = { flex:1, display:'flex', flexDirection:'column', overflow:'hidden', minWidth:0, minHeight:0 }
   const sidebar     = { width: sidebarCollapsed ? '60px' : '230px', background: t.sidebarBg, borderRight: t.border, display:'flex', flexDirection:'column', flexShrink:0, overflow:'hidden', transition:'width 0.22s ease', ...(darkMode ? { backdropFilter:'blur(20px)' } : { boxShadow:'1px 0 0 #e4e9f5' }) }
   const sbLogo      = { display:'flex', alignItems:'center', gap:'10px', padding:'18px 16px 14px', borderBottom: t.border, minHeight:'58px', justifyContent: sidebarCollapsed ? 'center' : 'flex-start' }
   const sbLogoIcon  = { width:'34px', height:'34px', borderRadius:'10px', background:'linear-gradient(135deg,#2563eb,#1d4ed8)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, boxShadow:'0 2px 10px rgba(37,99,235,0.4)' }
   const sbLogoText  = { fontSize:'16px', fontWeight:'700', color: t.textPrimary, letterSpacing:'-0.2px', whiteSpace:'nowrap' }
+  const sbLogoSub   = { fontWeight:'700', textTransform:'uppercase', color: t.textMuted, fontSize:'9px', letterSpacing:'2.5px', marginTop:'1px', whiteSpace:'nowrap' }
   const sbNav       = { display:'flex', flexDirection:'column', gap:'3px', padding:'12px 10px', flex:1 }
+  const sbSectionLbl= { fontWeight:'700', textTransform:'uppercase', color: t.textMuted, fontSize:'10px', letterSpacing:'2px', padding: sidebarCollapsed ? '0' : '4px 12px 6px', whiteSpace:'nowrap', overflow:'hidden' }
   const navItemBase = { display:'flex', alignItems:'center', gap:'11px', padding:'9px 12px', borderRadius:'10px', border:'none', background:'none', cursor:'pointer', width:'100%', textAlign:'left', fontFamily:'inherit', fontSize:'13px', fontWeight:'500', color: t.navColor, whiteSpace:'nowrap', overflow:'hidden', transition:'all 0.15s' }
   const navItemActiveStyle = { background: t.navActiveBg, color: t.navActiveColor, ...(darkMode ? { border:'1px solid rgba(59,139,255,0.28)' } : {}) }
   const sbBottom    = { borderTop: t.border, padding:'12px 10px' }
@@ -632,36 +719,33 @@ campaignLeads.forEach(lead => {
   const userName    = { fontSize:'13px', fontWeight:'600', color: t.textPrimary, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }
   const userRole    = { fontSize:'11px', color: t.textSecondary, whiteSpace:'nowrap' }
   const collapseBtn = { display:'flex', alignItems:'center', gap:'8px', padding:'8px', borderRadius:'10px', border:'none', background:'none', cursor:'pointer', width:'100%', fontFamily:'inherit', whiteSpace:'nowrap', overflow:'hidden', color: t.textSecondary, justifyContent: sidebarCollapsed ? 'center' : 'flex-start' }
-  const topbar      = { background: t.topbarBg, borderBottom: t.border, padding:'0 24px', height:'54px', display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0, ...(darkMode ? { backdropFilter:'blur(12px)' } : { boxShadow:'0 1px 0 #e4e9f5' }) }
-  const topbarTitle = { fontSize:'16px', fontWeight:'700', color: t.textPrimary, letterSpacing:'-0.2px' }
-  const iconBtn     = { background: darkMode ? 'rgba(255,255,255,0.07)' : t.accentLight, border: darkMode ? '1px solid rgba(255,255,255,0.1)' : `1px solid ${t.accentBorder}`, cursor:'pointer', width:'34px', height:'34px', borderRadius:'10px', display:'flex', alignItems:'center', justifyContent:'center', color: t.accent }
+  const topbar      = { background: t.topbarBg, borderBottom: t.border, padding:'0 24px', minHeight:'70px', display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0, ...(darkMode ? { backdropFilter:'blur(12px)' } : { boxShadow:'0 1px 0 #e4e9f5' }) }
+  const topbarTitle = { fontSize:'21px', fontWeight:'800', color: t.textPrimary, letterSpacing:'-0.4px', display:'flex', alignItems:'center', gap:'6px' }
+  const topbarSub   = { color: t.textSecondary, fontSize:'12px', marginTop:'2px' }
+  const iconBtn     = { background: darkMode ? 'rgba(255,255,255,0.07)' : t.accentLight, border: darkMode ? '1px solid rgba(255,255,255,0.1)' : `1px solid ${t.accentBorder}`, cursor:'pointer', width:'38px', height:'38px', borderRadius:'11px', display:'flex', alignItems:'center', justifyContent:'center', color: t.accent }
   const filterbar   = { background: t.filterbarBg, borderBottom: t.border, padding:'0 24px', height:'48px', display:'flex', alignItems:'center', gap:'12px', flexShrink:0, ...(darkMode ? { backdropFilter:'blur(8px)' } : {}) }
-  const filterLabel = { fontSize:'11px', color: t.textMuted, fontWeight:'500', textTransform:'uppercase', letterSpacing:'0.06em' }
-  const filterSelect= { background: t.inputBg, border: `1px solid ${t.borderColor}`, borderRadius:'20px', padding:'5px 14px', fontSize:'12px', color: t.textPrimary, cursor:'pointer', fontFamily:'inherit', outline:'none', maxWidth:'220px' }
+  const filterLabel = { fontSize:'11px', color: t.textMuted, fontWeight:'700', textTransform:'uppercase', letterSpacing:'0.06em' }
+  const filterSelect= { background: t.inputBg, border: `1.5px solid ${t.borderColor}`, borderRadius:'20px', padding:'7px 34px 7px 16px', fontSize:'12px', color: t.textPrimary, cursor:'pointer', fontFamily:'inherit', outline:'none', maxWidth:'220px', fontWeight:'700', appearance:'none', WebkitAppearance:'none', MozAppearance:'none' }
   const datePill    = { background: t.inputBg, border: `1px solid ${t.borderColor}`, borderRadius:'20px', padding:'5px 14px', fontSize:'12px', color: t.textSecondary, display:'flex', alignItems:'center', gap:'5px' }
-  const btnPrimary  = { background:'linear-gradient(135deg,#2563eb,#1d4ed8)', color:'#fff', border:'none', borderRadius:'10px', padding:'7px 16px', fontSize:'12px', fontWeight:'600', cursor:'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', gap:'5px', boxShadow:'0 2px 10px rgba(37,99,235,0.35)' }
+  const btnPrimary  = { background:'linear-gradient(135deg,#2b7fff,#1668f5)', color:'#fff', border:'none', borderRadius:'12px', padding:'8px 18px', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', gap:'5px', boxShadow:'0 4px 14px rgba(43,127,255,0.4)' }
   const btnGhost    = { background: darkMode ? 'rgba(255,255,255,0.07)' : '#fff', color: t.accent, border: `1px solid ${t.accentBorder}`, borderRadius:'10px', padding:'7px 16px', fontSize:'12px', fontWeight:'500', cursor:'pointer', fontFamily:'inherit' }
   const content     = { flex:1, overflow:'auto', padding:'20px 24px', display:'flex', flexDirection:'column', gap:'18px' }
-  const card        = { background: t.cardBg, border: t.border, borderRadius:'16px', padding:'20px 22px', ...(darkMode ? { backdropFilter:'blur(16px)' } : { boxShadow: t.shadow }) }
-  const cardHeader  = { display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'16px' }
-  const cardTitle   = { fontSize:'11px', fontWeight:'700', color: t.textSecondary, textTransform:'uppercase', letterSpacing:'0.08em' }
+  const card        = { background: t.cardBg, border: t.border, borderRadius:'20px', padding:'22px 24px', ...(darkMode ? { backdropFilter:'blur(16px)' } : { boxShadow: t.shadow }) }
+  const cardHeader  = { display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'18px' }
+  const cardTitle   = { fontSize:'14px', fontWeight:'800', color: t.textPrimary, letterSpacing:'-0.1px' }
+  const cardSub     = { fontSize:'11px', color: t.textSecondary, marginTop:'2px' }
   const table       = { width:'100%', borderCollapse:'collapse', fontSize:'12px' }
-  const th          = { padding:'8px 10px', textAlign:'left', color: t.textMuted, fontWeight:'600', borderBottom: t.border, fontSize:'11px', whiteSpace:'nowrap', background: t.tableHeadBg }
-  const td          = { padding:'10px 10px', color: t.textPrimary, verticalAlign:'middle', borderBottom:`1px solid ${t.borderColor}` }
+  const th          = { padding:'10px 14px', textAlign:'left', color: t.textMuted, fontWeight:'700', borderBottom: t.border, fontSize:'10px', textTransform:'uppercase', letterSpacing:'0.05em', whiteSpace:'nowrap', background: t.tableHeadBg }
+  const td          = { padding:'12px 14px', color: t.textPrimary, verticalAlign:'middle', borderTop:`1px solid ${t.borderColor}` }
   const chip        = { width:'26px', height:'26px', borderRadius:'8px', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:'700', fontSize:'11px', flexShrink:0, background: t.chipBg, color: t.chipColor }
   const avatar      = { width:'28px', height:'28px', borderRadius:'50%', background: t.avatarBg, display:'flex', alignItems:'center', justifyContent:'center', fontWeight:'700', fontSize:'11px', color:'#fff', flexShrink:0 }
   const manageBtn   = { background: t.manageBg, color: t.manageColor, border:`1px solid ${t.manageBorder}`, borderRadius:'7px', padding:'4px 10px', fontSize:'11px', cursor:'default', fontFamily:'inherit' }
   const deleteBtn   = { background: t.deleteBg, color: t.deleteColor, border:`1px solid ${t.deleteBorder}`, borderRadius:'7px', padding:'4px 10px', fontSize:'11px', cursor:'pointer', fontFamily:'inherit' }
   const scoreBar    = { width:'56px', height:'4px', borderRadius:'2px', background: t.scoreTrack, overflow:'hidden' }
-  const geoMap      = { background: t.geoBg, border: t.border, borderRadius:'12px', height:'128px', overflow:'hidden', marginBottom:'14px' }
-  const targetRow   = { display:'flex', justifyContent:'space-between', fontSize:'11px', padding:'6px 0', borderBottom:`1px solid ${t.borderColor}` }
-  const actionBtn   = { width:'100%', padding:'10px 14px', borderRadius:'12px', border: t.border, background: darkMode ? 'rgba(255,255,255,0.05)' : '#fff', color: t.textPrimary, fontSize:'12px', fontWeight:'500', cursor:'pointer', display:'flex', alignItems:'center', gap:'10px', marginBottom:'8px', fontFamily:'inherit', textAlign:'left', boxShadow: darkMode ? 'none' : t.shadow }
+  const actionBtn   = { width:'100%', padding:'11px 14px', borderRadius:'13px', border: t.border, background: darkMode ? 'rgba(255,255,255,0.05)' : '#fff', color: t.textPrimary, fontSize:'12px', fontWeight:'600', cursor:'pointer', display:'flex', alignItems:'center', gap:'10px', marginBottom:'8px', fontFamily:'inherit', textAlign:'left', boxShadow: darkMode ? 'none' : t.shadow }
   const actionIcon  = { width:'26px', height:'26px', borderRadius:'8px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'14px', flexShrink:0 }
-  const aiBox       = { background: t.aiBoxBg, border:`1px solid ${t.aiBoxBorder}`, borderRadius:'12px', padding:'10px 13px', fontSize:'11px', color: t.aiBoxColor, lineHeight:'1.6', display:'flex', gap:'9px', alignItems:'flex-start' }
-  const aiPulse     = { width:'7px', height:'7px', borderRadius:'50%', background: t.aiDot, marginTop:'4px', flexShrink:0, boxShadow: darkMode ? '0 0 7px rgba(59,139,255,0.7)' : 'none' }
   const emptyStyle  = { textAlign:'center', padding:'28px', color: t.emptyColor, fontSize:'12px' }
 
-  /* Dark mode toggle button */
   const toggleBtn = {
     display:'flex', alignItems:'center', gap:'6px',
     background: darkMode ? 'rgba(255,255,255,0.1)' : t.accentLight,
@@ -672,14 +756,12 @@ campaignLeads.forEach(lead => {
     fontFamily:'inherit',
   }
 
-  /* Themed tooltip CSS vars — dark mode: dark card bg + white text, light mode: white bg + accent border */
   const tooltipVars = {
     '--tt-bg':     t.cardBg,
     '--tt-color':  t.textPrimary,
     '--tt-border': t.borderColor,
   }
 
-  /* ── Platform performance totals — used by the new compact mobile table's Total row ── */
   const platformTotals = {
     impressions: platformStats.reduce((s, p) => s + (p.impressions || 0), 0),
     clicks:      platformStats.reduce((s, p) => s + (p.clicks || 0), 0),
@@ -695,17 +777,27 @@ campaignLeads.forEach(lead => {
       {/* ── Sidebar ── */}
       <aside className="dashboard-sidebar" style={sidebar}>
         <div style={sbLogo}>
-          <div style={sbLogoIcon}>
-            <svg width="18" height="18" viewBox="0 0 32 32" fill="none">
-              <path d="M8 24L16 8L24 24" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M10.5 19h11" stroke="#fff" strokeWidth="2" strokeLinecap="round"/>
-            </svg>
-          </div>
-          {!sidebarCollapsed && <span style={sbLogoText}>AdNexus</span>}
-        </div>
+  <img src={logo} alt="AdNexus" style={{ width: '34px', height: '34px', objectFit: 'contain', flexShrink: 0 }} />
+  {!sidebarCollapsed && (
+    <div>
+      <div style={sbLogoText}>AdNexus</div>
+      <div style={sbLogoSub}>Growth OS</div>
+    </div>
+  )}
+</div>
 
         <nav style={sbNav}>
-          {navItems.map(item => (
+          {!sidebarCollapsed && <div style={sbSectionLbl}>Workspace</div>}
+          {navItems.filter(i => i.id !== 'settings').map(item => (
+            <button key={item.id} title={sidebarCollapsed ? item.label : ''}
+              onClick={() => { setActiveNav(item.id); item.action() }}
+              style={{ ...navItemBase, ...(activeNav === item.id ? navItemActiveStyle : {}), justifyContent: sidebarCollapsed ? 'center' : 'flex-start' }}>
+              <span style={{ flexShrink:0, display:'flex' }}>{item.icon}</span>
+              {!sidebarCollapsed && <span style={{ overflow:'hidden', whiteSpace:'nowrap' }}>{item.label}</span>}
+            </button>
+          ))}
+          {!sidebarCollapsed && <div style={{ ...sbSectionLbl, marginTop:'14px' }}>Workspace settings</div>}
+          {navItems.filter(i => i.id === 'settings').map(item => (
             <button key={item.id} title={sidebarCollapsed ? item.label : ''}
               onClick={() => { setActiveNav(item.id); item.action() }}
               style={{ ...navItemBase, ...(activeNav === item.id ? navItemActiveStyle : {}), justifyContent: sidebarCollapsed ? 'center' : 'flex-start' }}>
@@ -716,25 +808,38 @@ campaignLeads.forEach(lead => {
         </nav>
 
         <div style={sbBottom}>
-          <div style={userRow}>
-            <div style={userAvatar}>{displayInitials}</div>
-            {!sidebarCollapsed && (
-              <>
-                <div style={{ flex:1, overflow:'hidden', minWidth:0 }}>
-                  <div style={userName}>{displayName}</div>
-                  <div style={userRole}>{displayRole}</div>
-                </div>
-                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" style={{ flexShrink:0, color: t.textMuted }}>
-                  <polyline points="6 9 12 15 18 9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </>
-            )}
+          <div style={{ borderRadius:'14px', background: darkMode ? 'rgba(255,255,255,0.06)' : '#f8faff', padding: sidebarCollapsed ? '8px' : '10px' }}>
+            <div style={userRow}>
+              <div style={userAvatar}>{displayInitials}</div>
+              {!sidebarCollapsed && (
+                <>
+                  <div style={{ flex:1, overflow:'hidden', minWidth:0 }}>
+                    <div style={userName}>{displayName}</div>
+                    <div style={userRole}>{displayRole}</div>
+                  </div>
+                  <ChevronsUpDown size={14} style={{ flexShrink:0, color: t.textMuted }} />
+                </>
+              )}
+            </div>
+            <button
+              onClick={() => setDarkMode(v => !v)}
+              style={{
+                display:'flex', alignItems:'center', gap:'8px', marginTop:'8px',
+                background: t.cardBg, border: t.border, borderRadius:'10px',
+                padding:'7px 10px', width:'100%', cursor:'pointer', fontFamily:'inherit',
+                justifyContent: sidebarCollapsed ? 'center' : 'space-between',
+                color: t.textSecondary,
+              }}
+            >
+              <span style={{ display:'flex', alignItems:'center', gap:'6px', color: darkMode ? '#7bb8ff' : '#d97706' }}>
+                {darkMode ? <Moon size={16} /> : <Sun size={16} />}
+                {!sidebarCollapsed && <span style={{ fontSize:'12px', color: t.textPrimary, fontWeight:'500' }}>{darkMode ? 'Dark' : 'Light'}</span>}
+              </span>
+            </button>
           </div>
-          <button onClick={() => setSidebarCollapsed(v => !v)} style={collapseBtn} title={sidebarCollapsed ? 'Expand' : 'Collapse'}>
-            <svg width="16" height="16" fill="none" viewBox="0 0 24 24"
-              style={{ flexShrink:0, transform: sidebarCollapsed ? 'rotate(180deg)' : 'none', transition:'transform 0.22s' }}>
-              <polyline points="15 18 9 12 15 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
+          <button onClick={() => setSidebarCollapsed(v => !v)} style={{ ...collapseBtn, marginTop:'6px' }} title={sidebarCollapsed ? 'Expand' : 'Collapse'}>
+            <ChevronLeft size={16}
+              style={{ flexShrink:0, transform: sidebarCollapsed ? 'rotate(180deg)' : 'none', transition:'transform 0.22s' }} />
             {!sidebarCollapsed && <span style={{ fontSize:'12px' }}>Collapse</span>}
           </button>
         </div>
@@ -743,21 +848,22 @@ campaignLeads.forEach(lead => {
       {/* ── Main ── */}
       <div className="dashboard-main" style={mainCol}>
 
-        {/* Topbar */}
+        {/* Topbar — real greeting + subtext */}
         <header className="dashboard-topbar" style={topbar}>
-          <div style={topbarTitle}>{navItems.find(n => n.id === activeNav)?.label || 'Dashboard'}</div>
+          <div>
+            <div style={topbarTitle}>
+              {greeting}, {displayFirstName}
+              <span style={{ color:'#d97706', display:'flex' }}><Sparkles size={16} color="#d97706" /></span>
+            </div>
+            <div style={topbarSub}>Here's what's happening with your campaigns today.</div>
+          </div>
           <div className="dashboard-topbar-actions" style={{ display:'flex', alignItems:'center', gap:'8px' }}>
-            {/* Dark mode toggle */}
-            <button style={toggleBtn} onClick={() => setDarkMode(v => !v)}>
-              {darkMode ? <SunIcon /> : <MoonIcon />}
-              <span>{darkMode ? 'Light' : 'Dark'}</span>
-            </button>
             <button
               className="icon-tooltip"
               style={{ ...iconBtn, ...tooltipVars }}
               data-tooltip="Notifications"
             >
-              <svg width="17" height="17" fill="none" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/><path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
+              <Bell size={17} />
             </button>
             <button
               className="icon-tooltip"
@@ -765,7 +871,15 @@ campaignLeads.forEach(lead => {
               data-tooltip="Help & Support"
               onClick={() => window.dispatchEvent(new Event('adnexus:toggle-chat'))}
             >
-              <svg width="17" height="17" fill="none" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              <CircleHelp size={17} />
+            </button>
+            <button
+              className="icon-tooltip"
+              style={{ ...iconBtn, ...tooltipVars }}
+              data-tooltip={darkMode ? 'Switch to light' : 'Switch to dark'}
+              onClick={() => setDarkMode(v => !v)}
+            >
+              {darkMode ? <Sun size={16} /> : <Moon size={16} />}
             </button>
           </div>
         </header>
@@ -773,12 +887,16 @@ campaignLeads.forEach(lead => {
         {/* Filter bar */}
         <div className="dashboard-filterbar" style={filterbar}>
           <span style={filterLabel}>Campaign</span>
-          <select style={filterSelect} value={selectedCampaign?.id || ''}
-            onChange={e => { const c = campaigns.find(x => x.id === parseInt(e.target.value)); if (c) handleCampaignChange(c) }}>
-            {campaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
+          <div style={{ position:'relative' }}>
+            <select style={filterSelect} value={selectedCampaign?.id || ''}
+              onChange={e => { const c = campaigns.find(x => x.id === parseInt(e.target.value)); if (c) handleCampaignChange(c) }}>
+              {campaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            <ChevronDown size={14} style={{ position:'absolute', right:'12px', top:'50%', transform:'translateY(-50%)', color: t.accent, pointerEvents:'none' }} />
+          </div>
           <div style={{ position: 'relative' }}>
             <div style={{ ...datePill, cursor: 'pointer' }} onClick={() => setShowDatePicker(v => !v)}>
+              <CalendarDays size={13} />
               {dateRangeLabel()}
             </div>
             {showDatePicker && (
@@ -815,32 +933,67 @@ campaignLeads.forEach(lead => {
             )}
           </div>
           <div style={{ marginLeft:'auto', display:'flex', gap:'8px' }}>
-            <button style={btnPrimary} onClick={() => navigate('/dashboard/create-campaign')}>+ New campaign</button>
-            <button style={btnGhost}   onClick={() => navigate('/dashboard/leads')}>View leads</button>
+            <button style={btnPrimary} onClick={() => navigate('/dashboard/create-campaign')}><Plus size={14} /> New campaign</button>
+            <button style={{ ...btnGhost, display:'flex', alignItems:'center', gap:'5px' }} onClick={() => navigate('/dashboard/leads')}><Users size={14} /> View leads</button>
           </div>
         </div>
 
         {/* Content */}
         <div className="dashboard-content" style={content}>
 
-          {/* KPI row */}
+          {selectedCampaign && (
+            <div style={{ fontWeight:'700', textTransform:'uppercase', color: darkMode ? 'rgba(123,184,255,0.75)' : 'rgba(37,99,235,0.7)', fontSize:'10px', letterSpacing:'2.4px' }}>
+              Total spend · {selectedCampaign.name}
+            </div>
+          )}
+
+          {/* KPI row — every number/progress bar below is derived from real state, no invented targets */}
           <div className="dashboard-kpis">
             {[
-              { label:'Total Spend',      value:`₹${totalSpent.toLocaleString()}`, sub: totalBudget > 0 ? ` / ₹${totalBudget.toLocaleString()}` : null },
-              { label:'Total Leads',      value: totalLeads || '—' },
-              { label:'Unified CPL',      value: unifiedCPL ? `₹${unifiedCPL}` : '—' },
-              { label:'Active Campaigns', value: activeCampaigns || '—' },
+              {
+                label:'Total Spend', value:`₹${totalSpent.toLocaleString()}`,
+                sub: totalBudget > 0 ? `of ₹${totalBudget.toLocaleString()} budget` : null,
+                progress: totalBudget > 0 ? budgetUsedPct : null,
+                progressColor: kpiAccentColors[0],
+                progressNote: totalBudget > 0 ? [`${budgetUsedPct}% used`, `₹${totalBudget.toLocaleString()} budget`] : null,
+              },
+              {
+                label:'Total Leads', value: totalLeads || '—',
+                sub: null,
+                progress: null,
+              },
+              {
+                label:'Unified CPL', value: unifiedCPL ? `₹${unifiedCPL}` : '—',
+                sub: null,
+                progress: null,
+              },
+              {
+                label:'Active Campaigns', value: activeCampaigns || '—',
+                sub: filteredCampaigns.length > 0 ? `of ${filteredCampaigns.length} total` : null,
+                progress: filteredCampaigns.length > 0 ? activeRatioPct : null,
+                progressColor: kpiAccentColors[3],
+                progressNote: filteredCampaigns.length > 0 ? [`${activeCampaigns} active`, `${filteredCampaigns.length} total`] : null,
+                segmented: true,
+              },
             ].map((k, i) => (
-              <div key={k.label} className="kpi-card" style={{ background: t.kpiBg, border: t.border, borderRadius:'16px', padding:'20px 20px 18px', position:'relative', overflow:'hidden', ...(darkMode ? { backdropFilter:'blur(12px)' } : { boxShadow: t.kpiShadow }) }}>
-                <div style={{ position:'absolute', top:0, left:0, right:0, height:'3px', background: kpiAccentColors[i], borderRadius:'16px 16px 0 0' }} />
-                <div className="kpi-icon" style={{ width:'34px', height:'34px', borderRadius:'10px', background: kpiIconColors[i].bg, color: kpiIconColors[i].color, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'17px', fontWeight:'700', marginBottom:'14px' }}>
-                  {['₹','↗','⌀','◈'][i]}
+              <div key={k.label} className="kpi-card" style={{ background: kpiCardBg[i], border: darkMode ? `1px solid ${kpiAccentColors[i]}22` : `1px solid ${kpiAccentColors[i]}18`, borderRadius:'22px', padding:'22px 22px 20px', position:'relative', overflow:'hidden', boxShadow: darkMode ? 'none' : `0 4px 14px ${kpiAccentColors[i]}12` }}>
+                <div className="kpi-icon" style={{ width:'44px', height:'44px', borderRadius:'14px', background: kpiIconColors[i].bg, color: kpiIconColors[i].color, display:'flex', alignItems:'center', justifyContent:'center', marginBottom:'18px' }}>
+                  {[<IndianRupee size={20} key="ir" />, <UsersRound size={20} key="ur" />, <BadgeIndianRupee size={20} key="bir" />, <Activity size={20} key="ac" />][i]}
                 </div>
-                <div className="kpi-label" style={{ fontSize:'10px', fontWeight:'600', color: t.textSecondary, textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:'8px' }}>{k.label}</div>
-                <div className="kpi-value" style={{ fontSize:'24px', fontWeight:'700', color: t.textPrimary, lineHeight:1, letterSpacing:'-0.5px' }}>
+                <div className="kpi-label" style={{ fontSize:'10px', fontWeight:'700', color: t.textMuted, textTransform:'uppercase', letterSpacing:'0.14em', marginBottom:'8px' }}>{k.label}</div>
+                <div className="kpi-value" style={{ fontSize:'27px', fontWeight:'800', color: t.textPrimary, lineHeight:1, letterSpacing:'-0.4px' }}>
                   {k.value}
-                  {k.sub && <span className="kpi-sub" style={{ fontSize:'13px', color: t.textMuted, fontWeight:'400' }}>{k.sub}</span>}
                 </div>
+                {k.sub && <div className="kpi-sub" style={{ fontSize:'11px', color: t.textSecondary, fontWeight:'400', marginTop:'8px' }}>{k.sub}</div>}
+                {k.progress != null && (
+                  <div className="kpi-progress-wrap" style={{ marginTop:'18px' }}>
+                    {k.segmented ? segmentedBar(k.progress, kpiTextColors[i]) : progressBar(k.progress, kpiTextColors[i], darkMode ? 'rgba(255,255,255,0.08)' : `${kpiAccentColors[i]}18`)}
+                    <div style={{ display:'flex', justifyContent:'space-between', fontSize:'10px', color: t.textMuted, marginTop:'8px' }}>
+                      <span>{k.progressNote[0]}</span>
+                      <span>{k.progressNote[1]}</span>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -854,7 +1007,10 @@ campaignLeads.forEach(lead => {
               {/* Platform performance */}
               <div style={card}>
                 <div style={cardHeader}>
-                  <span style={cardTitle}>Platform Performance</span>
+                  <div>
+                    <div style={cardTitle}>Platform Performance</div>
+                    <div style={cardSub}>Spend and lead quality for your active channels</div>
+                  </div>
                   <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
                     {selectedCampaign && badge('badgeBlue', selectedCampaign.name)}
                     {selectedCampaign && (
@@ -862,14 +1018,16 @@ campaignLeads.forEach(lead => {
                         onClick={handleSyncStats}
                         disabled={syncing}
                         style={{
-                          background: syncing ? '#93b8f4' : t.accent,
-                          color: '#fff', border: 'none', borderRadius: '8px',
-                          padding: '5px 12px', fontSize: '11px', fontWeight: '600',
+                          background: syncing ? '#93b8f4' : 'linear-gradient(135deg,#2b7fff,#1660e8)',
+                          color: '#fff', border: 'none', borderRadius: '20px',
+                          padding: '7px 16px', fontSize: '11px', fontWeight: '700',
                           cursor: syncing ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
-                          whiteSpace: 'nowrap',
+                          whiteSpace: 'nowrap', display:'flex', alignItems:'center', gap:'6px',
+                          boxShadow: syncing ? 'none' : '0 4px 14px rgba(43,127,255,0.4)',
                         }}
                       >
-                        {syncing ? '⏳ Syncing...' : '🔄 Refresh Stats'}
+                        <RefreshCw size={13} style={{ animation: syncing ? 'spin 0.9s linear infinite' : 'none' }} />
+                        {syncing ? 'Syncing...' : 'Refresh Stats'}
                       </button>
                     )}
                   </div>
@@ -883,30 +1041,37 @@ campaignLeads.forEach(lead => {
                 : platformStats.length === 0 ? <div style={emptyStyle}>{selectedCampaign ? 'No platform data for this campaign yet.' : 'Select a campaign to see stats.'}</div>
                 : (
                   <>
-                  {/* Desktop / tablet: full table with all columns, horizontally scrollable */}
-                  <div className="dashboard-table-scroll platform-table-desktop">
+                  {/* Desktop / tablet: bordered rounded table, all columns */}
+                  <div className="dashboard-table-scroll platform-table-desktop" style={{ borderRadius:'14px', border: `1.5px solid ${t.borderColor}`, overflow:'hidden', boxShadow: darkMode ? 'none' : '0 4px 16px rgba(43,127,255,0.08)', '--platform-row-hover': darkMode ? 'rgba(59,139,255,0.14)' : '#eaf2ff' }}>
                     <table style={table}>
-                      <thead><tr>{['Platform','Impressions','Clicks','Spend','Leads','CPL'].map(h => <th key={h} style={th}>{h}</th>)}</tr></thead>
+                      <thead><tr>{['Platform','Impressions','Clicks','Spend','Leads','CPL'].map(h => <th key={h} style={{ ...th, background: darkMode ? 'rgba(59,139,255,0.1)' : '#eaf2ff', color: darkMode ? '#7bb8ff' : '#1660e8' }}>{h}</th>)}</tr></thead>
                       <tbody>
                         {platformStats.map((p, i) => {
-                          const cpl = p.leads > 0 ? (p.spend / p.leads).toFixed(2) : null
+                          const rowColor = kpiAccentColors[i % kpiAccentColors.length]
+                          const brand = platformBrand(p)
                           return (
-                            <tr key={p.platform_id || i}>
-                            <td style={td}>
-                              <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
-                                <div style={chip}>{(p.platform_name || p.platform || 'P').charAt(0).toUpperCase()}</div>
-                                <span style={{ fontWeight:'500' }}>{p.platform_name || p.platform || '—'}</span>
+                            <tr key={p.platform_id || i} className="platform-row">
+                            <td style={{ ...td, borderTop: i === 0 ? 'none' : td.borderTop, fontWeight:'700' }}>
+                              <div style={{ display:'flex', alignItems:'center', gap:'9px' }}>
+                                {brand ? (
+                                  <div style={{ ...chip, background: brand.bg, color:'#fff', boxShadow:'0 3px 8px rgba(0,0,0,0.15)' }}>
+                                    <brand.Icon size={14} />
+                                  </div>
+                                ) : (
+                                  <div style={{ ...chip, background: `linear-gradient(135deg,${rowColor},${rowColor}cc)`, color:'#fff', boxShadow:`0 3px 8px ${rowColor}55` }}>{(p.platform_name || p.platform || 'P').charAt(0).toUpperCase()}</div>
+                                )}
+                                <span>{p.platform_name || p.platform || '—'}</span>
                               </div>
                             </td>
-                            <td style={td}>{fmt(p.impressions)}</td>
-                            <td style={td}>{p.clicks ? p.clicks.toLocaleString() : '—'}</td>
-                            <td style={td}>{p.spend ? `₹${p.spend.toLocaleString()}` : '—'}</td>
-                            <td style={td}>{badge('badgeBlue', leadsByPlatform[p.platform_name || p.platform] ?? '—')}</td>
-<td style={td}>{badge('badgePurple', (() => {
-  const pLeads = leadsByPlatform[p.platform_name || p.platform] || 0
-  const pCpl = pLeads > 0 ? (p.spend / pLeads).toFixed(2) : null
-  return pCpl ? `₹${pCpl}` : '—'
-})())}</td>
+                            <td style={{ ...td, borderTop: i === 0 ? 'none' : td.borderTop, color: t.textSecondary }}>{fmt(p.impressions)}</td>
+                            <td style={{ ...td, borderTop: i === 0 ? 'none' : td.borderTop, color: t.textSecondary }}>{p.clicks ? p.clicks.toLocaleString() : '—'}</td>
+                            <td style={{ ...td, borderTop: i === 0 ? 'none' : td.borderTop, fontWeight:'700' }}>{p.spend ? `₹${p.spend.toLocaleString()}` : '—'}</td>
+                            <td style={{ ...td, borderTop: i === 0 ? 'none' : td.borderTop }}>{badge('badgeBlue', leadsByPlatform[platformStatKey(p)] ?? '—')}</td>
+                            <td style={{ ...td, borderTop: i === 0 ? 'none' : td.borderTop }}>{badge('badgePurple', (() => {
+                              const pLeads = leadsByPlatform[platformStatKey(p)] || 0
+                              const pCpl = pLeads > 0 ? (p.spend / pLeads).toFixed(2) : null
+                              return pCpl ? `₹${pCpl}` : '—'
+                            })())}</td>
                           </tr>
                         )
                       })}
@@ -914,28 +1079,35 @@ campaignLeads.forEach(lead => {
                   </table>
                   </div>
 
-                  {/* Mobile: compact 4-column table (Platform / Spend / Leads / CPL) + Total row */}
+                  {/* Mobile: compact 4-column table + Total row */}
                   <div className="platform-table-mobile">
                     <table style={table}>
                       <thead><tr>{['Platform','Spend','Leads','CPL'].map(h => <th key={h} style={{ ...th, padding:'6px 8px' }}>{h}</th>)}</tr></thead>
                       <tbody>
                         {platformStats.map((p, i) => {
-                          const cpl = p.leads > 0 ? (p.spend / p.leads).toFixed(2) : null
+                          const rowColor = kpiAccentColors[i % kpiAccentColors.length]
+                          const brand = platformBrand(p)
                           return (
                             <tr key={p.platform_id || i}>
                               <td style={{ ...td, padding:'8px' }}>
                                 <div style={{ display:'flex', alignItems:'center', gap:'6px' }}>
-                                  <div style={{ ...chip, width:'20px', height:'20px', fontSize:'10px' }}>{(p.platform_name || p.platform || 'P').charAt(0).toUpperCase()}</div>
-                                  <span style={{ fontWeight:'500', fontSize:'12px' }}>{p.platform_name || p.platform || '—'}</span>
+                                  {brand ? (
+                                    <div style={{ ...chip, width:'20px', height:'20px', background: brand.bg, color:'#fff' }}>
+                                      <brand.Icon size={11} />
+                                    </div>
+                                  ) : (
+                                    <div style={{ ...chip, width:'20px', height:'20px', fontSize:'10px', background: `linear-gradient(135deg,${rowColor},${rowColor}cc)`, color:'#fff' }}>{(p.platform_name || p.platform || 'P').charAt(0).toUpperCase()}</div>
+                                  )}
+                                  <span style={{ fontWeight:'600', fontSize:'12px' }}>{p.platform_name || p.platform || '—'}</span>
                                 </div>
                               </td>
                               <td style={{ ...td, padding:'8px', fontSize:'12px' }}>{p.spend ? `₹${p.spend.toLocaleString()}` : '—'}</td>
-                              <td style={{ ...td, padding:'8px', fontSize:'12px' }}>{leadsByPlatform[p.platform_name || p.platform] ?? '—'}</td>
-<td style={{ ...td, padding:'8px', fontSize:'12px' }}>{(() => {
-  const pLeads = leadsByPlatform[p.platform_name || p.platform] || 0
-  const pCpl = pLeads > 0 ? (p.spend / pLeads).toFixed(2) : null
-  return pCpl ? `₹${pCpl}` : '—'
-})()}</td>
+                              <td style={{ ...td, padding:'8px', fontSize:'12px' }}>{leadsByPlatform[platformStatKey(p)] ?? '—'}</td>
+                              <td style={{ ...td, padding:'8px', fontSize:'12px' }}>{(() => {
+                                const pLeads = leadsByPlatform[platformStatKey(p)] || 0
+                                const pCpl = pLeads > 0 ? (p.spend / pLeads).toFixed(2) : null
+                                return pCpl ? `₹${pCpl}` : '—'
+                              })()}</td>
                             </tr>
                           )
                         })}
@@ -952,74 +1124,58 @@ campaignLeads.forEach(lead => {
                 )}
               </div>
 
-              {/* Campaigns */}
+              {/* Recent campaigns — row-card style */}
               <div style={card}>
                 <div style={cardHeader}>
-                  <span style={cardTitle}>Your Campaigns</span>
-                  <button style={btnPrimary} onClick={() => navigate('/dashboard/create-campaign')}>+ New</button>
+                  <div>
+                    <div style={cardTitle}>Recent Campaigns</div>
+                    <div style={cardSub}>Monitor your latest campaign activity</div>
+                  </div>
+                  <button onClick={() => navigate('/dashboard/leads')} style={{ background:'none', border:'none', cursor:'pointer', color: t.accent, fontSize:'12px', fontWeight:'600', display:'flex', alignItems:'center', gap:'4px', fontFamily:'inherit' }}>
+                    View all
+                    <ArrowUpRight size={12} />
+                  </button>
                 </div>
                 {loading ? <div style={emptyStyle}>Loading…</div>
                 : campaigns.length === 0 ? <div style={emptyStyle}>No campaigns yet. Create one to get started.</div>
                 : (
                   <>
-                  <div className="dashboard-table-scroll">
-                    <table style={table}>
-                      <thead><tr>{['Campaign','Goal','Budget','Status','Start date','Actions'].map(h => <th key={h} style={th}>{h}</th>)}</tr></thead>
-                    <tbody>
-                      {filteredCampaigns.map(c => (
-                        <tr key={c.id}>
-                          <td style={{ ...td, cursor:'pointer', color: t.accent, fontWeight:'600' }} onClick={() => navigate(`/dashboard/campaign/${c.id}`)}>{c.name}</td>
-                          <td style={td}>{badge('badgeBlue', c.goal || '—')}</td>
-                          <td style={td}>{c.budget ? `₹${c.budget.toLocaleString()}` : '—'}</td>
-                          <td style={td}>{badge(c.status === 'active' ? 'badgeGreen' : 'badgeAmber', c.status || '—')}</td>
-                          <td style={td}>{c.start_date || '—'}</td>
-                          <td style={td}>
-                            <div style={{ display:'flex', gap:'5px' }}>
-                              <button style={manageBtn}>Manage</button>
-                              <button style={deleteBtn} onClick={() => handleDelete(c.id)}>Delete</button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  </div>
-
-                  {/* Mobile card view — richer "Recent Campaigns" style card:
-                      status badge + name + platform·goal line + Spend/Leads/CPL mini-grid */}
-                  <div className="dashboard-mobile-cards">
-                    {filteredCampaigns.map(c => {
+                  <div style={{ display:'flex', flexDirection:'column', gap:'4px' }}>
+                    {filteredCampaigns.slice(0, 6).map(c => {
                       const cLeadsCount = leads.filter(l => l.campaign_id === c.id || l.campaign_id === String(c.id)).length
                       const cStat = platformStats.find(p => p.campaign_id === c.id || p.campaign_id === String(c.id))
-                      const cSpend = cStat?.spend
-                      const cCpl = cStat?.leads > 0 ? (cStat.spend / cStat.leads).toFixed(2) : null
+                      // Real spend only — never fall back to budget (budget ≠ spend). Defaults to 0 when nothing tracked yet.
+                      const cSpend = cStat?.spend ?? c.budget_spent ?? 0
+                      // Real "ending soon" derivation — end_date within 7 days — no invented status
+                      const daysToEnd = c.end_date ? Math.ceil((new Date(c.end_date) - new Date()) / 86400000) : null
+                      const isEndingSoon = c.status === 'active' && daysToEnd != null && daysToEnd >= 0 && daysToEnd <= 7
+                      const statusLabel = isEndingSoon ? 'Ending soon' : (c.status || '—')
                       return (
-                        <div key={c.id} style={{ border: t.border, borderRadius:'12px', padding:'12px 14px', background: darkMode ? 'rgba(255,255,255,0.03)' : '#fafbff' }}>
-                          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:'8px', marginBottom:'6px' }}>
-                            {badge(c.status === 'active' ? 'badgeGreen' : 'badgeAmber', c.status || '—')}
+                        <div key={c.id} className="campaign-row-card" style={{ '--row-hover-bg': t.rowHover, borderRadius:'14px', display:'flex', padding:'12px', alignItems:'center', gap:'14px' }}>
+                          <div style={{ width:'38px', height:'38px', borderRadius:'12px', background: t.chipBg, color: t.chipColor, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                            <Megaphone size={16} color={t.chipColor} />
                           </div>
-                          <div style={{ fontWeight:'600', color: t.textPrimary, cursor:'pointer', fontSize:'13px', marginBottom:'4px' }} onClick={() => navigate(`/dashboard/campaign/${c.id}`)}>{c.name}</div>
-                          <div style={{ display:'flex', flexWrap:'wrap', alignItems:'center', gap:'6px', marginBottom:'10px', fontSize:'11px', color: t.textSecondary }}>
-                            {badge('badgeBlue', c.goal || '—')}
-                            <span style={{ color: t.textMuted }}>{c.start_date || '—'}</span>
-                          </div>
-                          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'6px', marginBottom:'10px' }}>
-                            <div>
-                              <div style={{ fontSize:'9px', color: t.textMuted, textTransform:'uppercase', marginBottom:'2px' }}>Spend</div>
-                              <div style={{ fontSize:'12px', fontWeight:'600', color: t.textPrimary }}>{cSpend ? `₹${cSpend.toLocaleString()}` : (c.budget ? `₹${c.budget.toLocaleString()}` : '—')}</div>
-                            </div>
-                            <div>
-                              <div style={{ fontSize:'9px', color: t.textMuted, textTransform:'uppercase', marginBottom:'2px' }}>Leads</div>
-                              <div style={{ fontSize:'12px', fontWeight:'600', color: t.textPrimary }}>{cLeadsCount || '—'}</div>
-                            </div>
-                            <div>
-                              <div style={{ fontSize:'9px', color: t.textMuted, textTransform:'uppercase', marginBottom:'2px' }}>CPL</div>
-                              <div style={{ fontSize:'12px', fontWeight:'600', color: t.textPrimary }}>{cCpl ? `₹${cCpl}` : '—'}</div>
+                          <div style={{ minWidth:0, flex:1, cursor:'pointer' }} onClick={() => navigate(`/dashboard/campaign/${c.id}`)}>
+                            <div style={{ fontWeight:'700', fontSize:'14px', color: t.textPrimary, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{c.name}</div>
+                            <div style={{ fontSize:'11px', color: t.textSecondary, marginTop:'3px' }}>
+                              {(c.goal || '—')}{c.start_date ? ` · Started ${new Date(c.start_date).toLocaleDateString('en-IN', { month:'short', day:'numeric' })}` : ''}
                             </div>
                           </div>
-                          <div style={{ display:'flex', gap:'6px' }}>
-                            <button style={{ ...manageBtn, flex:1, textAlign:'center' }}>Manage</button>
-                            <button style={{ ...deleteBtn, flex:1, textAlign:'center' }} onClick={() => handleDelete(c.id)}>Delete</button>
+                          {badge('badgeBlue', statusLabel)}
+                          <div style={{ textAlign:'right', width:'96px', flexShrink:0 }}>
+                            <div style={{ fontWeight:'700', fontSize:'12px', color: t.textPrimary }}>₹{cSpend.toLocaleString()}</div>
+                            <div style={{ fontSize:'10px', color: t.textMuted, marginTop:'2px' }}>{cLeadsCount} leads</div>
+                          </div>
+                          <div className="campaign-more-wrap">
+                            <button className="campaign-more-btn" onClick={() => setOpenMenuId(v => v === c.id ? null : c.id)} style={{ color: t.textMuted }}>
+                              <MoreHorizontal size={16} color={t.textMuted} />
+                            </button>
+                            {openMenuId === c.id && (
+                              <div style={{ position:'absolute', right:0, top:'calc(100% + 4px)', zIndex:20, background: t.cardBg, border: t.border, borderRadius:'10px', boxShadow:'0 8px 20px rgba(0,0,0,0.12)', overflow:'hidden', minWidth:'110px' }}>
+                                <button style={{ display:'block', width:'100%', textAlign:'left', padding:'8px 12px', background:'none', border:'none', cursor:'pointer', fontSize:'12px', color: t.textPrimary, fontFamily:'inherit' }} onClick={() => { setOpenMenuId(null); navigate(`/dashboard/campaign/${c.id}`) }}>Manage</button>
+                                <button style={{ display:'block', width:'100%', textAlign:'left', padding:'8px 12px', background:'none', border:'none', cursor:'pointer', fontSize:'12px', color: t.deleteColor, fontFamily:'inherit' }} onClick={() => { setOpenMenuId(null); handleDelete(c.id) }}>Delete</button>
+                              </div>
+                            )}
                           </div>
                         </div>
                       )
@@ -1071,7 +1227,6 @@ campaignLeads.forEach(lead => {
                   </table>
                   </div>
 
-                  {/* Mobile card view */}
                   <div className="dashboard-mobile-cards">
                     {campaignLeads.slice(0, 5).map((lead, i) => {
                       const score = lead.quality_score
@@ -1102,69 +1257,52 @@ campaignLeads.forEach(lead => {
             {/* Right col */}
             <div className="dashboard-right-col">
 
-              {/* Geo */}
-              <div style={card}>
-                <div style={cardHeader}><span style={cardTitle}>Geographic Reach</span></div>
-                <div style={geoMap}>
-                  <svg viewBox="0 0 240 130" width="100%" height="100%" fill="none">
-                    <ellipse cx="130" cy="65" rx="90" ry="55" fill={t.geoBlob} opacity="0.5"/>
-                    <circle cx="148" cy="52" r="22" fill={t.geoBlob}/>
-                    <circle cx="148" cy="52" r="13" fill={t.geoBlobDeep}/>
-                    <circle cx="128" cy="62" r="14" fill={t.geoBlob}/>
-                    <circle cx="82"  cy="38" r="11" fill={t.geoBlob}/>
-                    <circle cx="95"  cy="90" r="15" fill={t.geoBlob}/>
-                    <text x="57"  y="30"  fontSize="9" fill={t.geoText}>Ludhiana</text>
-                    <text x="157" y="45"  fontSize="9" fill={t.geoText}>Noida</text>
-                    <text x="130" y="70"  fontSize="9" fill={t.geoText}>Delhi NCR</text>
-                    <text x="70"  y="108" fontSize="9" fill={t.geoText}>Mumbai</text>
-                  </svg>
-                </div>
-                {selectedCampaign ? (
-                  <div>
-                    {[
-                      ['Campaign', selectedCampaign.name],
-                      selectedCampaign.goal && ['Goal', selectedCampaign.goal],
-                      selectedCampaign.budget != null && ['Budget', `₹${selectedCampaign.budget.toLocaleString()}`],
-                      selectedCampaign.status && ['Status', selectedCampaign.status],
-                    ].filter(Boolean).map(([k, v]) => (
-                      <div key={k} style={targetRow}>
-                        <span style={{ color: t.textSecondary }}>{k}</span>
-                        <span style={{ color: t.textPrimary, fontWeight:'500' }}>{v}</span>
-                      </div>
-                    ))}
-                  </div>
-                ) : <div style={emptyStyle}>Select a campaign.</div>}
-              </div>
-
               {/* Quick actions */}
               <div style={card}>
                 <div style={cardHeader}><span style={cardTitle}>Quick Actions</span></div>
                 {[
-                  { label:'Create new campaign', icon:'+', iconBg: darkMode ? 'rgba(59,139,255,0.2)' : '#eff6ff', iconColor: darkMode ? '#7bb8ff' : '#2563eb', action: () => navigate('/dashboard/create-campaign') },
-                 { label:'Download leads (PDF)', icon:'↓', iconBg: darkMode ? 'rgba(52,211,153,0.15)' : '#f0fdf4', iconColor: darkMode ? '#6ee7b7' : '#16a34a', action: handleDownloadLeadsPDF },
-                 ].map(a => (
-                  <button key={a.label} style={{ ...actionBtn, ...(a.danger ? { color: darkMode ? '#fca5a5' : '#dc2626', borderColor: darkMode ? 'rgba(248,113,113,0.2)' : '#fecaca' } : {}) }} onClick={a.action}>
+                  { label:'Create new campaign', icon:<Plus size={15} />, iconBg: darkMode ? 'rgba(59,139,255,0.2)' : '#eaf2ff', iconColor: darkMode ? '#7bb8ff' : '#2b7fff', action: () => navigate('/dashboard/create-campaign') },
+                  { label:'Download leads (PDF)', icon:<Download size={15} />, iconBg: darkMode ? 'rgba(52,211,153,0.15)' : '#f0fdf4', iconColor: darkMode ? '#6ee7b7' : '#16a34a', action: handleDownloadLeadsPDF },
+                  { label:'Manage integrations', icon:<Settings2 size={15} />, iconBg: darkMode ? 'rgba(167,139,250,0.15)' : '#faf5ff', iconColor: darkMode ? '#c4b5fd' : '#7c3aed', action: () => navigate('/dashboard/settings') },
+                ].map(a => (
+                  <button key={a.label} style={actionBtn} onClick={a.action}>
                     <span style={{ ...actionIcon, background: a.iconBg, color: a.iconColor }}>{a.icon}</span>
                     {a.label}
                   </button>
                 ))}
               </div>
 
-              {/* AI suggestions */}
-              <div style={card}>
-                <div style={cardHeader}>
-                  <span style={cardTitle}>AI Suggestions</span>
-                  <span style={{ fontSize:'10px', fontWeight:'600', color: t.accent, background: t.accentLight, padding:'2px 8px', borderRadius:'20px', border:`1px solid ${t.accentBorder}` }}>Live</span>
+              {/* AI suggestions — solid accent card, real data from platformStats */}
+              <div style={{
+                borderRadius:'18px',
+                background: 'linear-gradient(135deg,#2563eb,#1d4ed8)',
+                color:'#eff6ff',
+                padding:'20px 22px',
+                boxShadow: darkMode ? '0 8px 24px rgba(37,99,235,0.35)' : '0 8px 24px rgba(37,99,235,0.25)',
+              }}>
+                <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
+                  <Sparkles size={16} color="#eff6ff" />
+                  <span style={{ fontWeight:'700', fontSize:'13px' }}>AI Suggestions</span>
+                  <span style={{ marginLeft:'auto', fontSize:'9px', fontWeight:'700', background:'rgba(255,255,255,0.18)', padding:'3px 9px', borderRadius:'20px' }}>Live</span>
                 </div>
-                {aiSuggestions.length === 0
-                  ? <div style={emptyStyle}>Suggestions appear once platform data is available.</div>
-                  : aiSuggestions.map((tip, i) => (
-                    <div key={i} style={{ ...aiBox, marginBottom: i < aiSuggestions.length - 1 ? '8px' : 0 }}>
-                      <div style={aiPulse} />
+                {aiSuggestions.length === 0 ? (
+                  <p style={{ color:'rgba(239,246,255,0.75)', fontSize:'12px', lineHeight:'1.6', marginTop:'14px' }}>
+                    Suggestions appear once platform data is available.
+                  </p>
+                ) : (
+                  aiSuggestions.map((tip, i) => (
+                    <p key={i} style={{ color:'rgba(239,246,255,0.85)', fontSize:'12px', lineHeight:'1.7', marginTop: i === 0 ? '14px' : '8px' }}>
                       {tip}
-                    </div>
+                    </p>
                   ))
-                }
+                )}
+                <button
+                  onClick={() => { setActiveNav('analytics') }}
+                  style={{ background:'none', border:'none', cursor:'pointer', color:'#eff6ff', fontSize:'12px', fontWeight:'600', display:'flex', alignItems:'center', gap:'4px', marginTop:'14px', marginLeft:'auto', fontFamily:'inherit' }}
+                >
+                  View analytics
+                  <ArrowRight size={12} />
+                </button>
               </div>
 
             </div>

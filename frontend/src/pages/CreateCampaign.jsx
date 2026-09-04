@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import AdContent from './AdContent'
 import FormPreview from './FormPreview'
 import { POPULAR_CITIES } from '../data/cities'
+import logo from '../assets/logo.png'
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://127.0.0.1:8000'
 
@@ -1356,9 +1357,12 @@ const content = adContents[googleId] || Object.values(adContents).find(c => c?.i
       {/* ── Left Panel ── */}
       <div className="app-sidebar" style={s.leftPanel}>
         <div style={s.leftLogo}>
-          <div style={s.logoMark}>A</div>
-          <span style={s.leftLogoText}>AdNexus</span>
-        </div>
+  <img src={logo} alt="AdNexus" style={{ width: '34px', height: '34px', objectFit: 'contain', flexShrink: 0 }} />
+  <div>
+    <div style={{ fontSize: '16px', fontWeight: 700, color: '#fff' }}>AdNexus</div>
+    <div style={{ fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', letterSpacing: '2.5px' }}>Growth OS</div>
+  </div>
+</div>
         <div className="mobile-step-info">Step {step}/{steps.length} · {steps[step-1].label}</div>
         <div className="desktop-only" style={s.leftContent}>
           <h2 style={s.leftTitle}>Launch your next B2B campaign</h2>

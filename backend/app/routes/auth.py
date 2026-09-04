@@ -1,4 +1,5 @@
 import re
+from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from datetime import datetime
@@ -220,20 +221,82 @@ def resend_otp(data: ResendOtpRequest, db: Session = Depends(get_db)):
 # ════════════════════════════════════════════════════
 # LOGIN
 # ════════════════════════════════════════════════════
+MAX_ATTEMPTS = 3
+LOCKOUT_MINUTES = 2
+
 @router.post("/login", response_model=TokenResponse)
 def login(data: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == data.email).first()
 
-    if not user or not user.password or not verify_password(data.password, user.password):
-        raise HTTPException(status_code=401, detail="Invalid email or password")
+    if not user:
+        raise HTTPException(status_code=401, detail={"message": "Invalid email or password"})
+
+    now = datetime.utcnow()
+
+    # ── Already locked? ──
+    if user.lockout_until and user.lockout_until > now:
+        retry_after = int((user.lockout_until - now).total_seconds())
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "message": "Too many failed attempts. Please try again later.",
+                "locked": True,
+                "retry_after": retry_after,
+            },
+        )
+
+    # Agar lockout ka time nikal chuka hai, to ye ab "bonus/1 attempt" hai
+    was_in_cooldown = user.lockout_until is not None and user.lockout_until <= now
+
+    # ── Wrong password ──
+    if not user.password or not verify_password(data.password, user.password):
+
+        if was_in_cooldown:
+            # Bonus attempt bhi galat -> turant phir se 2 min lock
+            user.lockout_until = now + timedelta(minutes=LOCKOUT_MINUTES)
+            user.failed_login_attempts = 0
+            db.commit()
+            raise HTTPException(
+                status_code=429,
+                detail={
+                    "message": "Incorrect password. Locked again for 2 minutes.",
+                    "locked": True,
+                    "retry_after": LOCKOUT_MINUTES * 60,
+                },
+            )
+
+        user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
+
+        if user.failed_login_attempts >= MAX_ATTEMPTS:
+            user.lockout_until = now + timedelta(minutes=LOCKOUT_MINUTES)
+            user.failed_login_attempts = 0
+            db.commit()
+            raise HTTPException(
+                status_code=429,
+                detail={
+                    "message": "Too many failed attempts. Account locked for 2 minutes.",
+                    "locked": True,
+                    "retry_after": LOCKOUT_MINUTES * 60,
+                },
+            )
+
+        attempts_left = MAX_ATTEMPTS - user.failed_login_attempts
+        db.commit()
+        raise HTTPException(
+            status_code=401,
+            detail={"message": "Invalid email or password", "attempts_left": attempts_left},
+        )
 
     if not user.is_verified:
         raise HTTPException(status_code=403, detail="Please verify your account first")
 
+    # ── Success: sab reset ──
+    user.failed_login_attempts = 0
+    user.lockout_until = None
+    db.commit()
+
     token = create_access_token({"sub": str(user.id)})
-
     return {"access_token": token, "user": user}
-
 
 # ════════════════════════════════════════════════════
 # GET CURRENT USER (/me)
