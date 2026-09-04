@@ -11,6 +11,16 @@ import LandingPage from './components/landing/LandingPage.jsx'
 import AboutUs from './components/landing/AboutUs.jsx'
 import PrivacyPolicy from './components/landing/PrivacyPolicy.jsx'
 import Terms from './components/landing/Terms.jsx'
+import HowItWorks from './components/landing/HowItWorks.jsx'
+import ContactUs from './components/landing/ContactUs.jsx'
+import Services from './pages/Services.jsx'
+
+// Individual service detail pages
+import ServiceAdvertising from './pages/ServiceAdvertising.jsx'
+import ITSoftware from './pages/ITSoftware.jsx'
+import ManpowerHR from './pages/ManpowerHR.jsx'
+import FinancialAdvisory from './pages/FinancialAdvisory.jsx'
+import RealEstateConsulting from './pages/RealEstateConsulting.jsx'
 
 // Auth pages
 import Login from './pages/Login.jsx'
@@ -27,15 +37,14 @@ import ReferEarn from './pages/ReferEarn.jsx'
 import PublicLeadForm from './pages/PublicLeadForm.jsx'
 import ThankYou from './pages/ThankYou.jsx'
 
-
-
 import Settings from './pages/Settings'
 import AdminDashboard from './pages/AdminDashboard.jsx'
 
 import OAuthSuccess from './pages/OAuthSuccess.jsx'
 import ChatWidget from './pages/ChatWidget.jsx'
 
-
+// Footer — ab common layout mein hai, isliye har route pe dikhega
+import Footer from './components/Footer.jsx'
 
 const CampaignDetail = lazy(() => import('./pages/CampaignDetail.jsx'))
 const AdContent = lazy(() => import('./pages/AdContent.jsx'))
@@ -52,6 +61,14 @@ function App() {
             {/* ── Public: Landing Page ── */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/about" element={<AboutUs />} />
+            <Route path="/how-it-works" element={<HowItWorks />} />
+            <Route path="/contact" element={<ContactUs />} />
+            <Route path="/services" element={<Services />} />
+            <Route path="/services/advertising-media" element={<ServiceAdvertising />} />
+            <Route path="/services/it-software" element={<ITSoftware />} />
+            <Route path="/services/manpower-hr" element={<ManpowerHR />} />
+            <Route path="/services/financial-advisory" element={<FinancialAdvisory />} />
+            <Route path="/services/real-estate" element={<RealEstateConsulting />} />
             <Route path="/privacy-policy" element={<PrivacyPolicy />} />
             <Route path="/terms" element={<Terms />} />
 
@@ -60,7 +77,7 @@ function App() {
             <Route path="/signup" element={<Signup />} />
             <Route path="/verify-otp" element={<VerifyOtp />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/reset-password" element={<ResetPassword />} /> 
+            <Route path="/reset-password" element={<ResetPassword />} />
 
             {/* ── Public: Lead Form (customers fill this from ads) ── */}
             <Route path="/lead/:campaignId" element={<PublicLeadForm />} />
@@ -71,8 +88,8 @@ function App() {
               <ProtectedRoute><Dashboard /></ProtectedRoute>
             } />
             <Route path="/dashboard/refer" element={
-  <ProtectedRoute><ReferEarn /></ProtectedRoute>
-} />
+              <ProtectedRoute><ReferEarn /></ProtectedRoute>
+            } />
             <Route path="/dashboard/create-campaign" element={
               <ProtectedRoute><CreateCampaign /></ProtectedRoute>
             } />
@@ -106,6 +123,7 @@ function App() {
 
           </Routes>
 
+          <Footer />
           <ChatWidget />
 
         </BrowserRouter>
